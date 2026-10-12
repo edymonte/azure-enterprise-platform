@@ -1,0 +1,60 @@
+{{- if .Values.smokeTest.enabled }}
+# Post-deployment verification, run by Argo CD AFTER every sync (PostSync hook).
+# It proves the release is really live: the API reports the expected version,
+# the database answers, and the web tier serves. If it fails, the Argo CD sync
+# operation is marked Failed — the deployment is not "done" just because pods run.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: customer-portal-smoke
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+    app.kubernetes.io/component: smoke-test
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 420
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: smoke-test
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: smoke
+          image: {{ .Values.smokeTest.image | quote }}
+          env:
+            - name: EXPECTED_VERSION
+              value: {{ .Values.image.api.tag | quote }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -u
+              API=http://customer-portal-api
+              INFO=""
+              for i in $(seq 1 30); do
+                INFO=$(curl -fsS "$API/api/info" || true)
+                echo "$INFO" | grep -q "\"version\":\"$EXPECTED_VERSION\"" && break
+                echo "waiting for version $EXPECTED_VERSION ($i/30)"; sleep 10
+              done
+              echo "$INFO" | grep -q "\"version\":\"$EXPECTED_VERSION\"" || { echo "FAIL version: $INFO"; exit 1; }
+              curl -fsS "$API/api/products" > /dev/null || { echo "FAIL /api/products (database path)"; exit 1; }
+              curl -fsS http://customer-portal-web/ > /dev/null || { echo "FAIL web tier"; exit 1; }
+              echo "SMOKE OK version=$EXPECTED_VERSION"
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { cpu: 100m, memory: 64Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+{{- end }}

@@ -70,6 +70,7 @@ docs/              HOW-IT-WORKS, labs, ADRs, game days, costs, runbook, intervie
 
 ## Documentation
 
+- **[E2E feature flow — feature branch to production](docs/E2E-FEATURE-FLOW.md)**
 - [How it works](docs/HOW-IT-WORKS.md) · [Costs and trial limits](docs/costs.md) · [Runbook](docs/runbook.md)
 - [Game days](docs/game-days.md) · [Architecture decision records](docs/decisions/)
 - [Azure DevOps pipelines refresher](docs/azure-devops-refresher.md)

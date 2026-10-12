@@ -1,0 +1,67 @@
+name: smoke
+
+# Closes the E2E loop OUTSIDE the cluster: after a deploy PR is merged
+# (gitops/envs/<env>/ changed on main), poll the public URL until it serves the
+# expected image tag, then check the business endpoint.
+# Skips cleanly until the edge layer exists (repo variables PORTAL_DEV_URL / PORTAL_PROD_URL).
+on:
+  push:
+    branches: [main]
+    paths: ['gitops/envs/**']
+  workflow_dispatch:
+    inputs:
+      env:
+        type: choice
+        options: [dev, prod]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: smoke ${{ matrix.env }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [dev, prod]
+    env:
+      ENV: ${{ matrix.env }}
+      URL: ${{ matrix.env == 'dev' && vars.PORTAL_DEV_URL || vars.PORTAL_PROD_URL }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Did this environment change?
+        id: scope
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            [ "${{ inputs.env }}" = "$ENV" ] && echo "run=true" >> "$GITHUB_OUTPUT" || echo "run=false" >> "$GITHUB_OUTPUT"
+          elif git diff --name-only HEAD^ HEAD | grep -q "^gitops/envs/$ENV/"; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [ -z "$URL" ]; then
+            echo "::notice::PORTAL_${ENV^^}_URL is not set (edge layer not deployed) — skipping public smoke test."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Wait until ${{ matrix.env }} serves the expected version
+        if: steps.scope.outputs.run == 'true'
+        run: |
+          TAG=$(grep -A1 '^  api:' "gitops/envs/$ENV/values.yaml" | grep tag | awk '{print $2}' | tr -d '"')
+          echo "expected version: $TAG"
+          LIVE=""
+          for i in $(seq 1 60); do
+            LIVE=$(curl -fsS "$URL/api/info" | jq -r .version || true)
+            [ "$LIVE" = "$TAG" ] && break
+            echo "live=$LIVE expected=$TAG ($i/60)"; sleep 15
+          done
+          if [ "$LIVE" != "$TAG" ]; then
+            echo "::error::$ENV is not serving $TAG after 15 minutes (live: $LIVE). Check Argo CD sync and the PostSync smoke Job."
+            exit 1
+          fi
+          COUNT=$(curl -fsS "$URL/api/products" | jq length)
+          echo "### ✅ $ENV serves \`$TAG\` — $COUNT products returned" >> "$GITHUB_STEP_SUMMARY"

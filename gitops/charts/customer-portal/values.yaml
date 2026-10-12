@@ -57,5 +57,9 @@ datadog:
   enabled: false          # true = dd-trace APM + unified service tagging
   agentHost: datadog-agent.datadog.svc.cluster.local
 
+smokeTest:
+  enabled: true          # Argo CD PostSync verification (templates/smoke-test.yaml)
+  image: curlimages/curl:8.11.1
+
 networkPolicy:
   enabled: true
