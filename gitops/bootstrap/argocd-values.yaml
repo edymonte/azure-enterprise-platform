@@ -1,0 +1,22 @@
+# Helm values for the argo-cd chart (installed once by scripts/bootstrap-gitops.ps1).
+# After bootstrap, Argo CD manages everything else from Git.
+global:
+  domain: argocd.local
+configs:
+  params:
+    server.insecure: true          # access only via kubectl port-forward in the lab
+server:
+  service:
+    type: ClusterIP
+dex:
+  enabled: false
+notifications:
+  enabled: false
+applicationSet:
+  replicas: 1
+redis-ha:
+  enabled: false
+controller:
+  replicas: 1
+repoServer:
+  replicas: 1

@@ -1,0 +1,90 @@
+# Azure DevOps — application pipeline (same behaviour as .github/workflows/app.yml)
+#
+#   Test -> Build & scan -> Push to ACR -> PR in GitHub bumping the dev image tag
+#
+# Extra setup on top of infra.yml:
+#   - variable group mfs-lab-app linked to KEY VAULT (secret GITOPS_GITHUB_TOKEN:
+#     fine-grained PAT with Contents + Pull requests on the repo) and ACR_NAME.
+
+trigger:
+  branches:
+    include: [main]
+  paths:
+    include: [app/*]
+
+pr: none
+
+variables:
+  - group: mfs-lab-common
+  - group: mfs-lab-app
+  - name: tag
+    value: $(Build.SourceVersion)
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - stage: Test
+    jobs:
+      - job: unit
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: 24.x
+          - bash: npm ci && npm test
+            workingDirectory: app/customer-portal/api
+            displayName: npm test
+
+  - stage: Build
+    dependsOn: Test
+    jobs:
+      - job: build_push
+        steps:
+          - bash: |
+              set -euo pipefail
+              REG="$(ACR_NAME).azurecr.io"
+              docker build -t $REG/customer-portal-api:$(tag) app/customer-portal/api
+              docker build -t $REG/customer-portal-web:$(tag) app/customer-portal/web
+            displayName: docker build
+
+          - bash: |
+              docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.65.0 \
+                image --severity CRITICAL --ignore-unfixed --exit-code 1 \
+                $(ACR_NAME).azurecr.io/customer-portal-api:$(tag)
+            displayName: trivy image scan (fail on CRITICAL)
+
+          - task: AzureCLI@2
+            displayName: push to ACR (WIF)
+            inputs:
+              azureSubscription: sc-mfs-lab-wif
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                set -euo pipefail
+                az acr login --name $(ACR_NAME)
+                docker push $(ACR_NAME).azurecr.io/customer-portal-api:$(tag)
+                docker push $(ACR_NAME).azurecr.io/customer-portal-web:$(tag)
+
+  - stage: GitOps
+    dependsOn: Build
+    jobs:
+      - job: bump_dev
+        steps:
+          - checkout: none
+          - bash: |
+              set -euo pipefail
+              REPO="edymonte/azure-enterprise-platform"
+              BRANCH="deploy/dev-$(tag)"
+              git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" gitops-repo
+              cd gitops-repo
+              git checkout -b "$BRANCH"
+              sed -i -E "/^  (api|web):/,/tag:/ s/(tag: ).*/\1\"$(tag)\"/" gitops/envs/dev/values.yaml
+              git -c user.name="azure-pipelines" -c user.email="azure-pipelines@users.noreply.github.com" \
+                commit -am "deploy(dev): customer-portal $(tag)"
+              git push origin "$BRANCH"
+              curl -fsS -X POST -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/${REPO}/pulls" \
+                -d "{\"title\":\"deploy(dev): customer-portal $(tag)\",\"head\":\"${BRANCH}\",\"base\":\"main\",\"body\":\"Built by Azure Pipelines run $(Build.BuildId).\"}"
+            displayName: open GitOps PR (dev)
+            env:
+              GH_TOKEN: $(GITOPS_GITHUB_TOKEN)

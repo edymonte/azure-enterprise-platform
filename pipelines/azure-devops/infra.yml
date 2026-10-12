@@ -1,0 +1,82 @@
+# Azure DevOps — infrastructure pipeline (same behaviour as .github/workflows/infra.yml)
+#
+#   Stage Validate : fmt + validate (no credentials)
+#   Stage Plan     : terraform plan with the WIF service connection
+#   Stage Apply    : deployment job on environment 'mfs-lab' -> approval check
+#
+# Setup (docs/labs/08-azure-devops.md):
+#   - service connection  sc-mfs-lab-wif   (Azure Resource Manager, workload identity federation, manual)
+#   - variable group      mfs-lab-common   (TF_STATE_RG, TF_STATE_SA, ALERT_EMAIL, OPERATOR_IP_RANGES, NAME_SUFFIX)
+#   - environment         mfs-lab          (Approvals and checks -> Approvals)
+
+trigger: none
+
+pr:
+  branches:
+    include: [main]
+  paths:
+    include: [infra/*]
+
+parameters:
+  - name: layer
+    displayName: Terraform layer
+    type: string
+    default: 10-foundation
+    values: [10-foundation, 20-governance, 30-data, 40-aks, 50-edge, 60-observability]
+  - name: action
+    displayName: Action
+    type: string
+    default: plan
+    values: [plan, apply, destroy]
+
+variables:
+  - group: mfs-lab-common
+  - name: serviceConnection
+    value: sc-mfs-lab-wif
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - stage: Validate
+    jobs:
+      - job: fmt_validate
+        steps:
+          - task: TerraformInstaller@1
+            inputs:
+              terraformVersion: 1.12.2
+          - bash: |
+              set -euo pipefail
+              cd infra/terraform/${{ parameters.layer }}
+              terraform fmt -check -diff
+              terraform init -backend=false -input=false
+              terraform validate
+            displayName: fmt + validate
+
+  - stage: Plan
+    dependsOn: Validate
+    jobs:
+      - job: plan
+        steps:
+          - template: templates/terraform-layer.yml
+            parameters:
+              layer: ${{ parameters.layer }}
+              action: plan
+              serviceConnection: ${{ variables.serviceConnection }}  # compile-time: required for service connection authorization
+
+  - stage: Apply
+    dependsOn: Plan
+    condition: and(succeeded(), ne('${{ parameters.action }}', 'plan'), ne(variables['Build.Reason'], 'PullRequest'))
+    jobs:
+      - deployment: apply
+        environment: mfs-lab          # approvals configured on the environment
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                - template: templates/terraform-layer.yml
+                  parameters:
+                    layer: ${{ parameters.layer }}
+                    action: ${{ parameters.action }}
+                    serviceConnection: ${{ variables.serviceConnection }}  # compile-time: required for service connection authorization

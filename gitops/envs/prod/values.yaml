@@ -1,0 +1,24 @@
+# App configuration for prod. Changed only through Pull Requests:
+#   - CI (app pipeline) bumps image tags here
+#   - game days flip the chaos switches here
+environment: prod
+
+image:
+  api:
+    tag: "bootstrap"
+  web:
+    tag: "bootstrap"
+
+ingress:
+  host: portal.edymonte.com.br
+
+hpa:
+  minReplicas: 2
+  maxReplicas: 6
+
+chaos:
+  errorRate: "0"
+  latencyMs: "0"
+
+datadog:
+  enabled: false

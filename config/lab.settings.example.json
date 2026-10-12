@@ -1,0 +1,10 @@
+{
+  "subscriptionId": "00000000-0000-0000-0000-000000000000",
+  "location": "eastus2",
+  "alertEmail": "you@example.com",
+  "operatorIpRanges": ["203.0.113.10/32"],
+  "githubRepository": "edymonte/azure-enterprise-platform",
+  "publicDnsZoneName": "edymonte.com.br",
+  "monthlyBudgetAmount": 150,
+  "budgetStartDate": "2026-10-01T00:00:00Z"
+}

@@ -1,0 +1,61 @@
+# Defaults. Each environment overrides them with two files:
+#   gitops/envs/<env>/platform.values.yaml  -> generated from Terraform outputs (scripts/render-gitops-values.ps1)
+#   gitops/envs/<env>/values.yaml           -> app config (image tags, replicas, chaos) changed by PRs / CI
+environment: dev
+
+image:
+  registry: ""            # <acr>.azurecr.io (platform.values.yaml)
+  api:
+    repository: customer-portal-api
+    tag: "bootstrap"
+  web:
+    repository: customer-portal-web
+    tag: "bootstrap"
+  pullPolicy: IfNotPresent
+
+ingress:
+  enabled: true
+  className: portal-nginx   # NginxIngressController in gitops/platform/ingress
+  host: ""
+
+workloadIdentity:
+  clientId: ""
+  tenantId: ""
+
+sql:
+  server: ""              # empty = API runs with the in-memory catalog
+  database: portal
+
+keyVault:
+  name: ""                # empty = no CSI volume, banner falls back to env
+  bannerSecretName: portal-banner
+
+api:
+  replicas: 2
+  resources:
+    requests: { cpu: 50m, memory: 96Mi }
+    limits: { cpu: 500m, memory: 256Mi }
+
+web:
+  replicas: 2
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }
+    limits: { cpu: 100m, memory: 64Mi }
+
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 60
+
+# Game-day switches (change through a Git PR, never with kubectl)
+chaos:
+  errorRate: "0"          # 0..1 share of /api requests that fail with 500
+  latencyMs: "0"          # extra latency added to /api requests
+
+datadog:
+  enabled: false          # true = dd-trace APM + unified service tagging
+  agentHost: datadog-agent.datadog.svc.cluster.local
+
+networkPolicy:
+  enabled: true

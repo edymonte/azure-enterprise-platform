@@ -1,0 +1,192 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: customer-portal-api
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+  {{- if .Values.workloadIdentity.clientId }}
+  annotations:
+    # Workload Identity: this SA is federated with the managed identity
+    # (infra/terraform/40-aks -> azurerm_federated_identity_credential).
+    azure.workload.identity/client-id: {{ .Values.workloadIdentity.clientId | quote }}
+  {{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: customer-portal-api
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+    app.kubernetes.io/name: customer-portal-api
+    {{- if .Values.datadog.enabled }}
+    tags.datadoghq.com/env: {{ .Values.environment | quote }}
+    tags.datadoghq.com/service: customer-portal-api
+    tags.datadoghq.com/version: {{ .Values.image.api.tag | quote }}
+    {{- end }}
+spec:
+  {{- if not .Values.hpa.enabled }}
+  replicas: {{ .Values.api.replicas }}
+  {{- end }}
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: customer-portal-api
+  template:
+    metadata:
+      labels:
+        {{- include "portal.labels" . | nindent 8 }}
+        app.kubernetes.io/name: customer-portal-api
+        {{- if .Values.workloadIdentity.clientId }}
+        azure.workload.identity/use: "true"
+        {{- end }}
+        {{- if .Values.datadog.enabled }}
+        tags.datadoghq.com/env: {{ .Values.environment | quote }}
+        tags.datadoghq.com/service: customer-portal-api
+        tags.datadoghq.com/version: {{ .Values.image.api.tag | quote }}
+        {{- end }}
+    spec:
+      serviceAccountName: customer-portal-api
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: customer-portal-api
+      containers:
+        - name: api
+          image: {{ include "portal.image" (list . .Values.image.api) | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: APP_VERSION
+              value: {{ .Values.image.api.tag | quote }}
+            - name: APP_ENV
+              value: {{ .Values.environment | quote }}
+            - name: SQL_SERVER
+              value: {{ .Values.sql.server | quote }}
+            - name: SQL_DATABASE
+              value: {{ .Values.sql.database | quote }}
+            - name: CHAOS_ERROR_RATE
+              value: {{ .Values.chaos.errorRate | quote }}
+            - name: CHAOS_LATENCY_MS
+              value: {{ .Values.chaos.latencyMs | quote }}
+            {{- if .Values.datadog.enabled }}
+            - name: DD_TRACE_ENABLED
+              value: "true"
+            # Node-local agent Service (internalTrafficPolicy: Local) created by
+            # the Datadog Operator: no hostPort/hostPath, so it passes the
+            # AKS pod security baseline policy.
+            - name: DD_AGENT_HOST
+              value: {{ .Values.datadog.agentHost | quote }}
+            - name: DD_ENV
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['tags.datadoghq.com/env']
+            - name: DD_SERVICE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['tags.datadoghq.com/service']
+            - name: DD_VERSION
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['tags.datadoghq.com/version']
+            - name: DD_LOGS_INJECTION
+              value: "true"
+            {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+          securityContext:
+            {{- include "portal.securityContext" . | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            {{- if .Values.keyVault.name }}
+            - name: kv-secrets
+              mountPath: /mnt/secrets
+              readOnly: true
+            {{- end }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        {{- if .Values.keyVault.name }}
+        - name: kv-secrets
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: customer-portal-kv
+        {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: customer-portal-api
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+    app.kubernetes.io/name: customer-portal-api
+spec:
+  selector:
+    app.kubernetes.io/name: customer-portal-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+{{- if .Values.keyVault.name }}
+---
+# Key Vault -> file in the pod, authenticated with the same workload identity.
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+  name: customer-portal-kv
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+spec:
+  provider: azure
+  parameters:
+    usePodIdentity: "false"
+    clientID: {{ .Values.workloadIdentity.clientId | quote }}
+    keyvaultName: {{ .Values.keyVault.name | quote }}
+    tenantId: {{ .Values.workloadIdentity.tenantId | quote }}
+    objects: |
+      array:
+        - |
+          objectName: {{ .Values.keyVault.bannerSecretName }}
+          objectType: secret
+{{- end }}
+---
+# Azure Managed Prometheus scrapes this (CRD group azmonitoring.coreos.com).
+apiVersion: azmonitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: customer-portal-api
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: customer-portal-api
+  podMetricsEndpoints:
+    - port: http
+      path: /metrics
+      interval: 30s

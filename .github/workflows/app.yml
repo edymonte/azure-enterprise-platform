@@ -1,0 +1,94 @@
+name: app
+
+# Build -> scan -> push to ACR -> open a PR that bumps the image tag in GitOps.
+# The pipeline NEVER talks to the cluster: Argo CD deploys after the PR merges.
+on:
+  push:
+    branches: [main]
+    paths: ['app/**']
+  workflow_dispatch:
+    inputs:
+      promote_to_prod:
+        description: Copy the current dev image tags to prod (opens a PR)
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write
+  contents: write
+  pull-requests: write
+
+jobs:
+  build:
+    # Skipped until the cloud identity exists (phase 02 sets the repository variables).
+    if: ${{ !inputs.promote_to_prod && vars.AZURE_CLIENT_ID != '' }}
+    runs-on: ubuntu-latest
+    environment: lab
+    env:
+      TAG: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unit tests
+        working-directory: app/customer-portal/api
+        run: npm ci && npm test
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build images
+        run: |
+          REG="${{ vars.ACR_NAME }}.azurecr.io"
+          docker build -t $REG/customer-portal-api:$TAG app/customer-portal/api
+          docker build -t $REG/customer-portal-web:$TAG app/customer-portal/web
+
+      - name: Scan images (fail on CRITICAL)
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: ${{ vars.ACR_NAME }}.azurecr.io/customer-portal-api:${{ github.sha }}
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
+      - name: Push to ACR
+        run: |
+          az acr login --name ${{ vars.ACR_NAME }}
+          REG="${{ vars.ACR_NAME }}.azurecr.io"
+          docker push $REG/customer-portal-api:$TAG
+          docker push $REG/customer-portal-web:$TAG
+
+      - name: Bump dev image tags
+        run: |
+          sed -i -E "/^  (api|web):/,/tag:/ s/(tag: ).*/\1\"$TAG\"/" gitops/envs/dev/values.yaml
+          git diff
+
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          branch: deploy/dev-${{ github.sha }}
+          title: "deploy(dev): customer-portal ${{ github.sha }}"
+          body: Image built, scanned and pushed by run ${{ github.run_id }}. Merge to deploy to **dev** (Argo CD).
+          commit-message: "deploy(dev): customer-portal ${{ github.sha }}"
+          add-paths: gitops/envs/dev/values.yaml
+
+  promote:
+    if: ${{ inputs.promote_to_prod }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Copy dev tags to prod
+        run: |
+          API=$(grep -A1 '^  api:' gitops/envs/dev/values.yaml | grep tag | awk '{print $2}')
+          WEB=$(grep -A1 '^  web:' gitops/envs/dev/values.yaml | grep tag | awk '{print $2}')
+          sed -i -E "/^  api:/,/tag:/ s/(tag: ).*/\1$API/" gitops/envs/prod/values.yaml
+          sed -i -E "/^  web:/,/tag:/ s/(tag: ).*/\1$WEB/" gitops/envs/prod/values.yaml
+          git diff
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          branch: promote/prod-${{ github.run_id }}
+          title: "deploy(prod): promote dev images"
+          body: Promotion of the images currently running in **dev**. Review the SLO dashboard before merging.
+          commit-message: "deploy(prod): promote dev images"
+          add-paths: gitops/envs/prod/values.yaml

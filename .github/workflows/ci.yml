@@ -1,0 +1,72 @@
+name: ci
+
+# Quality gate for every PR. Needs NO cloud credentials.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  terraform:
+    name: terraform ${{ matrix.layer }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        layer: [00-bootstrap, 05-identity, 10-foundation, 20-governance, 30-data, 40-aks, 50-edge, 60-observability, 70-datadog]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.12.2
+      - run: terraform fmt -check -diff
+        working-directory: infra/terraform/${{ matrix.layer }}
+      - run: terraform init -backend=false -input=false
+        working-directory: infra/terraform/${{ matrix.layer }}
+      - run: terraform validate
+        working-directory: infra/terraform/${{ matrix.layer }}
+
+  app:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app/customer-portal/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: app/customer-portal/api/package-lock.json
+      - run: npm ci
+      - run: npm test
+
+  helm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: helm lint (both environments)
+        run: |
+          for env in dev prod; do
+            helm lint gitops/charts/customer-portal \
+              -f gitops/envs/$env/platform.values.yaml -f gitops/envs/$env/values.yaml
+          done
+
+  security:
+    name: trivy (IaC + Kubernetes misconfiguration)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: config
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          exit-code: '0'   # report-only while learning; set to '1' to enforce
+      - name: Guard against committed secrets
+        run: |
+          ! grep -RInE '(client_secret|DD_API_KEY=|api-key:)[[:space:]]*[A-Za-z0-9]{16,}' --exclude-dir=.git --exclude-dir=node_modules .

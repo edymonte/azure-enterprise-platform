@@ -1,0 +1,20 @@
+{
+  "name": "customer-portal-api",
+  "version": "1.0.0",
+  "description": "Monteiro Financial Services customer portal API (lab workload)",
+  "main": "src/index.js",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test test/app.test.js"
+  },
+  "dependencies": {
+    "dd-trace": "^5.30.0",
+    "express": "^4.21.2",
+    "mssql": "^11.0.1",
+    "prom-client": "^15.1.3"
+  }
+}

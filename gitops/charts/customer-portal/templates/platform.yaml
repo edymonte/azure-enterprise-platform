@@ -1,0 +1,91 @@
+{{- if .Values.ingress.enabled }}
+# Host-based routing: Front Door forwards the client Host header
+# (portal.edymonte.com.br / portal-dev.edymonte.com.br) to the ingress.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: customer-portal
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+    - host: {{ required "ingress.host is required" .Values.ingress.host | quote }}
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: customer-portal-api
+                port:
+                  name: http
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: customer-portal-web
+                port:
+                  name: http
+{{- end }}
+{{- if .Values.hpa.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: customer-portal-api
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: customer-portal-api
+  minReplicas: {{ .Values.hpa.minReplicas }}
+  maxReplicas: {{ .Values.hpa.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.hpa.targetCPUUtilizationPercentage }}
+{{- end }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: customer-portal-api
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: customer-portal-api
+{{- if .Values.networkPolicy.enabled }}
+---
+# Zero-trust inside the cluster: only the ingress controller and the metric
+# collectors (Managed Prometheus in kube-system, Datadog) may reach the pods.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: customer-portal-allow-ingress
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: customer-portal
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values: ["app-routing-system", "kube-system", "datadog"]
+      ports:
+        - port: 8080
+          protocol: TCP
+{{- end }}

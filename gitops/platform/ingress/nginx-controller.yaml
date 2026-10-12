@@ -1,0 +1,13 @@
+# Dedicated NGINX controller from the AKS application routing add-on, bound to
+# the STATIC public IP created by Terraform (infra/terraform/40-aks).
+# Names are deterministic: pip-<org>-portal-<env>-ingress in rg-<org>-portal-<env>.
+apiVersion: approuting.kubernetes.azure.com/v1alpha1
+kind: NginxIngressController
+metadata:
+  name: portal-nginx
+spec:
+  ingressClassName: portal-nginx
+  controllerNamePrefix: portal-nginx
+  loadBalancerAnnotations:
+    service.beta.kubernetes.io/azure-load-balancer-resource-group: rg-mfs-portal-lab
+    service.beta.kubernetes.io/azure-pip-name: pip-mfs-portal-lab-ingress

@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: customer-portal-web
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+    app.kubernetes.io/name: customer-portal-web
+spec:
+  replicas: {{ .Values.web.replicas }}
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: customer-portal-web
+  template:
+    metadata:
+      labels:
+        {{- include "portal.labels" . | nindent 8 }}
+        app.kubernetes.io/name: customer-portal-web
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: web
+          image: {{ include "portal.image" (list . .Values.image.web) | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.web.resources | nindent 12 }}
+          securityContext:
+            {{- include "portal.securityContext" . | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: customer-portal-web
+  labels:
+    {{- include "portal.labels" . | nindent 4 }}
+    app.kubernetes.io/name: customer-portal-web
+spec:
+  selector:
+    app.kubernetes.io/name: customer-portal-web
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

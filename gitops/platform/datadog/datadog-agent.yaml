@@ -1,0 +1,31 @@
+# Datadog Agent managed by the Datadog Operator.
+# The API key is NOT in Git: scripts/datadog-secret.ps1 creates 'datadog-secret'.
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+  namespace: datadog
+spec:
+  global:
+    clusterName: aks-mfs-portal-lab
+    site: datadoghq.com            # <-- the site chosen when you create the account (US1/US5/EU...)
+    credentials:
+      apiSecret:
+        secretName: datadog-secret
+        keyName: api-key
+    kubelet:
+      tlsVerify: false             # AKS kubelet serving certs are not signed by the cluster CA
+  features:
+    apm:
+      enabled: true
+    logCollection:
+      enabled: true
+      containerCollectAll: true
+    liveContainerCollection:
+      enabled: true
+    orchestratorExplorer:
+      enabled: true
+    clusterChecks:
+      enabled: true
+    eventCollection:
+      collectKubernetesEvents: true

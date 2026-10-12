@@ -1,0 +1,22 @@
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfplan
+terraform.tfvars
+*.auto.tfvars
+crash.log
+
+# Local runtime (generated backend/common vars, kubeconfig)
+.runtime/
+
+# Node
+node_modules/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Personal lab settings (subscription, e-mail, home IP)
+config/lab.settings.json

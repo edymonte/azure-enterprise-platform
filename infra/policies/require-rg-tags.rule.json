@@ -1,0 +1,36 @@
+{
+  "if": {
+    "allOf": [
+      {
+        "field": "type",
+        "equals": "Microsoft.Resources/subscriptions/resourceGroups"
+      },
+      {
+        "field": "name",
+        "notLike": "MC_*"
+      },
+      {
+        "field": "name",
+        "notLike": "NetworkWatcherRG"
+      },
+      {
+        "field": "name",
+        "notLike": "DefaultResourceGroup-*"
+      },
+      {
+        "count": {
+          "value": "[parameters('tagNames')]",
+          "name": "tagName",
+          "where": {
+            "field": "[concat('tags[', current('tagName'), ']')]",
+            "exists": "false"
+          }
+        },
+        "greater": 0
+      }
+    ]
+  },
+  "then": {
+    "effect": "[parameters('effect')]"
+  }
+}

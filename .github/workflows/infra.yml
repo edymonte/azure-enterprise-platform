@@ -1,0 +1,94 @@
+name: infra
+
+# PR  -> terraform plan for the layers (read-only, OIDC subject: pull_request)
+# Run -> manual plan/apply/destroy of ONE layer, gated by the 'lab' environment
+#        (configure required reviewers on it: Settings > Environments > lab)
+on:
+  pull_request:
+    paths: ['infra/**']
+  workflow_dispatch:
+    inputs:
+      layer:
+        type: choice
+        options: [10-foundation, 20-governance, 30-data, 40-aks, 50-edge, 60-observability]
+      action:
+        type: choice
+        options: [plan, apply, destroy]
+        default: plan
+
+permissions:
+  id-token: write   # OIDC token for Azure (no secrets)
+  contents: read
+  pull-requests: write
+
+env:
+  ARM_USE_OIDC: 'true'
+  ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+  TF_IN_AUTOMATION: 'true'
+
+jobs:
+  plan:
+    if: github.event_name == 'pull_request' && vars.AZURE_CLIENT_ID != ''
+    name: plan ${{ matrix.layer }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        layer: [10-foundation, 20-governance, 30-data, 40-aks]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.12.2
+      - name: Shared variables and backend (from repository variables)
+        run: ./scripts/ci-write-runtime.sh
+        env:
+          TF_STATE_RG: ${{ vars.TF_STATE_RG }}
+          TF_STATE_SA: ${{ vars.TF_STATE_SA }}
+          ALERT_EMAIL: ${{ vars.ALERT_EMAIL }}
+          OPERATOR_IP_RANGES: ${{ vars.OPERATOR_IP_RANGES }}
+          NAME_SUFFIX: ${{ vars.NAME_SUFFIX }}
+      - name: terraform plan
+        working-directory: infra/terraform/${{ matrix.layer }}
+        run: |
+          terraform init -input=false -backend-config=../../../.runtime/backend.hcl -backend-config=key=${{ matrix.layer }}.tfstate
+          terraform plan -input=false -lock=false -no-color -var-file=../../../.runtime/common.tfvars.json | tee plan.txt
+      - name: Comment plan summary on the PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const out = fs.readFileSync('infra/terraform/${{ matrix.layer }}/plan.txt', 'utf8');
+            const summary = (out.match(/Plan: .*|No changes\..*/) || ['(see job log)'])[0];
+            await github.rest.issues.createComment({
+              ...context.repo, issue_number: context.issue.number,
+              body: `**${{ matrix.layer }}** — ${summary}`
+            });
+
+  run:
+    if: github.event_name == 'workflow_dispatch'
+    name: ${{ inputs.action }} ${{ inputs.layer }}
+    runs-on: ubuntu-latest
+    environment: lab        # approval gate + OIDC subject environment:lab
+    concurrency: tfstate-${{ inputs.layer }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.12.2
+      - run: ./scripts/ci-write-runtime.sh
+        env:
+          TF_STATE_RG: ${{ vars.TF_STATE_RG }}
+          TF_STATE_SA: ${{ vars.TF_STATE_SA }}
+          ALERT_EMAIL: ${{ vars.ALERT_EMAIL }}
+          OPERATOR_IP_RANGES: ${{ vars.OPERATOR_IP_RANGES }}
+          NAME_SUFFIX: ${{ vars.NAME_SUFFIX }}
+      - name: terraform ${{ inputs.action }}
+        working-directory: infra/terraform/${{ inputs.layer }}
+        run: |
+          terraform init -input=false -backend-config=../../../.runtime/backend.hcl -backend-config=key=${{ inputs.layer }}.tfstate
+          DESTROY=""; [ "${{ inputs.action }}" = "destroy" ] && DESTROY="-destroy"
+          terraform plan $DESTROY -input=false -out=tfplan -var-file=../../../.runtime/common.tfvars.json
+          if [ "${{ inputs.action }}" != "plan" ]; then terraform apply -input=false tfplan; fi

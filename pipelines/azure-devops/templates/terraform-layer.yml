@@ -1,0 +1,54 @@
+# Reusable STEPS template: init + plan (+ apply) of one Terraform layer.
+#
+# Authentication: workload identity federation (no secrets).
+# AzureCLI@2 with addSpnToEnvironment exposes $idToken / $servicePrincipalId /
+# $tenantId; we hand them to Terraform as ARM_OIDC_TOKEN etc.
+parameters:
+  - name: layer
+    type: string
+  - name: action          # plan | apply | destroy
+    type: string
+    default: plan
+  - name: serviceConnection
+    type: string
+
+steps:
+  - task: TerraformInstaller@1
+    displayName: Install Terraform 1.12.2
+    inputs:
+      terraformVersion: 1.12.2
+
+  - task: AzureCLI@2
+    displayName: terraform ${{ parameters.action }} ${{ parameters.layer }}
+    inputs:
+      azureSubscription: ${{ parameters.serviceConnection }}
+      scriptType: bash
+      scriptLocation: inlineScript
+      addSpnToEnvironment: true
+      inlineScript: |
+        set -euo pipefail
+        export ARM_USE_OIDC=true
+        export ARM_OIDC_TOKEN="$idToken"
+        export ARM_CLIENT_ID="$servicePrincipalId"
+        export ARM_TENANT_ID="$tenantId"
+        export ARM_SUBSCRIPTION_ID="$(az account show --query id -o tsv)"
+        export TF_IN_AUTOMATION=true
+
+        ./scripts/ci-write-runtime.sh
+        cd infra/terraform/${{ parameters.layer }}
+        terraform init -input=false \
+          -backend-config=../../../.runtime/backend.hcl \
+          -backend-config=key=${{ parameters.layer }}.tfstate
+
+        DESTROY=""
+        if [ "${{ parameters.action }}" = "destroy" ]; then DESTROY="-destroy"; fi
+        terraform plan $DESTROY -input=false -out=tfplan -var-file=../../../.runtime/common.tfvars.json
+        if [ "${{ parameters.action }}" != "plan" ]; then
+          terraform apply -input=false tfplan
+        fi
+    env:
+      TF_STATE_RG: $(TF_STATE_RG)
+      TF_STATE_SA: $(TF_STATE_SA)
+      ALERT_EMAIL: $(ALERT_EMAIL)
+      OPERATOR_IP_RANGES: $(OPERATOR_IP_RANGES)
+      NAME_SUFFIX: $(NAME_SUFFIX)

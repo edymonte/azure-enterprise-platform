@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: portal-prod
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/edymonte/azure-enterprise-platform.git
+    targetRevision: main
+    path: gitops/charts/customer-portal
+    helm:
+      valueFiles:
+        - ../../envs/prod/platform.values.yaml
+        - ../../envs/prod/values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: portal-prod
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true        # manual kubectl changes are reverted (drift correction)
+    syncOptions:
+      - CreateNamespace=true

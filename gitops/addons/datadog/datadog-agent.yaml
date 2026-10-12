@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: datadog-agent
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/edymonte/azure-enterprise-platform.git
+    targetRevision: main
+    path: gitops/platform/datadog
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: datadog
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - SkipDryRunOnMissingResource=true   # CRD comes from the operator
