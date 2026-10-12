@@ -67,6 +67,9 @@ jobs:
 
       - uses: peter-evans/create-pull-request@v7
         with:
+          # PRs opened with GITHUB_TOKEN do not trigger workflows, so required CI checks
+          # would never report. A fine-grained PAT (Contents + Pull requests) fixes it.
+          token: ${{ secrets.GITOPS_PR_TOKEN || github.token }}
           branch: deploy/dev-${{ github.sha }}
           title: "deploy(dev): customer-portal ${{ github.sha }}"
           body: Image built, scanned and pushed by run ${{ github.run_id }}. Merge to deploy to **dev** (Argo CD).
@@ -87,6 +90,9 @@ jobs:
           git diff
       - uses: peter-evans/create-pull-request@v7
         with:
+          # PRs opened with GITHUB_TOKEN do not trigger workflows, so required CI checks
+          # would never report. A fine-grained PAT (Contents + Pull requests) fixes it.
+          token: ${{ secrets.GITOPS_PR_TOKEN || github.token }}
           branch: promote/prod-${{ github.run_id }}
           title: "deploy(prod): promote dev images"
           body: Promotion of the images currently running in **dev**. Review the SLO dashboard before merging.

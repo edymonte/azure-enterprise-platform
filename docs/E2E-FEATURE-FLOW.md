@@ -37,15 +37,20 @@ flowchart LR
    gh variable set PORTAL_PROD_URL -b https://portal.edymonte.com.br
    ```
    Without the edge layer, the in-cluster PostSync Job is your verification and `smoke.yml` skips.
-4. **Branch protection on `main`** (GitHub requires a **public** repo — or a paid plan — for protection on private repos):
+4. **Branch protection on `main`** (already applied; requires a public repo or a paid plan):
+   - pull request required (0 approvals — a solo learner cannot approve their own PR), conversations resolved;
+   - all 12 CI checks required (`app`, `helm`, `trivy (…)`, `terraform <layer>` × 9);
+   - linear history (squash merges), no force pushes, no deletions;
+   - **enforced for admins** — no direct pushes, not even by you.
+
+   Inspect it: `gh api repos/edymonte/azure-enterprise-platform/branches/main/protection`.
+   **Break-glass** (CI itself is broken and blocks the fix): `gh api -X DELETE repos/edymonte/azure-enterprise-platform/branches/main/protection/enforce_admins`, merge the fix, then re-enable with `-X POST` on the same path. Treat it like a production incident: write down why.
+
+   **Deploy PRs and required checks:** PRs opened by `app.yml` with the default `GITHUB_TOKEN` do **not** trigger workflows, so their required checks would never report. Create a fine-grained PAT (this repo only; *Contents: read/write*, *Pull requests: read/write*) and store it:
    ```powershell
-   gh repo edit --enable-auto-merge=false --delete-branch-on-merge
-   gh api -X PUT repos/edymonte/azure-enterprise-platform/branches/main/protection `
-     -F "required_status_checks[strict]=true" `
-     -f "required_status_checks[contexts][]=app" -f "required_status_checks[contexts][]=helm" `
-     -F "enforce_admins=false" -F "required_pull_request_reviews=null" -F "restrictions=null"
+   gh secret set GITOPS_PR_TOKEN -R edymonte/azure-enterprise-platform
    ```
-   Solo learner: no required approval (you cannot approve your own PR), but **no direct pushes** and **green checks required**.
+   The workflow uses it automatically (`secrets.GITOPS_PR_TOKEN || github.token`).
 5. Argo CD UI open while you work: `kubectl -n argocd port-forward svc/argocd-server 8080:80`.
 
 ## The standard loop (memorize it — it is your interview answer)
