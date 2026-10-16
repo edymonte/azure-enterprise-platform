@@ -33,6 +33,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $Root = Split-Path $PSScriptRoot -Parent
 $TfRoot = Join-Path $Root 'infra/terraform'
 $Runtime = Join-Path $Root '.runtime'
@@ -50,7 +51,7 @@ function Write-Step([string]$Message) { Write-Host "`n==> $Message" -ForegroundC
 function Invoke-Tf([string]$Dir, [string[]]$Arguments) {
   $rel = [IO.Path]::GetRelativePath($Root, $Dir)
   Write-Host "    terraform -chdir=$rel $($Arguments -join ' ')" -ForegroundColor DarkGray
-  & terraform "-chdir=$Dir" @Arguments
+  & terraform "-chdir=$Dir" @Arguments | Out-Host
   if ($LASTEXITCODE -ne 0) { throw "terraform $($Arguments[0]) failed in $rel (exit $LASTEXITCODE)" }
 }
 
