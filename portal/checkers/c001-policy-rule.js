@@ -22,14 +22,14 @@ runChecker(async (result) => {
     result.check(
       'rule-accepted-syntax',
       a.bad.length === 0,
-      a.bad.length ? `field accessors using current():\n${a.bad.join('\n')}` : 'No field accessor uses current().',
-      'The API rejects current() inside a "field" accessor (UnsupportedPolicyRuleField).',
+      a.bad.length ? `Rejected by the policy engine:\n${a.bad.join('\n')}` : 'No field accessor or field() call uses a runtime function such as current().',
+      'The engine rejects current() inside a field accessor and inside field() (UnsupportedPolicyRuleField / InvalidPolicyDefinition).',
     );
     result.check(
       'rule-detects-missing-tag',
       a.reads.ok && a.compares !== null && a.countValue === "[parameters('tagNames')]",
       [`count over ${a.countValue ?? '(none)'}`, a.reads.why, a.compares ?? 'no "greater" comparison on the count'].join('\n'),
-      'Keep the value count over tagNames and detect a missing tag with a value condition.',
+      'Keep the value count over tagNames and test the tag keys, e.g. field "tags" with notContainsKey [current(\'tagName\')].',
     );
   } else {
     result.fail('rule-detects-missing-tag', 'Rule could not be parsed.', 'Fix the JSON first.');

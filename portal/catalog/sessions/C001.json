@@ -10,7 +10,7 @@
   "mission": "Fix the require-rg-tags rule so Azure accepts it, ship it through a branch, and get the whole platform-guardrails initiative assigned.",
   "objectives": [
     "Read an Azure Policy error and map it to the exact rule property",
-    "Use a value condition with the field() function inside a value count",
+    "Test object keys with containsKey / notContainsKey and keep current() out of field accessors and field()",
     "Understand why terraform validate and CI could not catch this error",
     "Finish a partially applied layer safely"
   ],
@@ -35,7 +35,7 @@
     },
     {
       "title": "Write your hypothesis",
-      "detail": "Before editing: which condition type accepts an ARM expression, which function reads a tag from inside it, and which operator replaces exists?"
+      "detail": "Before editing: why does the engine reject a dynamic field? Which fixed path holds all the tags, and which operator asks whether an object has a key?"
     },
     {
       "title": "Edit and commit",
@@ -55,13 +55,13 @@
   "criteria": [
     {
       "id": "rule-accepted-syntax",
-      "text": "No field accessor in the local rule uses current()",
-      "how": "Open infra/policies/require-rg-tags.rule.json and replace the where block (lines 24–27): use \"value\" instead of \"field\". The Learn tab shows the pattern."
+      "text": "The rule uses no runtime function (such as current()) inside a field accessor or inside field()",
+      "how": "Open infra/policies/require-rg-tags.rule.json and replace the where block (lines 24–27). The tag name must not go inside \"field\" (nor inside the field() function) — the Learn tab shows the allowed pattern."
     },
     {
       "id": "rule-detects-missing-tag",
-      "text": "The value count over tagNames detects a missing tag with a value condition (field() + current('tagName') + operator)",
-      "how": "In the same where block, read the tag with field(...) inside coalesce(..., '') and compare it with \"equals\": \"\". Save the file — the check runs by itself."
+      "text": "The value count over tagNames tests the resource's tag keys against current('tagName')",
+      "how": "Point \"field\" at the whole tags object (\"tags\") and ask with the notContainsKey operator whether it lacks [current('tagName')]. Save the file — the check runs by itself."
     },
     {
       "id": "fix-committed",
@@ -88,23 +88,23 @@
         "code": "{ \"if\": { ...condition... }, \"then\": { \"effect\": \"Audit\" } }"
       },
       {
-        "title": "Conditions: field vs value",
-        "body": "A condition compares a left side with an operator such as `equals`, `notEquals` or `exists`.\n\n`field` is a fixed path to a property of the resource (`location`, `name`, `tags[Owner]`). It may use `parameters()`, but it may NOT contain `current()`.\n\n`value` is any ARM template expression between square brackets. Inside it you can call functions — including `field('path')` to read a property and `current('name')` to read the item of a loop.",
-        "code": "{ \"field\": \"location\", \"equals\": \"eastus2\" }\n{ \"value\": \"[toLower(field('name'))]\", \"equals\": \"rg-demo\" }"
+        "title": "Conditions: field vs value — and where current() may appear",
+        "body": "A condition compares a left side with an operator such as `equals`, `exists`, `containsKey` or `notContainsKey`.\n\n`field` is a FIXED path to a property of the resource (`location`, `name`, `tags`, `tags['Owner']`). It may use `parameters()`, but not runtime functions such as `current()`.\n\n`value` is any ARM expression in square brackets; inside it you can call `field('path')` — but the argument of `field()` must not contain runtime functions either.\n\nWhere `current()` IS allowed: on the value side of an operator (`\"notContainsKey\": \"[current('tagName')]\"`) and in `value` expressions outside `field()`.",
+        "code": "{ \"field\": \"location\", \"equals\": \"eastus2\" }\n{ \"field\": \"tags\", \"containsKey\": \"Owner\" }\n{ \"value\": \"[toLower(field('name'))]\", \"equals\": \"rg-demo\" }"
       },
       {
         "title": "Loops: the value count",
         "body": "A `count` with a `value` walks a list (here: the list of mandatory tag names). For every item, it evaluates the `where` condition; the item is available as `current('tagName')`. The outer comparison (`greater: 0`) asks: \"is there at least one item for which `where` is true?\".\n\nSo `where` must answer: \"is THIS tag missing on the resource group?\"."
       },
       {
-        "title": "null, exists and coalesce()",
-        "body": "When a tag does not exist, `field('tags[X]')` returns null. The `exists` operator only works with `field`, not with `value`. The ARM function `coalesce(a, b)` returns the first argument that is not null — so `coalesce(field(...), '')` turns a missing tag into an empty string you can compare with `equals`."
+        "title": "Testing keys of an object",
+        "body": "The tags of a resource are one object (`{\"Owner\": \"x\", \"Environment\": \"lab\"}`) at the fixed path `tags`. `containsKey` / `notContainsKey` ask whether that object has a given key — and the key can come from an expression on the value side, such as the current item of a loop."
       }
     ],
     "example": {
-      "title": "a different rule: \"names must be lower case\"",
-      "body": "Rule: deny storage accounts whose name has upper-case letters. The name is a fixed property, but we need a function (`toLower`) — so the left side must be `value`, and the property is read with the `field()` function:",
-      "code": "{\n  \"if\": { \"allOf\": [\n    { \"field\": \"type\", \"equals\": \"Microsoft.Storage/storageAccounts\" },\n    { \"value\": \"[field('name')]\", \"notEquals\": \"[toLower(field('name'))]\" }\n  ] },\n  \"then\": { \"effect\": \"deny\" }\n}"
+      "title": "a different rule: \"deny VMs outside an allowed list of sizes\"",
+      "body": "Here the loop walks a parameter list and compares each item with a FIXED field. The runtime function `current()` sits on the value side of the operator — the pattern the engine accepts:",
+      "code": "{\n  \"count\": {\n    \"value\": \"[parameters('allowedSizes')]\",\n    \"name\": \"size\",\n    \"where\": { \"field\": \"Microsoft.Compute/virtualMachines/sku.name\", \"equals\": \"[current('size')]\" }\n  },\n  \"equals\": 0\n}"
     },
     "glossary": [
       {
@@ -132,9 +132,9 @@
     "Do not commit on main"
   ],
   "hints": [
-    "Conditions have a left side: field, value or count. Which one accepts any ARM template expression, including current()?",
-    "Inside a value expression you can call the field() function. A missing tag returns null — coalesce(x, '') turns null into an empty string you can compare.",
-    "Docs: \"Azure Policy definition structure — policy rule\", section \"Value count\" and \"Policy functions\". Your where clause needs a value key and an equals key."
+    "The error says field accessors and the field() function cannot contain runtime functions such as current(). Where else in a condition can current() appear?",
+    "current() is allowed on the VALUE side of an operator. The tags of a resource are one object at the fixed path \"tags\" — which operator checks whether an object has a given key?",
+    "Docs: \"Azure Policy definition structure — policy rule\", sections \"Conditions\" (containsKey / notContainsKey) and \"Value count\". Your where clause needs \"field\": \"tags\" and one key operator."
   ],
   "interview": {
     "question": "A policy passed terraform validate and CI but Azure rejected it on apply. How do you prevent that class of failure?",
@@ -143,7 +143,7 @@
       "What is the difference between field and value conditions?"
     ]
   },
-  "debrief": "The where clause became {\"value\": \"[coalesce(field(concat('tags[', current('tagName'), ']')), '')]\", \"equals\": \"\"}. Lesson: Terraform and JSON validation only check syntax; policy semantics are validated by the Azure Resource Manager on PUT. Mitigations: deploy policies to a sandbox subscription (or management group) first, run a what-if/plan against a real API in CI, and keep rules small and unit-tested with known compliant/non-compliant samples.",
+  "debrief": "The where clause became { \"field\": \"tags\", \"notContainsKey\": \"[current('tagName')]\" }. The engine forbids runtime functions (current(), field(), resourceGroup()…) inside a field accessor AND inside the field() function — both the original rule and the first \"fix\" with field(concat(…current…)) were rejected at PUT time. Keeping the path fixed (\"tags\") and moving current() to the operator's value side is allowed. Lesson: Terraform and JSON validation only check syntax; the Azure Resource Manager validates policy semantics on PUT. Mitigations: deploy policies to a sandbox scope first, keep rules small, and test them with known compliant / non-compliant resources.",
   "references": [
     "infra/policies/require-rg-tags.rule.json",
     "infra/terraform/20-governance/main.tf",
