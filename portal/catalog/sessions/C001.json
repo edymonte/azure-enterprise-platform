@@ -75,6 +75,51 @@
     }
   ],
   "expectedResult": "20-governance fully applied (9/9). The initiative shows in Azure Policy → Assignments, and compliance starts evaluating resource groups in Audit mode.",
+  "learn": {
+    "concepts": [
+      {
+        "title": "What an Azure Policy is",
+        "body": "A policy is a rule that Azure evaluates against every resource in a scope (a subscription, for example). Every rule has the same shape: IF a condition is true THEN apply an effect such as `Audit` (just report) or `Deny` (block the request).\n\nSeveral policies can be grouped into an *initiative* (policy set) and assigned once. That is what `mfs-platform-guardrails` is.",
+        "code": "{ \"if\": { ...condition... }, \"then\": { \"effect\": \"Audit\" } }"
+      },
+      {
+        "title": "Conditions: field vs value",
+        "body": "A condition compares a left side with an operator such as `equals`, `notEquals` or `exists`.\n\n`field` is a fixed path to a property of the resource (`location`, `name`, `tags[Owner]`). It may use `parameters()`, but it may NOT contain `current()`.\n\n`value` is any ARM template expression between square brackets. Inside it you can call functions — including `field('path')` to read a property and `current('name')` to read the item of a loop.",
+        "code": "{ \"field\": \"location\", \"equals\": \"eastus2\" }\n{ \"value\": \"[toLower(field('name'))]\", \"equals\": \"rg-demo\" }"
+      },
+      {
+        "title": "Loops: the value count",
+        "body": "A `count` with a `value` walks a list (here: the list of mandatory tag names). For every item, it evaluates the `where` condition; the item is available as `current('tagName')`. The outer comparison (`greater: 0`) asks: \"is there at least one item for which `where` is true?\".\n\nSo `where` must answer: \"is THIS tag missing on the resource group?\"."
+      },
+      {
+        "title": "null, exists and coalesce()",
+        "body": "When a tag does not exist, `field('tags[X]')` returns null. The `exists` operator only works with `field`, not with `value`. The ARM function `coalesce(a, b)` returns the first argument that is not null — so `coalesce(field(...), '')` turns a missing tag into an empty string you can compare with `equals`."
+      }
+    ],
+    "example": {
+      "title": "a different rule: \"names must be lower case\"",
+      "body": "Rule: deny storage accounts whose name has upper-case letters. The name is a fixed property, but we need a function (`toLower`) — so the left side must be `value`, and the property is read with the `field()` function:",
+      "code": "{\n  \"if\": { \"allOf\": [\n    { \"field\": \"type\", \"equals\": \"Microsoft.Storage/storageAccounts\" },\n    { \"value\": \"[field('name')]\", \"notEquals\": \"[toLower(field('name'))]\" }\n  ] },\n  \"then\": { \"effect\": \"deny\" }\n}"
+    },
+    "glossary": [
+      {
+        "term": "Initiative",
+        "def": "A set of policies assigned together, with shared parameters (policy set definition)."
+      },
+      {
+        "term": "Effect",
+        "def": "`Audit` reports non-compliance; `Deny` blocks the request; `Disabled` turns the rule off."
+      },
+      {
+        "term": "ARM expression",
+        "def": "A formula in square brackets, e.g. `[concat('a', 'b')]`, evaluated by Azure Resource Manager."
+      },
+      {
+        "term": "UnsupportedPolicyRuleField",
+        "def": "API error: the rule uses something the policy engine does not allow in that position."
+      }
+    ]
+  },
   "recovery": "A failed apply is safe to repeat: Terraform already stored the resources it created, so the next apply creates only what is missing. If the plan wants to destroy anything, stop and investigate.",
   "dont": [
     "Do not create the policy in the portal",

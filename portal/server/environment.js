@@ -92,12 +92,16 @@ export class EnvironmentProbe extends EventEmitter {
     if (this.running) return this.running;
     this.running = (async () => {
       try {
+        const firstRun = !this.snapshot.at;
         const azure = await this.probeAzure();
         const aks = await this.probeAks(azure);
-        const next = { ...this.snapshot, at: new Date().toISOString(), azure, aks };
-        if (tools || !this.snapshot.at) next.tools = await this.probeTools();
-        this.snapshot = next;
+        // Publish Azure/AKS first: tool versions are slower and less urgent.
+        this.snapshot = { ...this.snapshot, at: new Date().toISOString(), azure, aks };
         this.emit('change', this.snapshot);
+        if (tools || firstRun) {
+          this.snapshot = { ...this.snapshot, tools: await this.probeTools() };
+          this.emit('change', this.snapshot);
+        }
         return this.snapshot;
       } finally {
         this.running = null;

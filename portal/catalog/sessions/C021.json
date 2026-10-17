@@ -58,6 +58,33 @@
     }
   ],
   "expectedResult": "Prod runs content-addressed images.",
+  "learn": {
+    "concepts": [
+      {
+        "title": "Tags are mutable, digests are not",
+        "body": "An image tag (`v1.2.0`) is a pointer that can be re-pushed to different content. A digest (`sha256:…`) is the hash of the image manifest: same digest, same bytes. Deploying `repo@sha256:…` guarantees prod runs what was tested."
+      },
+      {
+        "title": "Getting the digest",
+        "body": "Registries return the digest on push; ACR can show it later for a tag. Keep the human-readable tag too — the smoke test compares the version string."
+      }
+    ],
+    "example": {
+      "title": "digest of an existing tag",
+      "body": "For any registry and repository:",
+      "code": "az acr repository show -n <acr> --image <repo>:<tag> --query digest -o tsv"
+    },
+    "glossary": [
+      {
+        "term": "Manifest",
+        "def": "Document describing an image's layers and config."
+      },
+      {
+        "term": "Content-addressed",
+        "def": "Identified by the hash of its content."
+      }
+    ]
+  },
   "recovery": "If smoke compares a version tag, keep the tag as a label/env var for EXPECTED_VERSION.",
   "dont": [
     "Do not drop the human-readable version — keep it for the smoke test"

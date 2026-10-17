@@ -62,6 +62,41 @@
     }
   ],
   "expectedResult": "Drift becomes a red workflow and a notification, not a customer call.",
+  "learn": {
+    "concepts": [
+      {
+        "title": "Drift",
+        "body": "*Drift* is the difference between what the state/code says and what really exists, usually caused by manual changes. `terraform plan` always refreshes from Azure first, so it shows drift as unexpected changes (for example `+ create` for something that \"already existed\")."
+      },
+      {
+        "title": "Exit codes make plans automatable",
+        "body": "With `-detailed-exitcode`, `terraform plan` exits with 0 (no changes), 1 (error) or 2 (changes present). A pipeline can treat 2 as \"drift detected\" and alert, without applying anything."
+      },
+      {
+        "title": "Scheduled workflows",
+        "body": "A GitHub workflow with `on: schedule` runs on a cron expression, always on the default branch. Its OIDC subject is therefore `ref:refs/heads/main`. It needs `permissions: id-token: write` to request the OIDC token."
+      }
+    ],
+    "example": {
+      "title": "a nightly job that only reports",
+      "body": "This skeleton runs every night and fails the job on drift (exit code 2). It deliberately never applies:",
+      "code": "on:\n  schedule: [ { cron: \"0 6 * * *\" } ]\npermissions: { id-token: write, contents: read }\njobs:\n  check:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: echo \"login, init, then: terraform plan -detailed-exitcode\""
+    },
+    "glossary": [
+      {
+        "term": "Refresh",
+        "def": "Terraform reads the real resources before planning."
+      },
+      {
+        "term": "cron",
+        "def": "Schedule syntax: minute hour day month weekday (UTC on GitHub)."
+      },
+      {
+        "term": "Auto-remediation",
+        "def": "Applying automatically to undo drift — risky, it can revert a legitimate emergency change."
+      }
+    ]
+  },
   "recovery": "Exit code 1 means the plan itself failed (auth, state lock); 2 means drift. Treat them differently in the workflow.",
   "dont": [
     "Do not run apply from the scheduled workflow",

@@ -54,6 +54,37 @@
     }
   ],
   "expectedResult": "Exposure closed and a decision on prevention.",
+  "learn": {
+    "concepts": [
+      {
+        "title": "Compliance is asynchronous",
+        "body": "Policy compliance is evaluated after changes and periodically; results can take up to ~30 minutes. `az policy state trigger-scan` asks for an evaluation now."
+      },
+      {
+        "title": "Audit, Deny and the operational path",
+        "body": "`Deny` prevents the bad configuration at request time. Before switching, check every legitimate process that needs the \"bad\" state — here, scripts that need temporary public SQL access — and give them another path (for example a job running inside the VNet)."
+      },
+      {
+        "title": "Exemptions",
+        "body": "An exemption excludes a resource from a policy for a reason and, ideally, an expiry date. It is for justified exceptions, not for silencing alerts."
+      }
+    ],
+    "example": {
+      "title": "listing non-compliant resources of one policy",
+      "body": "Filter the policy states by the reference id inside the initiative:",
+      "code": "az policy state list --filter \"complianceState eq 'NonCompliant'\" --query \"[].{resource:resourceId, policy:policyDefinitionReferenceId}\" -o table"
+    },
+    "glossary": [
+      {
+        "term": "Compliance state",
+        "def": "Compliant / NonCompliant result of a policy evaluation."
+      },
+      {
+        "term": "Exemption",
+        "def": "Documented exclusion from a policy assignment."
+      }
+    ]
+  },
   "recovery": "Compliance can take up to 30 minutes to refresh; trigger a scan: az policy state trigger-scan.",
   "dont": [
     "Do not create an exemption to silence it"

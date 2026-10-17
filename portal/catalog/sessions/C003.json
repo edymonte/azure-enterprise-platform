@@ -63,6 +63,41 @@
     }
   ],
   "expectedResult": "A job on a feature branch can no longer obtain the environment:lab token.",
+  "learn": {
+    "concepts": [
+      {
+        "title": "OIDC federation in one paragraph",
+        "body": "Instead of storing a client secret, GitHub gives each job a short-lived signed token describing *who* is running (repository, branch, environment). Entra ID trusts that token if its `subject` matches a *federated credential* on the app, and returns an Azure token. No secret ever exists."
+      },
+      {
+        "title": "The subject is the security boundary",
+        "body": "Typical subjects: `repo:<owner>/<repo>:pull_request`, `repo:<owner>/<repo>:ref:refs/heads/main`, `repo:<owner>/<repo>:environment:lab`. A job that declares `environment: lab` presents the environment subject — so whoever can run a job with that environment gets those permissions. The environment itself must therefore restrict *which branches* can use it and *who approves*."
+      },
+      {
+        "title": "Environment protection rules",
+        "body": "A GitHub environment can have required reviewers and a *deployment branch policy*: either \"protected branches only\" or a list of custom branch patterns. A job from any other branch cannot even start in that environment."
+      }
+    ],
+    "example": {
+      "title": "reading an environment's rules with the API",
+      "body": "The GitHub API returns the protection of an environment. Look for `protection_rules` (reviewers) and `deployment_branch_policy` (null = any branch):",
+      "code": "gh api repos/<owner>/<repo>/environments/<name> --jq \"{rules: .protection_rules, branches: .deployment_branch_policy}\""
+    },
+    "glossary": [
+      {
+        "term": "Federated credential",
+        "def": "Trust entry on an Entra app: issuer + subject + audience accepted instead of a secret."
+      },
+      {
+        "term": "Subject (sub)",
+        "def": "Claim in the OIDC token identifying the job context; must match exactly."
+      },
+      {
+        "term": "Required reviewers",
+        "def": "Environment rule: a human must approve before the job runs."
+      }
+    ]
+  },
   "recovery": "If a workflow on main stops deploying, check that main is protected — protected_branches policy only matches protected branches.",
   "dont": [
     "Do not add a client secret",

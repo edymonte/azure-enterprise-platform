@@ -63,6 +63,37 @@
     }
   ],
   "expectedResult": "A bad release stopped in dev with zero customer impact.",
+  "learn": {
+    "concepts": [
+      {
+        "title": "The test pyramid",
+        "body": "*Unit* tests check logic in isolation (fast, many). *Integration* tests check a component with its real dependency (e.g. a SQL container). *Smoke* tests check a deployed environment answers end to end (few, slow). Each layer catches bugs the others miss."
+      },
+      {
+        "title": "Readiness vs smoke",
+        "body": "A readiness probe answers \"can this pod receive traffic?\" — here it only pings the database. It does not run the product query. The PostSync smoke calls the real endpoint, so a wrong SQL column fails there."
+      }
+    ],
+    "example": {
+      "title": "an integration test with a real database in CI",
+      "body": "GitHub Actions can start a database as a service container next to the job; tests then connect to it:",
+      "code": "services:\n  sql:\n    image: mcr.microsoft.com/mssql/server:2022-latest\n    env: { ACCEPT_EULA: \"Y\", MSSQL_SA_PASSWORD: ${{ secrets.CI_SQL_PASSWORD }} }\n    ports: [ \"1433:1433\" ]"
+    },
+    "glossary": [
+      {
+        "term": "Fix forward",
+        "def": "Ship a corrected version instead of reverting."
+      },
+      {
+        "term": "Readiness probe",
+        "def": "Health check deciding if a pod gets traffic."
+      },
+      {
+        "term": "Service container",
+        "def": "Container started for the duration of a CI job."
+      }
+    ]
+  },
   "recovery": "If Argo CD keeps retrying, the revert has not merged yet — check the PR.",
   "dont": [
     "Do not promote a release whose smoke failed",

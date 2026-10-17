@@ -1,0 +1,53 @@
+{
+  "title": "Study plan",
+  "intro": "Targeted study recommendations. You tick these yourself — they are not verified by checkers. Watch a module only when a ticket shows the gap, then come back and practise.",
+  "sections": [
+    {
+      "id": "certs",
+      "title": "Certifications",
+      "note": "Microsoft role-based certifications are valid for one year and renew for free with an online assessment during the six months before they expire. Once expired, the exam has to be passed again.",
+      "items": [
+        { "id": "cert-check-learn", "title": "Check AZ-104 and AZ-305 status and expiry dates on your Microsoft Learn profile", "detail": "Profile → Credentials. Note the expiry dates here.", "link": "https://learn.microsoft.com/credentials/certifications/renew-your-microsoft-certification" },
+        { "id": "cert-renew-104", "title": "Renew AZ-104 with the free online assessment (if inside the renewal window)", "detail": "Phase 1 of this portal is the preparation." },
+        { "id": "cert-renew-305", "title": "Renew AZ-305 with the free online assessment (if inside the renewal window)", "detail": "Refresh AZ-305 modules 05, 06 and 08 first." },
+        { "id": "cert-az400-plan", "title": "Plan the AZ-400 exam (DevOps Engineer Expert) for when it fits your budget", "detail": "AZ-104 already satisfies the prerequisite. Combined with AZ-305 it gives you two Expert titles. Keep an eye on Microsoft events that offer discounted vouchers." },
+        { "id": "cert-terraform-later", "title": "Re-certify Terraform Associate later (optional)", "detail": "The knowledge is what interviews test; re-certify when an employer or budget allows." }
+      ]
+    },
+    {
+      "id": "az400",
+      "title": "AZ-400 — the modules you still need (TFTEC)",
+      "note": "Modules 01–09 are done. These are the most asked senior DevOps topics.",
+      "items": [
+        { "id": "az400-m10", "title": "Module 10 — Designing a release strategy", "detail": "Approvals, gates, release flow. Links to Phase 2 tickets." },
+        { "id": "az400-m11", "title": "Module 11 — Implementing continuous deployment using Azure Pipelines", "detail": "Multi-stage YAML, environments, checks." },
+        { "id": "az400-m12", "title": "Module 12 — Implementing an appropriate deployment pattern", "detail": "Blue/green, canary, feature flags, ring deployments — classic interview questions." },
+        { "id": "az400-m19", "title": "Module 19 — Implementing security in DevOps projects", "detail": "DevSecOps: scanning, secrets, supply chain." },
+        { "id": "az400-m13", "title": "Module 13 — Managing infrastructure and configuration using Azure tools (optional)", "detail": "ARM/Bicep, Azure Automation — contrast with Terraform." },
+        { "id": "az400-m20", "title": "Module 20 — Validating code bases for compliance (optional)", "detail": "Policy, licensing, compliance in pipelines." }
+      ]
+    },
+    {
+      "id": "az305",
+      "title": "AZ-305 — refresh for design interviews (TFTEC)",
+      "note": "The vocabulary of 'how would you design…?' questions.",
+      "items": [
+        { "id": "az305-m05", "title": "Module 05 — Design authentication and authorization solutions", "detail": "Entra ID, managed identities, RBAC design, conditional access." },
+        { "id": "az305-m06", "title": "Module 06 — Designing Microsoft Azure infrastructure solutions", "detail": "Networking and compute design: hub & spoke, landing zones." },
+        { "id": "az305-m08", "title": "Module 08 — Design a business continuity solution", "detail": "Backup, Site Recovery, RTO/RPO, multi-region." },
+        { "id": "az305-m07", "title": "Module 07 — Design a solution to log and monitor Azure resources", "detail": "Azure Monitor, Log Analytics workspace design." }
+      ]
+    },
+    {
+      "id": "aks",
+      "title": "AKS — when Phase 3 (containers) starts (TFTEC)",
+      "note": "Only after the Azure Administrator phase.",
+      "items": [
+        { "id": "aks-m05", "title": "Module 05 — Nodes and node pools", "detail": "System vs user pools, scaling, upgrades." },
+        { "id": "aks-m06", "title": "Module 06 — Networking in AKS", "detail": "CNI options, ingress, network policies." },
+        { "id": "aks-m07", "title": "Module 07 — Entra ID integration with AKS", "detail": "Authentication and Azure RBAC." },
+        { "id": "aks-m08", "title": "Module 08 — Security and identity", "detail": "Workload identity, Key Vault, policies." }
+      ]
+    }
+  ]
+}

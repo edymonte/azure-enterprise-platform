@@ -58,6 +58,33 @@
     }
   ],
   "expectedResult": "A third environment created by the pipeline, with an auditable approval.",
+  "learn": {
+    "concepts": [
+      {
+        "title": "Plan on PR, apply with approval",
+        "body": "For infrastructure, the PR shows `terraform plan` as a comment so reviewers read the exact change. After merge, the apply job runs in a protected environment that waits for a human approval — four-eyes control with an audit trail."
+      },
+      {
+        "title": "for_each vs count",
+        "body": "`count` addresses resources by position (0, 1, 2): inserting an item in the middle shifts indexes and recreates resources. `for_each` addresses by key (`portal-dev`, `portal-prod`): adding a key adds exactly one resource."
+      }
+    ],
+    "example": {
+      "title": "reading a plan summary in CI logs",
+      "body": "The last line of a plan is the contract you approve:",
+      "code": "Plan: 1 to add, 0 to change, 0 to destroy."
+    },
+    "glossary": [
+      {
+        "term": "Environment approval",
+        "def": "Gate on a GitHub environment requiring a reviewer."
+      },
+      {
+        "term": "Resource address",
+        "def": "How Terraform names a resource, e.g. `x.y[\"portal-qa\"]`."
+      }
+    ]
+  },
   "recovery": "If the plan shows prod's credential being replaced, you used count instead of for_each semantics — stop.",
   "dont": [
     "Do not apply 40-aks from your laptop",

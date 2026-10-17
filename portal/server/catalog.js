@@ -50,6 +50,11 @@ function validateSession(s, file, portalRoot) {
   requireArray(s, 'dont', file);
   requireArray(s, 'hints', file, { min: 3 });
   if (!s.interview || typeof s.interview.question !== 'string') fail(file, '"interview.question" is required');
+  const L = s.learn;
+  if (!L || !Array.isArray(L.concepts) || L.concepts.length === 0) fail(file, '"learn.concepts" is required');
+  for (const c of L.concepts) if (typeof c.title !== 'string' || typeof c.body !== 'string') fail(file, 'every learn concept needs "title" and "body"');
+  if (!L.example || typeof L.example.title !== 'string' || typeof L.example.body !== 'string') fail(file, '"learn.example" needs "title" and "body"');
+  if (!Array.isArray(L.glossary) || L.glossary.length < 2) fail(file, '"learn.glossary" needs at least 2 terms');
 
   const pre = s.prerequisites;
   if (!pre || !Array.isArray(pre.platform) || pre.platform.length === 0) fail(file, '"prerequisites.platform" is required');
@@ -108,5 +113,26 @@ export function loadCatalog(portalRoot) {
   for (const s of sessions) if (!cycleIds.has(s.cycle)) throw new Error(`catalog: ${s.id} refers to unknown cycle ${s.cycle}`);
 
   const byId = new Map(sessions.map((s) => [s.id, s]));
-  return { track, sessions, byId };
+  return { track, sessions, byId, studyPlan: loadStudyPlan(catalogDir) };
+}
+
+// Self-tracked study recommendations (not verified by checkers).
+function loadStudyPlan(catalogDir) {
+  const file = path.join(catalogDir, 'study-plan.json');
+  if (!fs.existsSync(file)) return { title: 'Study plan', intro: '', sections: [], itemIds: new Set() };
+  const plan = JSON.parse(fs.readFileSync(file, 'utf8'));
+  const itemIds = new Set();
+  for (const section of plan.sections ?? []) {
+    requireString(section, 'id', file);
+    requireString(section, 'title', file);
+    requireArray(section, 'items', file);
+    for (const item of section.items) {
+      if (typeof item.id !== 'string' || !/^[a-z0-9-]+$/.test(item.id)) fail(file, `study item id "${item.id}" must be kebab-case`);
+      if (itemIds.has(item.id)) fail(file, `duplicate study item id "${item.id}"`);
+      requireString(item, 'title', file);
+      if (item.link !== undefined && !/^https:\/\//.test(item.link)) fail(file, `study item "${item.id}" link must be https`);
+      itemIds.add(item.id);
+    }
+  }
+  return { ...plan, itemIds };
 }

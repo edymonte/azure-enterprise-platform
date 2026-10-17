@@ -53,6 +53,37 @@
     }
   ],
   "expectedResult": "Two observability stacks, both as code.",
+  "learn": {
+    "concepts": [
+      {
+        "title": "Unified service tagging",
+        "body": "Datadog links metrics, traces and logs through three tags: `env`, `service` and `version` (DD_ENV, DD_SERVICE, DD_VERSION). With them you can compare versions and environments in one click."
+      },
+      {
+        "title": "Monitoring as code",
+        "body": "Monitors, SLOs and dashboards defined in Terraform get code review, history and reproducibility — the same discipline as infrastructure."
+      },
+      {
+        "title": "Secrets for agents",
+        "body": "The Datadog API key must never be in Git. Create the Kubernetes Secret out-of-band (or sync it from Key Vault with the CSI driver / External Secrets)."
+      }
+    ],
+    "example": {
+      "title": "a monitor in Terraform (shape only)",
+      "body": "Every monitor is a query plus thresholds and a message:",
+      "code": "resource \"datadog_monitor\" \"errors\" {\n  name    = \"High error rate\"\n  type    = \"query alert\"\n  query   = \"sum(last_5m):<metric query> > 0.05\"\n  message = \"Error ratio above 5% @team\"\n}"
+    },
+    "glossary": [
+      {
+        "term": "APM",
+        "def": "Application performance monitoring (traces)."
+      },
+      {
+        "term": "Agent",
+        "def": "Datadog process on each node collecting data."
+      }
+    ]
+  },
   "recovery": "Agents crash: the secret is missing — re-run the secret script.",
   "dont": [
     "Do not commit the API key",

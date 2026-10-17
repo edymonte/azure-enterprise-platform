@@ -206,10 +206,12 @@
           },
         }, 'mark ✓')),
         h('div', { class: 'muted' }, st.detail),
-        st.command ? h('div', { class: 'cmd' }, h('code', {}, st.command), h('button', {
-          class: 'btn copy',
-          onclick: () => navigator.clipboard.writeText(st.command).then(() => toast('Command copied — run it in your VS Code terminal.', 'info')),
-        }, 'Copy')) : null);
+        st.command ? h('div', { class: 'cmd' }, h('code', {}, st.command),
+          state.meta.terminal.enabled ? h('button', { class: 'btn copy', title: 'Paste into the terminal (you still press Enter)', onclick: () => sendToTerminal(st.command) }, '▶ Terminal') : null,
+          h('button', {
+            class: 'btn copy',
+            onclick: () => navigator.clipboard.writeText(st.command).then(() => toast('Command copied.', 'info')),
+          }, 'Copy')) : null);
       ol.append(li);
     });
     return ol;
@@ -305,7 +307,7 @@
   // KodeKloud-style lab view: task panel (left, with time box, Check and Try
   // later) and a terminal-looking *evidence console* (right). The console only
   // displays checker runs — it never executes anything.
-  const ui = { tab: {}, expanded: false };
+  const ui = { tab: {}, expanded: false, rightTab: null };
   const CRIT_MARK = { pass: ['✓', 'con-pass'], fail: ['✕', 'con-fail'], skipped: ['–', 'con-skip'] };
   const OUTCOME_CLASS = { pass: 'con-pass', fail: 'con-fail', blocked: 'con-skip', error: 'con-warn', cancelled: 'con-dim' };
 
@@ -337,8 +339,35 @@
   }
   setInterval(tickTimer, 1000);
 
+  // Inline `code` in learn texts; everything else stays plain text.
+  function richText(text) {
+    return text.split(/(`[^`]+`)/).map((part) => (/^`[^`]+`$/.test(part) ? h('code', {}, part.slice(1, -1)) : part));
+  }
+
+  function learnBody(s) {
+    const L = s.learn;
+    const out = [
+      h('div', { class: 'learn-banner' }, h('b', {}, 'Learn first. '), 'New to this topic? Read this before the task. Reading it is free — it does not count as a hint.'),
+      h('h2', {}, `Concepts behind “${s.title}”`),
+    ];
+    for (const c of L.concepts) {
+      out.push(h('div', { class: 'section-title' }, c.title));
+      for (const para of c.body.split('\n\n')) out.push(h('p', {}, ...richText(para)));
+      if (c.code) out.push(h('pre', { class: 'learn-code' }, c.code));
+    }
+    out.push(h('div', { class: 'section-title' }, `Worked example — ${L.example.title}`));
+    for (const para of L.example.body.split('\n\n')) out.push(h('p', {}, ...richText(para)));
+    if (L.example.code) out.push(h('pre', { class: 'learn-code' }, L.example.code));
+    out.push(h('p', { class: 'muted small' }, 'The example is deliberately a different case from your task: apply the idea, do not copy it.'));
+    out.push(h('div', { class: 'section-title' }, 'Glossary'));
+    out.push(h('dl', { class: 'kv glossary' }, ...L.glossary.flatMap((g) => [h('dt', {}, g.term), h('dd', {}, ...richText(g.def))])));
+    out.push(h('button', { class: 'btn btn-primary', onclick: () => { ui.tab[s.id] = 'task'; render(true); } }, 'Go to the task →'));
+    return out;
+  }
+
   function taskBody(s) {
-    const tab = ui.tab[s.id] ?? 'task';
+    const tab = ui.tab[s.id] ?? (s.lastObservation ? 'task' : 'learn');
+    if (tab === 'learn') return learnBody(s);
     if (tab === 'hints') return [hintsCard(s), envCard(s), checkerCard(s)];
     if (tab === 'result') return s.completedAt ? completionCards(s) : [h('p', { class: 'muted' }, 'The debrief and the self-assessment open after the technical validation passes.')];
     const cyc = cycleOf(s.cycle);
@@ -428,22 +457,38 @@
         h('blockquote', { class: 'scenario' }, s.scenario)));
       return;
     }
-    const tab = ui.tab[s.id] ?? 'task';
+    const tab = ui.tab[s.id] ?? (s.lastObservation ? 'task' : 'learn');
     const tabBtn = (key, label) => h('button', { class: `ws-tab ${tab === key ? 'on' : ''}`, onclick: () => { ui.tab[s.id] = key; render(true); } }, label);
     const timer = h('span', { class: 'ws-timer', id: 'ws-timer', dataset: { id: s.id } });
     const task = h('section', { class: 'ws-panel ws-task' },
-      h('div', { class: 'ws-head' }, tabBtn('task', '☰ Task'), tabBtn('hints', `Hints ${s.hintsRevealed.length}/${s.hintsTotal}`), s.completedAt ? tabBtn('result', '✓ Result') : null,
+      h('div', { class: 'ws-head' }, tabBtn('learn', '📘 Learn'), tabBtn('task', '☰ Task'), tabBtn('hints', `Hints ${s.hintsRevealed.length}/${s.hintsTotal}`), s.completedAt ? tabBtn('result', '✓ Result') : null,
         h('span', { class: 'ws-spacer' }), timer,
         h('button', { class: 'ws-icon', title: 'Restart the time box', onclick: () => { resetTimebox(s); tickTimer(); } }, '↺'),
         h('button', { class: 'ws-icon', title: ui.expanded ? 'Show the evidence console' : 'Hide the evidence console', onclick: () => { ui.expanded = !ui.expanded; render(true); } }, ui.expanded ? '⤡' : '⤢')),
       h('div', { class: 'ws-body' }, ...taskBody(s)),
       h('div', { class: 'ws-foot' }, ...taskFoot(s)));
+    const termOn = state.meta.terminal.enabled;
+    const right = ui.rightTab ?? (termOn ? 'terminal' : 'evidence');
+    const rightTab = (key, label, extra = '') => h('button', { class: `ws-tab ${right === key ? 'on' : ''} ${extra}`, onclick: () => { ui.rightTab = key; render(true); if (key === 'terminal' && term.input) term.input.focus(); } }, label);
+    const lastRun = (s.history ?? []).at(-1);
+    const evidenceLabel = lastRun ? `Evidence · ${stateText(s)}${lastRun.criteria.length ? ` ${lastRun.criteria.filter((c) => c.status === 'pass').length}/${s.criteria.length}` : ''}` : 'Evidence';
     const conBody = h('div', { class: 'ws-body', id: 'console-body' }, ...consoleBody(s));
+    let rightBody = conBody;
+    if (right === 'terminal') {
+      rightBody = termOn ? buildTerminal() : h('div', { class: 'ws-body term-body' }, h('div', { class: 'con-line con-dim' },
+        '# The terminal is off. To run commands here, stop the portal and start it with:\n#   $env:PORTAL_TERMINAL = "1"; npm --prefix portal start\n# It runs a real PowerShell in the repository folder (no PTY: vim/less do not work).'));
+    }
+    const termFocused = document.activeElement === term.input;
     const consolePanel = h('section', { class: 'ws-panel ws-console' },
-      h('div', { class: 'ws-head' }, h('button', { class: 'ws-tab on' }, 'Evidence 1'), h('span', { class: 'ws-spacer' }),
+      h('div', { class: 'ws-head' },
+        rightTab('terminal', termOn ? `Terminal 1${term.status.busy ? ' ●' : ''}` : 'Terminal (off)'),
+        rightTab('evidence', evidenceLabel, s.state === 'FAILED' ? 'tab-fail' : s.state === 'COMPLETED' ? 'tab-ok' : ''),
+        h('span', { class: 'ws-spacer' }),
+        right === 'terminal' && termOn ? h('button', { class: 'ws-icon', title: 'Clear the screen', onclick: () => post('/api/terminal/clear').catch((e) => toast(e.message)) }, '⌫') : null,
+        right === 'terminal' && termOn ? h('button', { class: 'btn stop-lab', title: 'Kill the running command and start a fresh shell', onclick: () => post('/api/terminal/restart').catch((e) => toast(e.message)) }, '■ Restart') : null,
         h('span', { class: `status-pill ${s.state}`, title: s.reasonMessage ?? '' }, stateText(s)),
         h('a', { href: '#/practice', class: 'ws-icon', title: 'All sessions' }, '✕')),
-      conBody);
+      rightBody);
     const oldTask = view.querySelector('.ws-task .ws-body');
     const sameSession = ui.lastWs === s.id;
     const taskScroll = sameSession && oldTask ? oldTask.scrollTop : 0;
@@ -456,7 +501,95 @@
       ui.conScroll = conBody.scrollTop;
       ui.conAtBottom = conBody.scrollHeight - conBody.scrollTop - conBody.clientHeight < 30;
     });
+    if (right === 'terminal' && termOn) {
+      if (term.stick !== false) term.out.scrollTop = term.out.scrollHeight;
+      if (termFocused) term.input.focus();
+    }
     tickTimer();
+  }
+
+  // ------------------------------------------------------------ terminal
+  // A real PowerShell (opt-in, PORTAL_TERMINAL=1). The DOM is built once and
+  // re-attached on every render, so live updates never wipe input or output.
+  const term = { el: null, out: null, input: null, prompt: null, history: [], hIdx: 0, stick: true, status: { busy: true, cwd: '' } };
+  const SGR_COLOURS = { 30: 'k', 31: 'r', 32: 'g', 33: 'y', 34: 'bl', 35: 'm', 36: 'c', 37: 'w', 90: 'k', 91: 'r', 92: 'g', 93: 'y', 94: 'bl', 95: 'm', 96: 'c', 97: 'w' };
+  let sgr = { colour: null, bold: false };
+
+  function termAppend(text) {
+    if (!term.out) return;
+    // Drop OSC and non-colour CSI sequences; keep SGR colours.
+    const clean = text.replace(/\x1b\][^\x07]*\x07/g, '').replace(/\x1b\[[0-9;?]*[A-La-ln-zA-Z]/g, '').replace(/\r\n/g, '\n').replace(/\r/g, '');
+    for (const part of clean.split(/(\x1b\[[0-9;]*m)/)) {
+      const m = /^\x1b\[([0-9;]*)m$/.exec(part);
+      if (m) {
+        for (const code of (m[1] || '0').split(';').map(Number)) {
+          if (code === 0) sgr = { colour: null, bold: false };
+          else if (code === 1) sgr.bold = true;
+          else if (code === 22) sgr.bold = false;
+          else if (code === 39) sgr.colour = null;
+          else if (SGR_COLOURS[code]) sgr.colour = SGR_COLOURS[code];
+        }
+      } else if (part) {
+        const cls = [sgr.colour ? `ansi-${sgr.colour}` : '', sgr.bold ? 'ansi-b' : ''].join(' ').trim();
+        term.out.append(cls ? h('span', { class: cls }, part) : document.createTextNode(part));
+      }
+    }
+    while (term.out.childNodes.length > 5000) term.out.firstChild.remove();
+    if (term.stick) term.out.scrollTop = term.out.scrollHeight;
+  }
+
+  function termPrompt() {
+    if (!term.prompt) return;
+    const st = term.status;
+    // Long paths are shortened to their last two segments, like many shell themes.
+    const parts = (st.cwd || '').split(/[\\/]/).filter(Boolean);
+    const cwd = parts.length > 3 ? `…\\${parts.slice(-2).join('\\')}` : st.cwd || '';
+    term.prompt.textContent = st.busy ? '… ' : `PS ${cwd}> `;
+    term.prompt.title = st.cwd || '';
+    term.prompt.className = `term-prompt ${st.busy ? 'busy' : st.lastOk === false ? 'err' : ''}`;
+    term.input.placeholder = st.busy ? 'command running — type the answer to a prompt (e.g. y) and press Enter' : 'type a command and press Enter';
+  }
+
+  function buildTerminal() {
+    if (term.el) return term.el;
+    term.out = h('div', { class: 'term-out', onscroll: () => { term.stick = term.out.scrollHeight - term.out.scrollTop - term.out.clientHeight < 40; } });
+    term.prompt = h('span', { class: 'term-prompt' }, 'PS> ');
+    term.input = h('input', { class: 'term-input', type: 'text', spellcheck: 'false', autocomplete: 'off', 'aria-label': 'Terminal input' });
+    term.input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const line = term.input.value;
+        term.input.value = '';
+        if (line.trim() && !term.status.busy) {
+          term.history.push(line);
+          term.hIdx = term.history.length;
+        }
+        term.stick = true;
+        post('/api/terminal/input', { line }).catch((err) => toast(err.message));
+      } else if (e.key === 'ArrowUp' && term.history.length) {
+        term.hIdx = Math.max(0, term.hIdx - 1);
+        term.input.value = term.history[term.hIdx];
+        e.preventDefault();
+      } else if (e.key === 'ArrowDown' && term.history.length) {
+        term.hIdx = Math.min(term.history.length, term.hIdx + 1);
+        term.input.value = term.history[term.hIdx] ?? '';
+        e.preventDefault();
+      }
+    });
+    term.el = h('div', {
+      class: 'ws-body term-body',
+      onclick: (e) => { if (!window.getSelection().toString() && e.target !== term.input) term.input.focus(); },
+    }, term.out, h('div', { class: 'term-row' }, term.prompt, term.input));
+    termPrompt();
+    return term.el;
+  }
+
+  function sendToTerminal(command) {
+    if (!state.meta.terminal.enabled) return;
+    ui.rightTab = 'terminal';
+    render(true);
+    term.input.value = command;
+    term.input.focus();
+    toast('Command pasted into the terminal — read it, then press Enter to run it.', 'info');
   }
 
   // ------------------------------------------------------------ launch screen
@@ -498,7 +631,7 @@
     const s = state.sessions.find((x) => x.id === launch.id);
     const env = state.environment;
     const elapsed = Date.now() - launch.t0;
-    const envReady = env.at && (env.at !== launch.envBaseline || elapsed > 8000);
+    const envReady = Boolean(env.at);
     const implemented = s.checker.status === 'implemented';
     // Stages complete in order: evidence only counts once the environment is known.
     const evidence = !envReady ? false : implemented ? Boolean(s.lastObservation && s.lastObservation.at !== launch.baseline && s.state !== 'CHECKING') : 'skip';
@@ -561,6 +694,61 @@
           : h('p', { class: 'muted' }, 'Nothing completed yet. Your first verified session will show up here.')));
   }
 
+  // ------------------------------------------------------------ study plan
+  function renderStudy() {
+    const plan = state.studyPlan;
+    const all = plan.sections.flatMap((s) => s.items);
+    const done = all.filter((i) => i.done).length;
+    const fill = h('div', { class: 'progress-fill' });
+    requestAnimationFrame(() => { fill.style.width = `${all.length ? (done / all.length) * 100 : 0}%`; });
+    const cards = plan.sections.map((sec) => {
+      const secDone = sec.items.filter((i) => i.done).length;
+      return h('section', { class: 'card' },
+        h('div', { class: 'cycle-head' }, h('h3', {}, sec.title), h('span', { class: `cycle-badge ${secDone === sec.items.length ? 'done' : ''}` }, `${secDone}/${sec.items.length}`)),
+        sec.note ? h('p', { class: 'muted small' }, sec.note) : null,
+        h('ul', { class: 'study-list' }, sec.items.map((item) => {
+          const cb = h('input', { type: 'checkbox', onchange: (e) => post(`/api/study/${item.id}`, { done: e.target.checked }).then(() => { if (e.target.checked) toast('Nice — one more step towards the next role.', 'info'); }).catch((err) => toast(err.message)) });
+          cb.checked = item.done;
+          return h('li', { class: `study-item ${item.done ? 'done' : ''}` },
+            h('label', {}, cb, h('span', { class: 'study-title' }, item.title)),
+            item.detail ? h('div', { class: 'muted small' }, item.detail) : null,
+            item.link ? h('a', { href: item.link, target: '_blank', rel: 'noopener noreferrer', class: 'small' }, 'Open reference ↗') : null,
+            item.done && item.at ? h('div', { class: 'muted small' }, `Done ${day(item.at)}`) : null);
+        })));
+    });
+    view.replaceChildren(
+      h('section', { class: 'card' }, h('h2', {}, plan.title), h('p', { class: 'muted' }, plan.intro),
+        h('div', { class: 'progress-caption' }, `${done}/${all.length} items`), h('div', { class: 'progress-track study-track' }, fill)),
+      ...cards);
+  }
+
+  // ------------------------------------------------------------ interview practice
+  function renderInterview() {
+    const total = state.sessions.length;
+    const practised = state.sessions.filter((s) => state.interview[s.id]?.passes > 0).length;
+    const intro = h('section', { class: 'card' }, h('h2', {}, 'Interview practice'),
+      h('p', { class: 'muted' }, 'Answer out loud, in English, in two minutes: context → what you did → why → trade-off. Press "I practised" after each pass — three passes per question builds the memory you want in a real interview.'),
+      h('div', { class: 'stats' },
+        h('div', { class: 'stat ok' }, h('b', {}, practised), h('span', {}, 'Questions practised')),
+        h('div', { class: 'stat info' }, h('b', {}, Object.values(state.interview).reduce((a, r) => a + (r.passes || 0), 0)), h('span', {}, 'Total passes')),
+        h('div', { class: 'stat warn' }, h('b', {}, state.sessions.filter((s) => (state.interview[s.id]?.passes ?? 0) >= 3).length), h('span', {}, 'Mastered (3+ passes)')),
+        h('div', { class: 'stat lock' }, h('b', {}, total - practised), h('span', {}, 'Not practised yet'))),
+      h('p', { class: 'small' }, 'More material in the repository: ', h('code', {}, 'docs/interview/'), ' (pitch, technical answers, consultant scenarios, English).'));
+    const cards = state.track.cycles.map((c) => h('section', { class: 'card' },
+      h('div', { class: 'cycle-head' }, h('h3', {}, `Cycle ${c.id} · ${c.title}`)),
+      h('ul', { class: 'study-list' }, state.sessions.filter((s) => s.cycle === c.id).map((s) => {
+        const rec = state.interview[s.id] ?? { passes: 0 };
+        return h('li', { class: `study-item ${rec.passes >= 3 ? 'done' : ''}` },
+          h('div', { class: 'iv-head' },
+            h('span', { class: 'study-title' }, s.interview.question),
+            h('span', { class: `chip ${rec.passes >= 3 ? 'ok' : rec.passes ? 'info' : ''}` }, `${rec.passes} pass${rec.passes === 1 ? '' : 'es'}`),
+            h('button', { class: 'btn copy', onclick: () => post(`/api/interview/${s.id}/practised`).then((r) => toast(r.passes >= 3 ? 'Mastered — this answer is yours now.' : `Pass ${r.passes} recorded. Keep going.`, 'info')).catch((e) => toast(e.message)) }, 'I practised')),
+          s.interview.followUps?.length ? h('div', { class: 'muted small' }, `Follow-ups: ${s.interview.followUps.join(' · ')}`) : null,
+          h('div', { class: 'muted small' }, `From session ${s.number}: ${s.title}${rec.lastAt ? ` · last pass ${day(rec.lastAt)}` : ''}`));
+      }))));
+    view.replaceChildren(intro, ...cards);
+  }
+
   function renderEnvironment() {
     const env = state.environment;
     const tools = Object.entries(env.tools ?? {}).map(([k, v]) => h('tr', {}, h('td', {}, k), h('td', {}, v.installed ? h('span', { class: 'chip ok' }, 'installed') : h('span', { class: 'chip bad' }, 'missing')), h('td', { class: 'mono' }, v.version ?? '')));
@@ -586,7 +774,7 @@
   function route() {
     const parts = location.hash.replace(/^#\/?/, '').split('/');
     if (parts[0] === 'session' && /^C\d{3}$/.test(parts[1] ?? '')) return { view: 'session', id: parts[1] };
-    return { view: ['practice', 'map', 'progress', 'environment'].includes(parts[0]) ? parts[0] : 'practice' };
+    return { view: ['practice', 'map', 'progress', 'environment', 'study', 'interview'].includes(parts[0]) ? parts[0] : 'practice' };
   }
 
   function render(force = false) {
@@ -600,6 +788,8 @@
     else if (r.view === 'map') renderMap();
     else if (r.view === 'progress') renderProgress();
     else if (r.view === 'environment') renderEnvironment();
+    else if (r.view === 'study') renderStudy();
+    else if (r.view === 'interview') renderInterview();
     else renderPractice();
     window.scrollTo(0, y);
   }
@@ -631,10 +821,26 @@
       if (ev.data === lastJson) return;
       lastJson = ev.data;
       state = JSON.parse(ev.data);
+      if (!term.statusFromEvents && state.meta.terminal.enabled) { term.status = state.meta.terminal; termPrompt(); }
       render();
       updateLaunch();
     });
     es.addEventListener('celebrate', (ev) => celebrate(JSON.parse(ev.data)));
+    es.addEventListener('term-snapshot', (ev) => {
+      buildTerminal();
+      term.out.replaceChildren();
+      sgr = { colour: null, bold: false };
+      termAppend(JSON.parse(ev.data).buffer);
+    });
+    es.addEventListener('term', (ev) => { buildTerminal(); termAppend(JSON.parse(ev.data).chunk); });
+    es.addEventListener('term-clear', () => { if (term.out) term.out.replaceChildren(); });
+    es.addEventListener('term-status', (ev) => {
+      const wasBusy = term.status.busy;
+      term.status = JSON.parse(ev.data);
+      term.statusFromEvents = true;
+      termPrompt();
+      if (wasBusy !== term.status.busy && route().view === 'session') render(true);
+    });
     es.addEventListener('error', () => { conn.className = 'conn down'; $('#conn-text').textContent = 'Reconnecting…'; });
   }
   connect();

@@ -53,6 +53,33 @@
     }
   ],
   "expectedResult": "A WAF that blocks attacks, not customers.",
+  "learn": {
+    "concepts": [
+      {
+        "title": "WAF modes",
+        "body": "*Detection* logs what the rules would block; *Prevention* blocks it. Start in Detection, study the logs for false positives, tune (exclusions, thresholds), then switch."
+      },
+      {
+        "title": "Rate limiting",
+        "body": "A rate-limit rule caps requests per client per minute. The threshold must come from real traffic (e.g. above the p99 per client), otherwise campaigns and NAT-shared offices get blocked."
+      }
+    ],
+    "example": {
+      "title": "a harmless probe",
+      "body": "A request with a classic SQL-injection pattern in the query string is enough to trigger managed rules:",
+      "code": "curl -s -o NUL -w \"%{http_code}\" \"https://<host>/?id=1%27%20OR%20%271%27=%271\""
+    },
+    "glossary": [
+      {
+        "term": "False positive",
+        "def": "Legitimate traffic flagged as an attack."
+      },
+      {
+        "term": "Managed rule set",
+        "def": "Rules maintained by Microsoft (OWASP-based)."
+      }
+    ]
+  },
   "recovery": "Locked out yourself? Raise the limit through Terraform; never disable the WAF policy.",
   "dont": [
     "Do not disable managed rules globally"

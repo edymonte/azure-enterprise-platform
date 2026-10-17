@@ -352,3 +352,34 @@ th { color: var(--muted); font-weight: 700; font-size: 12px; text-transform: upp
   .launch { grid-template-columns: 1fr; }
   .launch-ring-wrap { width: min(420px, 80vw); }
 }
+
+/* ---------- terminal (opt-in) ---------- */
+.ws-console .term-body { display: flex; flex-direction: column; padding: 0; overflow: hidden; background: #1e2233; cursor: text; }
+.term-out { flex: 1; overflow-y: auto; padding: 16px 18px 6px; white-space: pre-wrap; word-break: break-word; font-family: "Cascadia Code", Consolas, ui-monospace, monospace; font-size: 13.5px; line-height: 1.5; color: #e5e9f5; }
+.term-row { display: flex; align-items: center; gap: 0; padding: 8px 18px 14px; font-family: "Cascadia Code", Consolas, ui-monospace, monospace; font-size: 13.5px; }
+.term-prompt { color: #38bdf8; font-weight: 700; white-space: nowrap; }
+.term-prompt.busy { color: #fbbf24; }
+.term-prompt.err { color: #f87171; }
+.term-input { flex: 1; min-width: 0; background: transparent; border: none; outline: none; color: #f1f5ff; font: inherit; caret-color: #4ade80; }
+.ansi-k { color: #8b93ad; } .ansi-r { color: #f87171; } .ansi-g { color: #4ade80; } .ansi-y { color: #fbbf24; }
+.ansi-bl { color: #60a5fa; } .ansi-m { color: #e879f9; } .ansi-c { color: #22d3ee; } .ansi-w { color: #f1f5ff; } .ansi-b { font-weight: 700; }
+.stop-lab { padding: 5px 12px; font-size: 13px; color: #fca5a5; border-color: rgba(239, 68, 68, .6); background: transparent; }
+.ws-tab.tab-fail { color: #fca5a5; } .ws-tab.tab-ok { color: #86efac; }
+
+/* ---------- learn tab ---------- */
+.learn-banner { padding: 10px 14px; margin-bottom: 16px; border-radius: 10px; background: rgba(59, 130, 246, .12); border: 1px solid rgba(59, 130, 246, .45); color: #bfdbfe; }
+.learn-code { white-space: pre-wrap; word-break: break-word; padding: 12px 14px; background: #070b18; border: 1px solid var(--line); border-radius: 10px; color: #c7d2fe; font-family: "Cascadia Code", Consolas, ui-monospace, monospace; font-size: 13px; }
+.ws-body p code, .glossary code { background: #0b1122; padding: 1px 6px; border-radius: 6px; color: #a5f3fc; }
+.glossary { margin-bottom: 18px; }
+
+/* ---------- study plan / interview practice ---------- */
+.study-track { margin: 10px 0 4px; }
+.study-list { list-style: none; padding: 0; margin: 0; }
+.study-item { padding: 12px 14px; margin-bottom: 8px; border-radius: 12px; background: var(--bg-2); border: 1px solid var(--line); display: grid; gap: 4px; }
+.study-item.done { border-color: rgba(34, 197, 94, .45); background: linear-gradient(90deg, rgba(34, 197, 94, .08), var(--bg-2)); }
+.study-item label { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.study-item input[type=checkbox] { width: 18px; height: 18px; margin-top: 2px; accent-color: #22c55e; flex: none; }
+.study-title { font-weight: 700; }
+.study-item.done .study-title { text-decoration: line-through; text-decoration-color: rgba(134, 239, 172, .6); }
+.iv-head { display: flex; gap: 10px; align-items: center; }
+.iv-head .study-title { flex: 1; }

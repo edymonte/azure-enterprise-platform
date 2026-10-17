@@ -9,6 +9,7 @@ import { ProgressStore, UserError } from './progress.js';
 import { EnvironmentProbe } from './environment.js';
 import { Runner } from './runner.js';
 import { RepoWatcher } from './watcher.js';
+import { Terminal } from './terminal.js';
 
 const STATIC_FILES = {
   '/app.js': ['app.js', 'text/javascript; charset=utf-8'],
@@ -41,6 +42,7 @@ export function createApp(config) {
   const probe = new EnvironmentProbe({ repoRoot: config.repoRoot, track: catalog.track });
   const runner = new Runner({ config, catalog, probe });
   const watcher = new RepoWatcher({ repoRoot: config.repoRoot, catalog, debounceMs: config.watchDebounceMs });
+  const terminal = config.terminal ? new Terminal({ repoRoot: config.repoRoot, shell: config.terminalShell }) : null;
   const token = crypto.randomBytes(24).toString('hex');
   const clients = new Set();
   const nextPoll = new Map();
@@ -108,10 +110,25 @@ export function createApp(config) {
   function state() {
     const sessions = catalog.sessions.map(sessionView);
     return {
-      meta: { title: catalog.track.title, subtitle: catalog.track.subtitle, validationMode: config.unlockAll, now: new Date().toISOString() },
+      meta: {
+        title: catalog.track.title,
+        subtitle: catalog.track.subtitle,
+        validationMode: config.unlockAll,
+        now: new Date().toISOString(),
+        terminal: terminal ? { enabled: true, ...terminal.status() } : { enabled: false },
+      },
       totals: progress.totals(),
       track: { cycles: catalog.track.cycles, ranks: catalog.track.ranks },
       environment: probe.snapshot,
+      studyPlan: {
+        title: catalog.studyPlan.title,
+        intro: catalog.studyPlan.intro,
+        sections: (catalog.studyPlan.sections ?? []).map((sec) => ({
+          ...sec,
+          items: sec.items.map((item) => ({ ...item, done: Boolean(progress.data.study?.[item.id]?.done), at: progress.data.study?.[item.id]?.at ?? null })),
+        })),
+      },
+      interview: Object.fromEntries(catalog.sessions.map((s) => [s.id, progress.data.interview?.[s.id] ?? { passes: 0 }])),
       sessions,
       next: nextStep(sessions),
     };
@@ -122,6 +139,12 @@ export function createApp(config) {
     for (const res of clients) res.write(payload);
   }
   const pushState = () => broadcast('state', state());
+
+  if (terminal) {
+    terminal.on('output', (chunk) => broadcast('term', { chunk }));
+    terminal.on('status', (status) => broadcast('term-status', status));
+    terminal.on('cleared', () => broadcast('term-clear', {}));
+  }
 
   runner.on('started', ({ id }) => pushState());
   runner.on('finished', ({ id, observation }) => {
@@ -245,6 +268,7 @@ export function createApp(config) {
         if (!tokenOk(url.searchParams.get('token'))) return send(res, 401, { error: 'Invalid token' });
         res.writeHead(200, { ...SECURITY_HEADERS, 'Content-Type': 'text/event-stream; charset=utf-8', Connection: 'keep-alive' });
         res.write(`event: state\ndata: ${JSON.stringify(state())}\n\n`);
+        if (terminal) res.write(`event: term-snapshot\ndata: ${JSON.stringify({ buffer: terminal.buffer })}\n\n`);
         clients.add(res);
         const heartbeat = setInterval(() => res.write(': keep-alive\n\n'), 25000);
         req.on('close', () => {
@@ -260,6 +284,35 @@ export function createApp(config) {
         await readJson(req);
         probe.refresh({ tools: true });
         return send(res, 202, { ok: true });
+      }
+      const study = pathname.match(/^\/api\/study\/([a-z0-9-]{1,80})$/);
+      if (req.method === 'POST' && study) {
+        const body = await readJson(req);
+        progress.setStudyItem(study[1], body.done);
+        pushState();
+        return send(res, 200, { ok: true });
+      }
+      const practice = pathname.match(/^\/api\/interview\/([^/]+)\/practised$/);
+      if (req.method === 'POST' && practice) {
+        if (!SESSION_ID.test(practice[1]) || !catalog.byId.has(practice[1])) return send(res, 404, { error: 'Unknown session' });
+        await readJson(req);
+        const rec = progress.recordInterviewPractice(practice[1]);
+        pushState();
+        return send(res, 200, { ok: true, passes: rec.passes });
+      }
+      const t = pathname.match(/^\/api\/terminal\/(input|restart|clear)$/);
+      if (req.method === 'POST' && t) {
+        if (!terminal) return send(res, 404, { error: 'The terminal is disabled. Start the portal with PORTAL_TERMINAL=1 to enable it.' });
+        const body = await readJson(req);
+        if (t[1] === 'input') {
+          try {
+            terminal.input(body.line);
+          } catch (err) {
+            throw new UserError(err.message);
+          }
+        } else if (t[1] === 'restart') terminal.restart();
+        else terminal.clear();
+        return send(res, 200, { ok: true });
       }
       const m = pathname.match(/^\/api\/sessions\/([^/]+)\/([a-z]+)$/);
       if (req.method === 'POST' && m) {
@@ -287,6 +340,7 @@ export function createApp(config) {
       server.listen(config.port, config.host, resolve);
     });
     await watcher.start();
+    terminal?.ensure();
     watcher.on('error', (err) => console.error('watcher:', err.message));
     probe.refresh({ tools: true }).then(() => {
       // Resume active sessions after a restart.
@@ -298,11 +352,12 @@ export function createApp(config) {
 
   async function stop() {
     clearInterval(envTimer);
+    terminal?.stop();
     runner.stop();
     watcher.stop();
     for (const res of clients) res.end();
     await new Promise((resolve) => server.close(resolve));
   }
 
-  return { start, stop, server, token, state, progress, runner, probe, catalog };
+  return { start, stop, server, token, state, progress, runner, probe, catalog, terminal };
 }

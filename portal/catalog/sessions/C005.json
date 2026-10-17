@@ -59,6 +59,41 @@
     }
   ],
   "expectedResult": "A short evidence pack you could paste into a design review.",
+  "learn": {
+    "concepts": [
+      {
+        "title": "Hub & spoke",
+        "body": "A *hub* VNet holds shared services (DNS zones, firewall, gateways); each *spoke* VNet holds a workload. Spokes connect to the hub with *peering*. It isolates workloads while sharing the expensive or central pieces."
+      },
+      {
+        "title": "Peering is two resources and not transitive",
+        "body": "A peering is created on each side (hub→spoke and spoke→hub) and both must be `Connected`. If spoke A and spoke B both peer with the hub, A still cannot reach B — traffic does not hop through the hub unless a router/firewall forwards it."
+      },
+      {
+        "title": "NSG priorities",
+        "body": "An NSG evaluates rules from the lowest priority number up and stops at the first match. The usual pattern is allow-specific (low numbers) and deny-broad (high numbers). *Service tags* such as `AzureFrontDoor.Backend` stand for Microsoft-managed IP lists."
+      }
+    ],
+    "example": {
+      "title": "reading the effective order of an NSG",
+      "body": "Sorting by priority shows the evaluation order:",
+      "code": "az network nsg rule list -g <rg> --nsg-name <nsg> --query \"sort_by([], &priority)[].{p:priority, name:name, access:access, src:sourceAddressPrefix}\" -o table"
+    },
+    "glossary": [
+      {
+        "term": "VNet peering",
+        "def": "Private, low-latency connection between two VNets."
+      },
+      {
+        "term": "Service tag",
+        "def": "Named group of Azure IP ranges kept up to date by Microsoft."
+      },
+      {
+        "term": "Private DNS zone link",
+        "def": "Makes a private zone resolvable from a VNet."
+      }
+    ]
+  },
   "recovery": "If a link or peering is missing, it is drift: plan + apply 10-foundation.",
   "dont": [
     "Do not change NSG rules in the portal"

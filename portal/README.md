@@ -18,8 +18,13 @@ A local web portal that turns this repository's route into a **gamified, 30-sess
 Requirements: Node.js ≥ 22 (no `npm install` needed — zero dependencies).
 
 ```powershell
-npm --prefix portal start
+npm --prefix portal start                                  # instructions + evidence console
+$env:PORTAL_TERMINAL = "1"; npm --prefix portal start      # + a real PowerShell next to the instructions
 ```
+
+**Terminal (opt-in).** With `PORTAL_TERMINAL=1` the right panel gets **Terminal 1**: a real PowerShell 7 started in the repository folder (no profile). Type a command and press Enter; `cd` and variables persist; prompts such as `Apply …? [y/N]` show up and are answered with the next line; **▶ Terminal** on a step pastes its command (you still press Enter); **Restart** kills a stuck command. It is not a full PTY: full-screen programs (vim, less) and masked password prompts do not work — sign in to Azure with `az login` (browser) as usual and never type secrets into it. It is off by default because it lets the portal page run commands on this machine; the page is still protected by loopback binding, the per-process token and Origin checks, and the output is redacted.
+
+**Learn tab.** Every session starts with a *Learn* tab: the concepts explained from zero, a worked example on a *different* case and a glossary. Reading it is free (it is not a hint).
 
 Then open **<http://127.0.0.1:4317/>**. Stop with `Ctrl+C`.
 
@@ -64,7 +69,7 @@ Then open **<http://127.0.0.1:4317/>**. Stop with `Ctrl+C`.
 
 - Binds to loopback only; requests with a foreign `Host` (DNS rebinding) or `Origin` / `Sec-Fetch-Site: cross-site` are refused.
 - Every API call needs a per-process random token that only the portal page receives; POST bodies must be JSON (no simple cross-site form posts) and ≤ 4 KB.
-- The browser can only name a **session id** from the catalog and one of a fixed set of actions (`start`, `check`, `cancel`, `hint`, `assisted`, `assessment`). It can never send a command, a path or a script.
+- The browser can only name a **session id** from the catalog and one of a fixed set of actions (`start`, `check`, `cancel`, `hint`, `assisted`, `assessment`). It can never send a command, a path or a script — **except** through the opt-in terminal (`PORTAL_TERMINAL=1`), a deliberate trade-off chosen by the learner: one single-line command at a time, into one PowerShell in the repository, behind the same token and origin checks.
 - Checkers are fixed scripts registered in the catalog, run as separate processes with a timeout; they are **read-only** by contract (no `apply`, no `set`, no `delete`). Their output is validated and secret-looking values are redacted before storage or display. Secret values are never read (e.g. Key Vault checks list names only).
 - Strict CSP, no inline scripts, no third-party assets.
 

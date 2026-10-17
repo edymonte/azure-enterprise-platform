@@ -53,6 +53,33 @@
     }
   ],
   "expectedResult": "Restore in minutes with a Git audit trail.",
+  "learn": {
+    "concepts": [
+      {
+        "title": "Detect, correlate, restore",
+        "body": "When a signal degrades, line it up with the change timeline (deploy PRs, config changes). If a recent change correlates, restore first (revert), investigate after."
+      },
+      {
+        "title": "When scaling does not help",
+        "body": "More pods help when the service is saturated (CPU high). Added latency inside the handler (a config or code change) is not fixed by more replicas — the HPA does nothing useful."
+      }
+    ],
+    "example": {
+      "title": "reading a change timeline from Git",
+      "body": "The last commits that touched an environment are the first suspects:",
+      "code": "git log --since=\"2 hours ago\" --oneline -- gitops/envs/prod/"
+    },
+    "glossary": [
+      {
+        "term": "MTTR",
+        "def": "Mean time to restore service."
+      },
+      {
+        "term": "Rollback vs roll-forward",
+        "def": "Return to the previous version vs ship a fix."
+      }
+    ]
+  },
   "recovery": "Do not wait for the HPA: latency is not CPU-bound here.",
   "dont": [
     "Do not kubectl rollout undo",

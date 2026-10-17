@@ -53,6 +53,33 @@
     }
   ],
   "expectedResult": "A single, protected public entry point.",
+  "learn": {
+    "concepts": [
+      {
+        "title": "Edge services",
+        "body": "*Front Door* is a global HTTP(S) entry point with CDN, TLS and WAF. *Application Gateway* is a regional layer-7 load balancer inside a VNet. *Traffic Manager* is DNS-based routing between regions. They can be combined."
+      },
+      {
+        "title": "Origin lock",
+        "body": "Allowing the `AzureFrontDoor.Backend` service tag only proves the request came from *some* Front Door. Each Front Door profile adds an `X-Azure-FDID` header with its own id; the origin checks it to accept only YOUR profile."
+      }
+    ],
+    "example": {
+      "title": "checking a certificate and headers",
+      "body": "From any machine:",
+      "code": "curl -sI https://<host> | Select-String \"HTTP/|x-azure-ref\""
+    },
+    "glossary": [
+      {
+        "term": "Origin",
+        "def": "Backend that Front Door forwards requests to."
+      },
+      {
+        "term": "Managed certificate",
+        "def": "TLS certificate issued and renewed by Azure after DNS validation."
+      }
+    ]
+  },
   "recovery": "Certificate pending: the DNS validation TXT record must exist in the Azure zone (Terraform creates it).",
   "dont": [
     "Do not leave Front Door running for days",

@@ -65,6 +65,41 @@
     }
   ],
   "expectedResult": "You can show, with commands, that state access is identity-based and recoverable.",
+  "learn": {
+    "concepts": [
+      {
+        "title": "What Terraform state is",
+        "body": "State is Terraform's inventory: a JSON file mapping every `resource` block in your code to the real Azure resource ID. Without it, Terraform cannot know what it already created and would try to create everything again."
+      },
+      {
+        "title": "Remote state, locking and versions",
+        "body": "Remote state stores that file in a blob, so you, GitHub Actions and Azure DevOps share the same inventory. During `apply` Terraform takes a *lease* (a lock) on the blob: a second concurrent apply waits or fails instead of corrupting it.\n\nWith *blob versioning* on, every write keeps the previous version: if a state file gets corrupted you can promote an older version back."
+      },
+      {
+        "title": "Control plane vs data plane",
+        "body": "Managing the storage account (create it, change settings) is the *control plane* — Owner allows it. Reading or writing blobs is the *data plane* — it needs a data role such as `Storage Blob Data Contributor`. With shared keys disabled there is no master password: every access is an Entra ID identity with a data role, which is auditable."
+      }
+    ],
+    "example": {
+      "title": "reading a blob's versions",
+      "body": "For any container you can list blobs together with their versions. `--auth-mode login` forces Entra ID instead of a key; `--include v` adds versions:",
+      "code": "az storage blob list --account-name <account> -c <container> --auth-mode login --include v --query \"[].{name:name, version:versionId, current:isCurrentVersion}\" -o table"
+    },
+    "glossary": [
+      {
+        "term": "Backend",
+        "def": "Where Terraform stores state (`azurerm` = an Azure blob)."
+      },
+      {
+        "term": "Lease",
+        "def": "An exclusive lock on a blob, used by Terraform as the state lock."
+      },
+      {
+        "term": "Shared key",
+        "def": "The storage account master key; disabled here so only Entra ID identities work."
+      }
+    ]
+  },
   "recovery": "If listing fails with 403, your data-plane role is missing or still propagating (wait 5 minutes). Never enable shared keys to \"fix\" it.",
   "dont": [
     "Do not enable shared key access",

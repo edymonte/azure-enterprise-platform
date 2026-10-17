@@ -171,6 +171,25 @@ export class ProgressStore {
     return result;
   }
 
+  // Self-tracked: ticked by the learner, never used for unlocking sessions.
+  setStudyItem(itemId, done) {
+    if (!this.catalog.studyPlan.itemIds.has(itemId)) throw new UserError('Unknown study item.');
+    if (typeof done !== 'boolean') throw new UserError('"done" must be a boolean.');
+    this.data.study ??= {};
+    this.data.study[itemId] = { done, at: new Date().toISOString() };
+    this.save();
+  }
+
+  recordInterviewPractice(id) {
+    this.data.interview ??= {};
+    const rec = this.data.interview[id] ?? { passes: 0 };
+    rec.passes += 1;
+    rec.lastAt = new Date().toISOString();
+    this.data.interview[id] = rec;
+    this.save();
+    return rec;
+  }
+
   totals() {
     let xp = 0;
     let coins = 0;
