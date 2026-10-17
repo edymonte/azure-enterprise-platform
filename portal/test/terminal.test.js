@@ -61,6 +61,14 @@ test('terminal: commands, persistent cwd, prompts, errors and restart', { skip }
 
   assert.throws(() => term.input('a\nb'), /single line/);
 
+  // cls/clear are handled by the portal (no console to clear in a piped shell).
+  let cleared = false;
+  term.once('cleared', () => { cleared = true; });
+  term.input('cls');
+  assert.equal(cleared, true);
+  assert.equal(term.buffer, '');
+  assert.equal(term.busy, false);
+
   term.restart();
   await waitIdle(term);
   assert.equal(path.resolve(term.cwd), path.resolve(root), 'restart returns to the repository root');
