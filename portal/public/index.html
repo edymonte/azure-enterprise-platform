@@ -54,6 +54,25 @@
     </div>
   </div>
 
+  <div class="launch hidden" id="launch" role="dialog" aria-modal="true" aria-labelledby="launch-word">
+    <div class="launch-ring-wrap">
+      <svg class="launch-ring" viewBox="0 0 200 200" aria-hidden="true">
+        <circle class="ring-bg" cx="100" cy="100" r="92"></circle>
+        <circle class="ring-fg" id="launch-arc" cx="100" cy="100" r="92"></circle>
+      </svg>
+      <div class="launch-center">
+        <div class="launch-status" id="launch-status">Preparing your lab…</div>
+        <div class="launch-word" id="launch-word">Loading</div>
+        <ul class="launch-stages" id="launch-stages"></ul>
+      </div>
+    </div>
+    <blockquote class="launch-quote">
+      <div class="quote-mark">//</div>
+      <p id="launch-quote"></p>
+      <footer>— Platform Academy</footer>
+    </blockquote>
+  </div>
+
   <div class="overlay hidden" id="celebration" role="dialog" aria-modal="true" aria-labelledby="cele-title">
     <canvas id="confetti"></canvas>
     <div class="cele-card">
