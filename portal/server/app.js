@@ -69,6 +69,7 @@ export function createApp(config) {
       aiAssisted: Boolean(rec.aiAssisted),
       assessment: rec.assessment ?? null,
       lastObservation: rec.lastObservation ?? null,
+      history: rec.history ?? [],
       hintsTotal: hints.length,
       hintsRevealed: rec.hints.map((h) => ({ level: h.level, at: h.at, text: hints[h.level - 1] })),
       // The debrief explains the solution: only after the technical validation passed.

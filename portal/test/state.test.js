@@ -75,6 +75,16 @@ test('progress: hints make the attempt AI-assisted and cost coins; assessment on
   assert.equal(again.stateOf('C001').state, 'COMPLETED');
 });
 
+test('progress: the evidence-console history is bounded and carries no evidence text', () => {
+  const p = new ProgressStore({ dataDir: tempDir(), catalog }).load();
+  p.start('C001');
+  for (let i = 0; i < 25; i++) p.recordObservation('C001', obs('fail', { trigger: `run ${i}`, criteria: [{ id: 'rule-accepted-syntax', status: 'fail', evidence: 'long text' }] }));
+  const { history } = p.peek('C001');
+  assert.equal(history.length, 20);
+  assert.equal(history.at(-1).trigger, 'run 24');
+  assert.deepEqual(history.at(-1).criteria, [{ id: 'rule-accepted-syntax', status: 'fail' }]);
+});
+
 test('progress: validation mode unlocks sessions but completion still needs a pass', () => {
   const p = new ProgressStore({ dataDir: tempDir(), catalog, unlockAll: true }).load();
   assert.equal(p.stateOf('C014').state, 'AVAILABLE');

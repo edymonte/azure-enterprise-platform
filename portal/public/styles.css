@@ -276,3 +276,79 @@ th { color: var(--muted); font-weight: 700; font-size: 12px; text-transform: upp
   .session-row { grid-template-columns: 36px 1fr auto; border-radius: 16px; }
   .session-row .row-date, .session-row .state-dot { display: none; }
 }
+
+/* ---------- launch screen ---------- */
+.launch { position: fixed; inset: 0; z-index: 40; display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 40px; padding: 40px 6vw; background: #101114; }
+.launch > * { animation: fade-in .3s ease both; }
+@keyframes fade-in { from { opacity: 0; } }
+.launch.leaving { animation: fade-out .45s ease forwards; }
+@keyframes fade-out { to { opacity: 0; } }
+.launch-ring-wrap { position: relative; width: min(560px, 42vw); aspect-ratio: 1; justify-self: center; }
+.launch-ring { width: 100%; height: 100%; transform: rotate(90deg); }
+.ring-bg { fill: none; stroke: #26272c; stroke-width: 1.5; }
+.ring-fg { fill: none; stroke: #1aa3d9; stroke-width: 2; stroke-linecap: round; stroke-dasharray: 578; stroke-dashoffset: 578; transition: stroke-dashoffset .8s ease; filter: drop-shadow(0 0 6px rgba(34, 211, 238, .5)); }
+.launch-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.launch-status { color: #c8cbd4; font-size: 15px; }
+.launch-status .hl { color: #ff6a13; }
+.launch-word { font-size: clamp(44px, 6vw, 82px); font-weight: 600; letter-spacing: .01em; background: linear-gradient(90deg, #22d3ee, #38bdf8 60%, #22d3ee); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.launch-word.ready { background: linear-gradient(90deg, #4ade80, #22c55e); -webkit-background-clip: text; background-clip: text; }
+.launch-stages { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 6px; font-size: 13px; color: #8b8f9c; text-align: left; }
+.launch-stages li::before { content: "○"; display: inline-block; width: 20px; color: #4b4f5c; }
+.launch-stages li.done { color: #d7dae3; } .launch-stages li.done::before { content: "✓"; color: #22c55e; }
+.launch-stages li.warn { color: #fde68a; } .launch-stages li.warn::before { content: "!"; color: #f59e0b; }
+.launch-stages li.active::before { content: "◌"; color: #22d3ee; animation: spin 1s linear infinite; }
+.launch-stages li.skip { color: #6b7080; } .launch-stages li.skip::before { content: "–"; }
+.launch-quote { margin: 0; max-width: 620px; }
+.quote-mark { font-size: 64px; font-weight: 900; font-style: italic; color: #5c606c; letter-spacing: -8px; line-height: 1; }
+.launch-quote p { font-size: clamp(26px, 2.6vw, 42px); font-style: italic; font-weight: 300; color: #a3a7b3; margin: 14px 0; line-height: 1.3; }
+.launch-quote p em { color: #ff6a13; font-weight: 400; }
+.launch-quote footer { color: #a3a7b3; font-size: 16px; }
+
+/* ---------- workspace (task + evidence console) ---------- */
+.ws { display: grid; grid-template-columns: minmax(380px, 42%) 14px 1fr; gap: 0; height: calc(100vh - 150px); min-height: 560px; }
+.ws.expanded { grid-template-columns: 1fr 0 0; }
+.ws.expanded .ws-console, .ws.expanded .ws-divider { display: none; }
+.ws-divider { display: grid; place-items: center; color: #4b5578; font-weight: 900; user-select: none; }
+.ws-panel { display: flex; flex-direction: column; min-height: 0; border-radius: 22px; background: #0b0d14; border: 1px solid #1c2236; overflow: hidden; }
+.ws-head { display: flex; align-items: center; gap: 10px; padding: 0 14px; height: 56px; flex: none; }
+.ws-tab { height: 40px; padding: 0 16px; border-radius: 12px 12px 0 0; display: inline-flex; align-items: center; gap: 8px; background: transparent; border: none; color: #9aa3c0; font-weight: 700; cursor: pointer; font-size: 14px; }
+.ws-tab.on { background: #141a2b; color: #fff; }
+.ws-spacer { flex: 1; }
+.ws-timer { font-size: 22px; color: #b8bfd6; font-variant-numeric: tabular-nums; display: inline-flex; align-items: center; gap: 8px; }
+.ws-timer.over { color: #f87171; }
+.ws-icon { background: none; border: none; color: #9aa3c0; font-size: 18px; cursor: pointer; padding: 6px; border-radius: 8px; }
+.ws-icon:hover { background: #141a2b; color: #fff; }
+.ws-body { flex: 1; overflow-y: auto; padding: 22px 26px; background: #141a2b; margin: 0 10px; border-radius: 0 16px 0 0; }
+.ws-body h2 { margin: 0 0 6px; font-size: 22px; }
+.ws-body .scenario { font-size: 16px; }
+.ws-foot { flex: none; display: grid; gap: 10px; padding: 14px 26px 18px; background: #141a2b; margin: 0 10px 10px; border-radius: 0 0 16px 16px; border-top: 1px solid #1f2740; }
+.btn-check { width: 100%; justify-content: center; padding: 14px; font-size: 17px; border-radius: 999px; }
+.btn-later { width: 100%; justify-content: center; padding: 13px; font-size: 16px; border-radius: 999px; background: transparent; border: 1px solid var(--accent-2); color: #7cc4ff; }
+.ws-note { text-align: center; font-size: 12px; color: var(--dim); }
+
+.ws-console .ws-body { background: #23283a; font-family: "Cascadia Code", Consolas, ui-monospace, monospace; font-size: 13.5px; line-height: 1.6; border-radius: 16px; margin: 0 10px 10px; padding: 18px 20px; }
+.con-line { white-space: pre-wrap; word-break: break-word; }
+.con-prompt { color: #38bdf8; font-weight: 700; }
+.con-arrow { color: #4ade80; font-weight: 900; }
+.con-dim { color: #8b93ad; }
+.con-pass { color: #4ade80; } .con-fail { color: #f87171; } .con-skip { color: #c4b5fd; } .con-warn { color: #fbbf24; } .con-info { color: #93c5fd; }
+.con-block { margin-bottom: 14px; }
+.con-block details { margin: 2px 0 2px 26px; }
+.con-block summary { color: #8b93ad; cursor: pointer; }
+.con-evidence { color: #c7d2fe; white-space: pre-wrap; margin: 4px 0 4px 12px; padding-left: 10px; border-left: 2px solid #3b4566; }
+.con-cursor::after { content: "▌"; color: #4ade80; animation: blink 1s steps(2) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.status-pill { padding: 5px 12px; border-radius: 99px; font-size: 12px; font-weight: 800; border: 1px solid var(--line); }
+.status-pill.COMPLETED { color: #052e13; background: var(--ok); border-color: var(--ok); }
+.status-pill.FAILED { color: #fecaca; border-color: var(--bad); }
+.status-pill.BLOCKED { color: #ddd6fe; border-color: var(--lock); }
+.status-pill.CHECKING { color: #bfdbfe; border-color: var(--accent-2); }
+.status-pill.IN_PROGRESS, .status-pill.AVAILABLE { color: #fde68a; border-color: var(--warn); }
+
+@media (max-width: 1100px) {
+  .ws { grid-template-columns: 1fr; height: auto; }
+  .ws-divider { display: none; }
+  .ws-panel { min-height: 480px; margin-bottom: 16px; }
+  .launch { grid-template-columns: 1fr; }
+  .launch-ring-wrap { width: min(420px, 80vw); }
+}

@@ -16,6 +16,7 @@ export const BLOCKED_REASONS = [
   'validation_error',     // the checker itself failed (bug, timeout, bad output)
 ];
 const ASSESSMENT_KEYS = ['english', 'autonomy', 'tradeoffs'];
+const HISTORY_LIMIT = 20;
 
 function emptyProgress() {
   return { version: 1, sessions: {} };
@@ -137,6 +138,17 @@ export class ProgressStore {
   recordObservation(id, observation) {
     const rec = this.record(id);
     rec.lastObservation = observation;
+    // Compact run log for the evidence console (evidence text stays in lastObservation only).
+    rec.history = [...(rec.history ?? []), {
+      at: observation.at,
+      outcome: observation.outcome,
+      blockedReason: observation.blockedReason ?? null,
+      trigger: observation.trigger ?? null,
+      durationMs: observation.durationMs ?? null,
+      revision: observation.revision ?? null,
+      summary: observation.summary ?? '',
+      criteria: (observation.criteria ?? []).map((c) => ({ id: c.id, status: c.status })),
+    }].slice(-HISTORY_LIMIT);
     if (observation.outcome !== 'cancelled') rec.attempts = (rec.attempts ?? 0) + 1;
     let result = { completed: false };
     if (observation.outcome === 'pass' && !rec.completedAt && rec.startedAt && this.isUnlocked(id)) {

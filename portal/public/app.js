@@ -112,9 +112,9 @@
   // ------------------------------------------------------------ practice
   function sessionButton(s) {
     if (isLocked(s)) return h('button', { class: 'btn btn-ghost', disabled: true }, '🔒 Locked');
-    if (s.state === 'AVAILABLE') return h('button', { class: 'btn btn-primary', onclick: (e) => { e.stopPropagation(); act(s.id, 'start'); location.hash = `#/session/${s.id}`; } }, 'Start');
+    if (s.state === 'AVAILABLE') return h('button', { class: 'btn btn-primary', onclick: (e) => { e.stopPropagation(); openLaunch(s.id, 'start'); } }, 'Start');
     if (s.state === 'COMPLETED') return h('button', { class: 'btn', onclick: (e) => { e.stopPropagation(); location.hash = `#/session/${s.id}`; } }, '✎ Revise');
-    return h('button', { class: 'btn btn-warn', onclick: (e) => { e.stopPropagation(); location.hash = `#/session/${s.id}`; } }, 'Continue');
+    return h('button', { class: 'btn btn-warn', onclick: (e) => { e.stopPropagation(); openLaunch(s.id, 'resume'); } }, 'Continue');
   }
 
   function renderPractice() {
@@ -215,44 +215,6 @@
     return ol;
   }
 
-  function criteriaCard(s) {
-    const obs = s.lastObservation;
-    const byId = new Map((obs?.criteria ?? []).map((c) => [c.id, c]));
-    const ul = h('ul', { class: 'criteria' });
-    for (const c of s.criteria) {
-      const o = byId.get(c.id);
-      const status = o?.status ?? 'none';
-      const det = o?.evidence ? h('details', { ontoggle: (e) => (e.target.open ? openEvidence.add(`${s.id}:${c.id}`) : openEvidence.delete(`${s.id}:${c.id}`)) }, h('summary', {}, 'evidence observed'), h('pre', { class: 'evidence' }, o.evidence)) : null;
-      if (det && openEvidence.has(`${s.id}:${c.id}`)) det.open = true;
-      ul.append(h('li', { class: `criterion ${status}` },
-        h('div', { class: 'c-head' }, h('span', { class: 'c-ico' }, { pass: '✓', fail: '✕', skipped: '–', none: '·' }[status]), h('div', {}, c.text,
-          o?.reason && status !== 'pass' ? h('div', { class: 'c-reason' }, o.reason) : null,
-          !o ? h('div', { class: 'muted small' }, s.checker.status === 'implemented' ? 'Not observed yet' : 'Automatic check planned') : null)),
-        det));
-    }
-    return h('section', { class: 'card' }, h('h3', {}, 'Success criteria'), h('p', { class: 'muted small' }, 'Technical correctness is checked automatically from real evidence. Ticking steps never completes a session.'), ul);
-  }
-
-  function statusCard(s) {
-    const obs = s.lastObservation;
-    const started = Boolean(s.startedAt);
-    const canCheck = started && s.checker.status === 'implemented' && s.state !== 'CHECKING';
-    return h('section', { class: `card status-card ${s.state}` },
-      h('div', { class: 'status-line' }, h('div', { class: `state-dot ${s.state}` }, STATE_ICON[s.state]), h('div', { class: 'status-name' }, stateText(s))),
-      s.reasonMessage ? h('div', { class: 'status-reason' }, s.reasonMessage) : null,
-      obs?.summary ? h('div', { class: 'muted', style: null }, obs.summary) : null,
-      h('div', { class: 'obs-meta' },
-        h('div', {}, `Last observation: ${obs ? `${rel(obs.at)} (${abs(obs.at)})` : 'none yet'}`),
-        obs ? h('div', {}, `Trigger: ${obs.trigger} · ${Math.round(obs.durationMs / 100) / 10}s`) : null,
-        obs?.revision ? h('div', {}, `Verified revision: ${obs.revision.branch ?? '?'} @ ${obs.revision.commit ?? '?'}${obs.revision.dirty ? ' (uncommitted changes present)' : ''}`) : null,
-        s.checker.nextPollAt ? h('div', {}, `Next external poll: ${rel(s.checker.nextPollAt)}`) : null,
-        started && s.checker.status === 'implemented' && s.checker.watch.length ? h('div', {}, `Watching: ${s.checker.watch.join(', ')}${s.checker.watchGit ? ' + git commits' : ''}`) : null),
-      h('div', { class: 'actions' },
-        s.state === 'AVAILABLE' ? h('button', { class: 'btn btn-primary', onclick: () => act(s.id, 'start') }, '▶ Start session') : null,
-        canCheck ? h('button', { class: 'btn btn-primary', onclick: () => act(s.id, 'check') }, s.completedAt ? '↻ Re-verify' : '↻ Check now') : null,
-        s.state === 'CHECKING' ? h('button', { class: 'btn btn-warn', onclick: () => act(s.id, 'cancel') }, '■ Cancel check') : null));
-  }
-
   function hintsCard(s) {
     const card = h('section', { class: 'card' }, h('h3', {}, 'Hints'));
     if (!s.startedAt) return card.append(h('p', { class: 'muted' }, 'Start the session to unlock graduated hints.')), card;
@@ -339,30 +301,240 @@
     ];
   }
 
-  function renderSession(id) {
-    const s = state.sessions.find((x) => x.id === id);
-    if (!s) return renderPractice();
+  // ------------------------------------------------------------ workspace
+  // KodeKloud-style lab view: task panel (left, with time box, Check and Try
+  // later) and a terminal-looking *evidence console* (right). The console only
+  // displays checker runs — it never executes anything.
+  const ui = { tab: {}, expanded: false };
+  const CRIT_MARK = { pass: ['✓', 'con-pass'], fail: ['✕', 'con-fail'], skipped: ['–', 'con-skip'] };
+  const OUTCOME_CLASS = { pass: 'con-pass', fail: 'con-fail', blocked: 'con-skip', error: 'con-warn', cancelled: 'con-dim' };
+
+  function timeboxStart(s) {
+    const key = `timebox:${s.id}`;
+    let t = null;
+    try { t = Number(localStorage.getItem(key)) || null; } catch { /* storage unavailable */ }
+    if (!t) {
+      t = Date.now();
+      try { localStorage.setItem(key, String(t)); } catch { /* storage unavailable */ }
+    }
+    return t;
+  }
+  function resetTimebox(s) {
+    try { localStorage.removeItem(`timebox:${s.id}`); } catch { /* storage unavailable */ }
+  }
+  function tickTimer() {
+    const el = document.getElementById('ws-timer');
+    if (!el) return;
+    const s = state.sessions.find((x) => x.id === el.dataset.id);
+    if (!s) return;
+    if (s.completedAt) { el.textContent = '⏱ done'; el.classList.remove('over'); return; }
+    const left = s.timeMinutes * 60 - Math.floor((Date.now() - timeboxStart(s)) / 1000);
+    const abs = Math.abs(left);
+    const mmss = `${String(Math.floor(abs / 60)).padStart(2, '0')}:${String(abs % 60).padStart(2, '0')}`;
+    el.textContent = left >= 0 ? `⏱ ${mmss}` : `⏱ +${mmss}`;
+    el.title = left >= 0 ? `Time box: ${s.timeMinutes} min` : 'Over the time box — write your hypothesis down, or ask for a hint';
+    el.classList.toggle('over', left < 0);
+  }
+  setInterval(tickTimer, 1000);
+
+  function taskBody(s) {
+    const tab = ui.tab[s.id] ?? 'task';
+    if (tab === 'hints') return [hintsCard(s), envCard(s), checkerCard(s)];
+    if (tab === 'result') return s.completedAt ? completionCards(s) : [h('p', { class: 'muted' }, 'The debrief and the self-assessment open after the technical validation passes.')];
     const cyc = cycleOf(s.cycle);
-    const main = h('div', { class: 'card' },
-      h('a', { href: '#/practice', class: 'back' }, '← All sessions'),
+    return [
       h('div', { class: 's-head' }, h('div', { class: 's-num' }, s.number), h('div', {},
-        h('h1', { class: 's-title' }, s.title),
+        h('h2', {}, s.title),
         h('div', { class: 'row-meta' }, h('span', { class: 'chip' }, `Cycle ${s.cycle} · ${cyc.title}`), h('span', { class: 'chip' }, s.topic),
-          h('span', { class: 'chip' }, `Difficulty ${'●'.repeat(s.difficulty)}${'○'.repeat(3 - s.difficulty)}`), h('span', { class: 'chip' }, `${s.timeMinutes} min`), h('span', { class: 'chip' }, `+${s.xp} XP`)))),
+          h('span', { class: 'chip' }, `Difficulty ${'●'.repeat(s.difficulty)}${'○'.repeat(3 - s.difficulty)}`), h('span', { class: 'chip' }, `+${s.xp} XP`)))),
       h('div', { class: 'section-title' }, 'Scenario'), h('blockquote', { class: 'scenario' }, s.scenario),
       h('div', { class: 'section-title' }, 'Mission'), h('p', {}, s.mission),
       h('div', { class: 'section-title' }, 'Objectives'), h('ul', { class: 'list' }, s.objectives.map((o) => h('li', {}, o))),
-      h('div', { class: 'section-title' }, 'Steps'),
-      isLocked(s) ? h('p', { class: 'muted' }, 'Unlocks when the previous session is completed.') : stepsList(s),
+      h('div', { class: 'section-title' }, 'Success criteria'), h('ul', { class: 'list' }, s.criteria.map((c) => h('li', {}, c.text))),
+      h('div', { class: 'section-title' }, 'Steps'), stepsList(s),
       h('div', { class: 'section-title' }, 'Expected result'), h('p', {}, s.expectedResult),
-      h('div', { class: 'section-title' }, 'If something goes wrong'), h('p', {}, s.recovery),
+      h('div', { class: 'section-title' }, 'Notes'),
+      h('ul', { class: 'list' },
+        h('li', {}, h('b', {}, 'Prerequisites: '), `${s.prerequisites.platform.join(', ')}${s.prerequisites.layers.length ? ` · layers ${s.prerequisites.layers.join(', ')}` : ''}${s.prerequisites.notes ? ` — ${s.prerequisites.notes}` : ''}`),
+        h('li', {}, h('b', {}, 'Cost: '), s.cost),
+        h('li', {}, h('b', {}, 'If something goes wrong: '), s.recovery)),
       h('div', { class: 'section-title' }, "Don't"), h('ul', { class: 'list dont' }, s.dont.map((d) => h('li', {}, d))),
       h('div', { class: 'section-title' }, 'Interview question'), h('p', {}, h('b', {}, s.interview.question)),
       s.interview.followUps?.length ? h('ul', { class: 'list muted' }, s.interview.followUps.map((q) => h('li', {}, q))) : null,
-      h('div', { class: 'section-title' }, 'References'), h('ul', { class: 'list' }, s.references.map((r) => h('li', {}, h('code', {}, r)))));
-    const side = h('div', { class: 'session-side' }, statusCard(s), criteriaCard(s), ...completionCards(s), hintsCard(s), envCard(s), checkerCard(s));
-    view.replaceChildren(h('div', { class: 'session-layout' }, main, side));
+      h('div', { class: 'section-title' }, 'References'), h('ul', { class: 'list' }, s.references.map((r) => h('li', {}, h('code', {}, r)))),
+    ];
   }
+
+  function taskFoot(s) {
+    const implemented = s.checker.status === 'implemented';
+    let check;
+    if (s.state === 'AVAILABLE') check = h('button', { class: 'btn btn-primary btn-check', onclick: () => openLaunch(s.id, 'start') }, 'Start lab');
+    else if (s.state === 'CHECKING') check = h('button', { class: 'btn btn-check', onclick: () => act(s.id, 'cancel') }, '↻ Checking… (click to cancel)');
+    else if (!implemented) check = h('button', { class: 'btn btn-check', disabled: true, title: s.validation.notes }, 'Check — automatic checker planned');
+    else check = h('button', { class: 'btn btn-primary btn-check', onclick: () => act(s.id, 'check') }, s.completedAt ? 'Re-verify' : 'Check');
+    return [
+      check,
+      h('button', { class: 'btn btn-later', onclick: () => { location.hash = '#/practice'; toast('Session kept in progress — the portal keeps watching your evidence.', 'info'); } }, 'Try later'),
+      h('div', { class: 'ws-note' }, s.startedAt && implemented ? 'Checks also run on their own when you save watched files or commit.' : ''),
+    ];
+  }
+
+  function consoleBody(s) {
+    const lines = [];
+    const prompt = (text) => h('div', { class: 'con-line' }, h('span', { class: 'con-prompt' }, `${s.id.toLowerCase()} ~ `), h('span', { class: 'con-arrow' }, '➜ '), text);
+    lines.push(h('div', { class: 'con-line con-dim' }, `# Evidence console — read-only. Run your commands in the VS Code terminal;`));
+    lines.push(h('div', { class: 'con-line con-dim' }, `# every checker run appears here as it happens.`));
+    if (!s.startedAt) lines.push(prompt(h('span', { class: 'con-dim' }, 'press "Start lab" to begin')));
+    const hist = s.history ?? [];
+    hist.forEach((run, i) => {
+      const last = i === hist.length - 1;
+      const passed = run.criteria.filter((c) => c.status === 'pass').length;
+      const block = h('div', { class: 'con-block' },
+        prompt(h('span', {}, `check ${s.id}`, h('span', { class: 'con-dim' }, `  # ${run.trigger ?? ''} · ${new Date(run.at).toLocaleTimeString()}`))));
+      if (last && s.lastObservation) {
+        const evidence = new Map((s.lastObservation.criteria ?? []).map((c) => [c.id, c]));
+        for (const c of s.criteria) {
+          const o = evidence.get(c.id);
+          if (!o) continue;
+          const [mark, cls] = CRIT_MARK[o.status] ?? ['·', 'con-dim'];
+          block.append(h('div', { class: 'con-line' }, h('span', { class: cls }, `  ${mark} `), c.text));
+          if (o.reason && o.status !== 'pass') block.append(h('div', { class: `con-line ${cls}` }, `      ${o.reason}`));
+          if (o.evidence) {
+            const det = h('details', { ontoggle: (e) => (e.target.open ? openEvidence.add(`${s.id}:${c.id}`) : openEvidence.delete(`${s.id}:${c.id}`)) }, h('summary', {}, 'evidence'), h('div', { class: 'con-evidence' }, o.evidence));
+            if (openEvidence.has(`${s.id}:${c.id}`)) det.open = true;
+            block.append(det);
+          }
+        }
+      }
+      const rev = run.revision ? ` · ${run.revision.branch ?? '?'}@${run.revision.commit ?? '?'}${run.revision.dirty ? '*' : ''}` : '';
+      const label = run.outcome === 'blocked' ? `BLOCKED (${REASON_LABEL[run.blockedReason] ?? run.blockedReason})` : run.outcome.toUpperCase();
+      block.append(h('div', { class: 'con-line' }, h('span', { class: OUTCOME_CLASS[run.outcome] ?? 'con-dim' }, `  → ${label}`),
+        h('span', { class: 'con-dim' }, `  ${run.criteria.length ? `${passed}/${s.criteria.length} criteria` : ''}${run.durationMs !== null ? ` · ${(run.durationMs / 1000).toFixed(1)}s` : ''}${rev}`)));
+      if (run.summary) block.append(h('div', { class: 'con-line con-dim' }, `    ${run.summary}`));
+      lines.push(block);
+    });
+    if (s.state === 'CHECKING') lines.push(prompt(h('span', { class: 'con-info' }, `running checker…`)));
+    else if (s.state === 'COMPLETED') lines.push(prompt(h('span', { class: 'con-pass' }, 'session complete ✓ ')));
+    else if (s.startedAt) lines.push(prompt(h('span', { class: 'con-cursor' }, '')));
+    return lines;
+  }
+
+  function renderWorkspace(id) {
+    const s = state.sessions.find((x) => x.id === id);
+    if (!s) return renderPractice();
+    if (isLocked(s)) {
+      view.replaceChildren(h('section', { class: 'card' }, h('a', { href: '#/practice', class: 'back' }, '← All sessions'),
+        h('h2', {}, `🔒 Session ${s.number}: ${s.title}`), h('p', { class: 'muted' }, 'Unlocks when the previous session is completed — by verified evidence.'),
+        h('blockquote', { class: 'scenario' }, s.scenario)));
+      return;
+    }
+    const tab = ui.tab[s.id] ?? 'task';
+    const tabBtn = (key, label) => h('button', { class: `ws-tab ${tab === key ? 'on' : ''}`, onclick: () => { ui.tab[s.id] = key; render(true); } }, label);
+    const timer = h('span', { class: 'ws-timer', id: 'ws-timer', dataset: { id: s.id } });
+    const task = h('section', { class: 'ws-panel ws-task' },
+      h('div', { class: 'ws-head' }, tabBtn('task', '☰ Task'), tabBtn('hints', `Hints ${s.hintsRevealed.length}/${s.hintsTotal}`), s.completedAt ? tabBtn('result', '✓ Result') : null,
+        h('span', { class: 'ws-spacer' }), timer,
+        h('button', { class: 'ws-icon', title: 'Restart the time box', onclick: () => { resetTimebox(s); tickTimer(); } }, '↺'),
+        h('button', { class: 'ws-icon', title: ui.expanded ? 'Show the evidence console' : 'Hide the evidence console', onclick: () => { ui.expanded = !ui.expanded; render(true); } }, ui.expanded ? '⤡' : '⤢')),
+      h('div', { class: 'ws-body' }, ...taskBody(s)),
+      h('div', { class: 'ws-foot' }, ...taskFoot(s)));
+    const conBody = h('div', { class: 'ws-body', id: 'console-body' }, ...consoleBody(s));
+    const consolePanel = h('section', { class: 'ws-panel ws-console' },
+      h('div', { class: 'ws-head' }, h('button', { class: 'ws-tab on' }, 'Evidence 1'), h('span', { class: 'ws-spacer' }),
+        h('span', { class: `status-pill ${s.state}`, title: s.reasonMessage ?? '' }, stateText(s)),
+        h('a', { href: '#/practice', class: 'ws-icon', title: 'All sessions' }, '✕')),
+      conBody);
+    const oldTask = view.querySelector('.ws-task .ws-body');
+    const sameSession = ui.lastWs === s.id;
+    const taskScroll = sameSession && oldTask ? oldTask.scrollTop : 0;
+    view.replaceChildren(h('div', { class: `ws ${ui.expanded ? 'expanded' : ''}` }, task, h('div', { class: 'ws-divider' }, '‖'), consolePanel));
+    ui.lastWs = s.id;
+    task.querySelector('.ws-body').scrollTop = taskScroll;
+    // Follow new console output unless the learner scrolled up to read.
+    conBody.scrollTop = sameSession && ui.conAtBottom === false ? ui.conScroll ?? 0 : conBody.scrollHeight;
+    conBody.addEventListener('scroll', () => {
+      ui.conScroll = conBody.scrollTop;
+      ui.conAtBottom = conBody.scrollHeight - conBody.scrollTop - conBody.clientHeight < 30;
+    });
+    tickTimer();
+  }
+
+  // ------------------------------------------------------------ launch screen
+  // "Provisioning" = the real preflight: unlock, environment probe,
+  // prerequisites and the first evidence collected by the checker.
+  const QUOTES = [
+    ['Every green check is <em>evidence</em>. Go and collect it.'],
+    ['Write the <em>hypothesis</em> first. The fix comes second.'],
+    ['If it is not in <em>Git</em>, it did not happen.'],
+    ['Small batches, fast <em>feedback</em>, honest evidence.'],
+    ['Production is a lab where <em>mistakes</em> cost more. Practise here.'],
+    ['Read the <em>plan</em> before you type yes.'],
+  ];
+  let launch = null;
+
+  function openLaunch(id, mode) {
+    const s = state.sessions.find((x) => x.id === id);
+    if (!s || isLocked(s)) return;
+    launch = { id, mode, t0: Date.now(), baseline: s.lastObservation?.at ?? null, envBaseline: state.environment.at, done: false };
+    const quote = QUOTES[Math.floor(Math.random() * QUOTES.length)][0];
+    const p = $('#launch-quote');
+    p.replaceChildren();
+    // Quotes are static strings from this file; <em> marks the highlighted word.
+    for (const part of quote.split(/(<em>.*?<\/em>)/)) {
+      const m = /^<em>(.*)<\/em>$/.exec(part);
+      p.append(m ? h('em', {}, m[1]) : document.createTextNode(part));
+    }
+    $('#launch-word').textContent = 'Loading';
+    $('#launch-word').classList.remove('ready');
+    $('#launch').classList.remove('hidden', 'leaving');
+    if (mode === 'start') act(id, 'start');
+    else if (s.checker.status === 'implemented' && s.state !== 'CHECKING') act(id, 'check');
+    post('/api/environment/refresh').catch(() => {});
+    updateLaunch();
+  }
+
+  function updateLaunch() {
+    if (!launch) return;
+    const s = state.sessions.find((x) => x.id === launch.id);
+    const env = state.environment;
+    const elapsed = Date.now() - launch.t0;
+    const envReady = env.at && (env.at !== launch.envBaseline || elapsed > 8000);
+    const implemented = s.checker.status === 'implemented';
+    // Stages complete in order: evidence only counts once the environment is known.
+    const evidence = !envReady ? false : implemented ? Boolean(s.lastObservation && s.lastObservation.at !== launch.baseline && s.state !== 'CHECKING') : 'skip';
+    const prereq = !envReady ? false : s.state === 'BLOCKED' && s.reason !== 'locked' ? 'warn' : true;
+    const stages = [
+      ['Session unlocked', true],
+      [`Environment probed${envReady ? ` · Azure ${env.azure.status.replace('_', ' ')} · AKS ${env.aks.status.replace('_', ' ')}` : ''}`, envReady],
+      [prereq === 'warn' ? `Prerequisites: ${REASON_LABEL[s.reason] ?? s.reason}` : 'Prerequisites checked', prereq],
+      [implemented ? 'First evidence collected' : 'Automatic checker planned for this session', evidence],
+    ];
+    const list = $('#launch-stages');
+    list.replaceChildren();
+    let firstPending = true;
+    let score = 0;
+    for (const [label, st] of stages) {
+      let cls = '';
+      if (st === true) { cls = 'done'; score += 1; } else if (st === 'warn') { cls = 'warn'; score += 1; } else if (st === 'skip') { cls = 'skip'; score += 1; } else if (firstPending) { cls = 'active'; firstPending = false; }
+      list.append(h('li', { class: cls }, label));
+    }
+    $('#launch-arc').style.strokeDashoffset = String(578 * (1 - score / stages.length));
+    const status = $('#launch-status');
+    status.replaceChildren(score >= 2 ? 'Lab provisioned. ' : 'Provisioning lab. ', h('span', { class: 'hl' }, 'Getting'), ' ready…');
+    const finished = score === stages.length || elapsed > 30000;
+    if (finished && !launch.done) {
+      launch.done = true;
+      $('#launch-word').textContent = 'Ready';
+      $('#launch-word').classList.add('ready');
+      const target = launch.id;
+      setTimeout(() => {
+        $('#launch').classList.add('leaving');
+        if (route().view !== 'session' || route().id !== target) location.hash = `#/session/${target}`;
+        setTimeout(() => { $('#launch').classList.add('hidden'); launch = null; }, 450);
+      }, 900);
+    }
+  }
+  setInterval(updateLaunch, 1000);
 
   // ------------------------------------------------------------ progress / env
   function renderProgress() {
@@ -424,7 +596,7 @@
     const y = window.scrollY;
     renderChrome();
     const r = route();
-    if (r.view === 'session') renderSession(r.id);
+    if (r.view === 'session') renderWorkspace(r.id);
     else if (r.view === 'map') renderMap();
     else if (r.view === 'progress') renderProgress();
     else if (r.view === 'environment') renderEnvironment();
@@ -460,6 +632,7 @@
       lastJson = ev.data;
       state = JSON.parse(ev.data);
       render();
+      updateLaunch();
     });
     es.addEventListener('celebrate', (ev) => celebrate(JSON.parse(ev.data)));
     es.addEventListener('error', () => { conn.className = 'conn down'; $('#conn-text').textContent = 'Reconnecting…'; });

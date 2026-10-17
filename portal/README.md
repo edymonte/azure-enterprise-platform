@@ -27,6 +27,8 @@ Then open **<http://127.0.0.1:4317/>**. Stop with `Ctrl+C`.
 
 ## How a session works
 
+**Start** (or **Continue**) opens a launch screen whose progress ring follows the real preflight — session unlocked, environment probed (Azure sign-in, AKS power state), prerequisites, first evidence collected — and then the **lab workspace**: the task on the left (time box countdown, **Check**, **Try later**) and the **evidence console** on the right. The console looks like a terminal but is read-only: it prints every checker run as it happens; your commands run in the VS Code terminal.
+
 1. **Start** the session (the only click that matters — it tells the portal to watch it).
 2. Read the scenario, write your hypothesis, work in VS Code. Steps can be ticked for yourself; ticks never complete anything.
 3. The checker runs automatically when a watched file changes, when you commit, when the environment changes (e.g. AKS started) and on a polling interval for cloud evidence. You can also press **Check now**.
