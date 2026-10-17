@@ -383,3 +383,50 @@ th { color: var(--muted); font-weight: 700; font-size: 12px; text-transform: upp
 .study-item.done .study-title { text-decoration: line-through; text-decoration-color: rgba(134, 239, 172, .6); }
 .iv-head { display: flex; gap: 10px; align-items: center; }
 .iv-head .study-title { flex: 1; }
+
+/* ---------- guidance ---------- */
+.next-main { flex: 1; display: grid; gap: 4px; }
+.next-session { font-size: 13px; font-weight: 700; color: var(--muted); }
+.next-text { font-size: 18px; }
+.next-how { margin-top: 4px; padding: 10px 12px; border-radius: 10px; background: rgba(245, 158, 11, .1); border: 1px solid rgba(245, 158, 11, .4); color: #fde68a; font-size: 14px; }
+.next-progress { display: flex; align-items: center; gap: 12px; margin-top: 6px; }
+.next-progress .progress-track { flex: 1; max-width: 360px; height: 8px; }
+.how-card .how-head { display: flex; align-items: center; justify-content: space-between; }
+.how-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.how-step { display: flex; gap: 12px; padding: 12px; border-radius: 12px; background: var(--bg-2); border: 1px solid var(--line); }
+.how-n { flex: none; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; color: #06101f; background: linear-gradient(135deg, var(--accent), var(--accent-2)); }
+.crit-guide { list-style: none; padding: 0; margin: 0; counter-reset: crit; }
+.crit-item { padding: 10px 12px; margin-bottom: 8px; border-radius: 10px; background: var(--bg-2); border: 1px solid var(--line); }
+.crit-item.next { border-color: rgba(245, 158, 11, .7); box-shadow: 0 0 0 1px rgba(245, 158, 11, .35); }
+.crit-item.pass { border-color: rgba(34, 197, 94, .45); }
+.crit-item.pass .c-ico { background: var(--ok); color: #052e13; }
+.crit-item.fail .c-ico { background: var(--bad); color: #fff; }
+.crit-head { display: flex; gap: 10px; align-items: flex-start; }
+.crit-head > span:nth-child(2) { flex: 1; }
+.crit-how { margin: 6px 0 0 32px; color: #c9d3f5; font-size: 13.5px; }
+.crit-item.pass .crit-how { display: none; }
+@media (max-width: 1100px) { .how-steps { grid-template-columns: 1fr 1fr; } }
+
+/* ---------- progress charts ---------- */
+.chart-card h3 { margin-bottom: 2px; }
+.chart-wrap { position: relative; margin-top: 10px; }
+.chart { width: 100%; height: auto; display: block; overflow: visible; }
+.chart .grid { stroke: #24305c; stroke-width: 1; }
+.chart .axis { fill: #8f9bc4; font-size: 11px; font-family: inherit; }
+.chart .line { fill: none; stroke: #22d3ee; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart .area { fill: #22d3ee; opacity: .1; }
+.chart .dot { fill: #22d3ee; stroke: #131c38; stroke-width: 2; }
+.chart .end-label { fill: #e6ebff; font-size: 12px; font-weight: 700; }
+.chart .crosshair { stroke: #93a0c8; stroke-width: 1; }
+.chart .bar { fill: #22d3ee; }
+.chart .hit { fill: transparent; cursor: crosshair; outline: none; }
+.chart .hit:focus-visible { stroke: #93a0c8; stroke-width: 1; }
+.chart .hidden { display: none; }
+.chart-tip { position: absolute; top: -6px; width: 150px; padding: 8px 10px; border-radius: 10px; background: #0b1122; border: 1px solid var(--line); box-shadow: var(--shadow); pointer-events: none; z-index: 2; }
+.chart-tip b { font-size: 15px; }
+.meters { display: grid; gap: 10px; }
+.meter-row { display: grid; grid-template-columns: minmax(180px, 280px) 1fr 52px; align-items: center; gap: 14px; }
+.meter-label { font-weight: 600; font-size: 14px; }
+.meter-track { height: 10px; border-radius: 99px; background: #233063; overflow: hidden; }
+.meter-fill { height: 100%; width: 0; border-radius: 99px; background: #22d3ee; transition: width .8s ease; }
+.meter-value { text-align: right; color: var(--muted); font-weight: 700; }

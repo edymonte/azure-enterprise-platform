@@ -94,17 +94,27 @@ export function createApp(config) {
         ? { sessionId: null, text: 'Track complete. Run the final narration and tear the platform down.' }
         : { sessionId: null, text: 'No session available.' };
     }
-    let text;
-    if (current.state === 'AVAILABLE') text = `Start session ${current.number}: read the scenario and form your hypothesis.`;
-    else if (current.state === 'CHECKING') text = 'Checking your evidence…';
-    else if (current.state === 'BLOCKED') text = current.reasonMessage;
-    else if (current.checker.status !== 'implemented') text = 'Automatic validation for this session is not implemented yet — work through the steps; completion opens when the checker ships.';
-    else {
-      const failing = (current.lastObservation?.criteria ?? []).find((c) => c.status === 'fail');
-      const crit = failing ? current.criteria.find((c) => c.id === failing.id) : null;
-      text = crit ? `Next criterion: ${crit.text}` : 'Work through the steps. The checker runs automatically when relevant files change.';
+    // The first criterion not yet passing is "what to do now"; its `how`
+    // tells the learner the concrete action.
+    const observed = new Map((current.lastObservation?.criteria ?? []).map((c) => [c.id, c.status]));
+    const passed = current.criteria.filter((c) => observed.get(c.id) === 'pass').length;
+    const pending = current.criteria.find((c) => observed.get(c.id) !== 'pass');
+    const base = {
+      sessionId: current.id,
+      session: `Session ${current.number} · ${current.title}`,
+      progress: current.checker.status === 'implemented' ? { passed, total: current.criteria.length } : null,
+      checking: current.state === 'CHECKING',
+      how: null,
+    };
+    if (current.state === 'AVAILABLE') {
+      return { ...base, text: 'Press Start, then read the Learn tab.', how: 'The Learn tab explains the concepts from zero; the Task tab lists the steps. Commands run in Terminal 1.' };
     }
-    return { sessionId: current.id, text };
+    if (current.state === 'BLOCKED') return { ...base, text: current.reasonMessage };
+    if (current.checker.status !== 'implemented') {
+      return { ...base, text: 'Work through the steps of the Task tab.', how: 'Automatic validation for this session is not implemented yet, so it cannot be completed in the portal for now.' };
+    }
+    if (!pending) return { ...base, text: 'All criteria pass — finishing the check…' };
+    return { ...base, text: pending.text, how: pending.how ?? 'Follow the steps in the Task tab; the check runs by itself when you save watched files or commit.' };
   }
 
   function state() {
@@ -128,6 +138,7 @@ export function createApp(config) {
           items: sec.items.map((item) => ({ ...item, done: Boolean(progress.data.study?.[item.id]?.done), at: progress.data.study?.[item.id]?.at ?? null })),
         })),
       },
+      timeline: progress.timeline(30),
       interview: Object.fromEntries(catalog.sessions.map((s) => [s.id, progress.data.interview?.[s.id] ?? { passes: 0 }])),
       sessions,
       next: nextStep(sessions),
