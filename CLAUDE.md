@@ -22,6 +22,7 @@ Start points: `README.md` (roadmap), `docs/HOW-IT-WORKS.md` (architecture), `doc
 ./scripts/azp.ps1 status | plan <layer> | apply <layer> | destroy <layer> | up -Through 40-aks | down
 ./scripts/bootstrap-gitops.ps1 ; ./scripts/render-gitops-values.ps1 ; ./scripts/build-images.ps1 -Tag <tag>
 ./scripts/sql-grant-app-identity.ps1 ; ./scripts/grafana-import.ps1 ; ./scripts/datadog-secret.ps1
+npm --prefix portal start   # learning portal on http://127.0.0.1:4317/ (progress in portal/.data, git-ignored)
 ```
 
 Local validation before any PR (mirrors `ci.yml`):
@@ -30,6 +31,7 @@ Local validation before any PR (mirrors `ci.yml`):
 terraform fmt -check -recursive infra/terraform
 foreach ($l in Get-ChildItem infra/terraform -Directory) { terraform -chdir=$l init -backend=false -input=false; terraform -chdir=$l validate }
 npm --prefix app/customer-portal/api test
+npm --prefix portal test
 helm lint gitops/charts/customer-portal -f gitops/envs/dev/platform.values.yaml -f gitops/envs/dev/values.yaml
 ```
 

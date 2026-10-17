@@ -1,0 +1,116 @@
+{
+  "id": "C001",
+  "number": 1,
+  "cycle": 1,
+  "title": "Policy rejected by the API",
+  "topic": "Policy as code",
+  "difficulty": 2,
+  "timeMinutes": 45,
+  "scenario": "\"The governance pipeline failed: Azure refused our tag policy with UnsupportedPolicyRuleField. Until it is fixed, the platform guardrails initiative cannot be assigned and new resource groups go unchecked.\" — Cloud Governance lead",
+  "mission": "Fix the require-rg-tags rule so Azure accepts it, ship it through a branch, and get the whole platform-guardrails initiative assigned.",
+  "objectives": [
+    "Read an Azure Policy error and map it to the exact rule property",
+    "Use a value condition with the field() function inside a value count",
+    "Understand why terraform validate and CI could not catch this error",
+    "Finish a partially applied layer safely"
+  ],
+  "prerequisites": {
+    "platform": [
+      "azure"
+    ],
+    "layers": [
+      "00-bootstrap",
+      "05-identity",
+      "10-foundation",
+      "20-governance (partial)"
+    ],
+    "notes": "Signed in with the lab account on the lab subscription."
+  },
+  "cost": "None — policy definitions and assignments are free.",
+  "steps": [
+    {
+      "title": "Locate the rule",
+      "detail": "The HCL only loads the file: find which JSON file under infra/policies/ holds the rule and the exact block named in the error.",
+      "command": "git switch fix/policy-require-rg-tags-value-count"
+    },
+    {
+      "title": "Write your hypothesis",
+      "detail": "Before editing: which condition type accepts an ARM expression, which function reads a tag from inside it, and which operator replaces exists?"
+    },
+    {
+      "title": "Edit and commit",
+      "detail": "Change only the where clause of the value count. Keep the count over [parameters('tagNames')] and the greater: 0 comparison. Commit on your branch."
+    },
+    {
+      "title": "Apply the layer",
+      "detail": "Re-run the plan: only the three missing resources (tags policy, initiative, assignment) should be created. Read the Plan line before typing y.",
+      "command": "./scripts/azp.ps1 apply 20-governance"
+    },
+    {
+      "title": "Open the PR",
+      "detail": "Push the branch and open a PR. Required checks must be green before merging.",
+      "command": "gh pr create --fill"
+    }
+  ],
+  "criteria": [
+    {
+      "id": "rule-accepted-syntax",
+      "text": "No field accessor in the local rule uses current()"
+    },
+    {
+      "id": "rule-detects-missing-tag",
+      "text": "The value count over tagNames detects a missing tag with a value condition (field() + current('tagName') + operator)"
+    },
+    {
+      "id": "fix-committed",
+      "text": "The fixed rule is committed on your branch (no uncommitted change)"
+    },
+    {
+      "id": "definition-deployed",
+      "text": "Policy definition mfs-require-rg-tags exists in Azure with the fixed rule"
+    },
+    {
+      "id": "initiative-assigned",
+      "text": "Initiative mfs-platform-guardrails exists, references requireRgTags and is assigned to the subscription"
+    }
+  ],
+  "expectedResult": "20-governance fully applied (9/9). The initiative shows in Azure Policy → Assignments, and compliance starts evaluating resource groups in Audit mode.",
+  "recovery": "A failed apply is safe to repeat: Terraform already stored the resources it created, so the next apply creates only what is missing. If the plan wants to destroy anything, stop and investigate.",
+  "dont": [
+    "Do not create the policy in the portal",
+    "Do not switch the effect to Deny in this session",
+    "Do not commit on main"
+  ],
+  "hints": [
+    "Conditions have a left side: field, value or count. Which one accepts any ARM template expression, including current()?",
+    "Inside a value expression you can call the field() function. A missing tag returns null — coalesce(x, '') turns null into an empty string you can compare.",
+    "Docs: \"Azure Policy definition structure — policy rule\", section \"Value count\" and \"Policy functions\". Your where clause needs a value key and an equals key."
+  ],
+  "interview": {
+    "question": "A policy passed terraform validate and CI but Azure rejected it on apply. How do you prevent that class of failure?",
+    "followUps": [
+      "Why start guardrails in Audit?",
+      "What is the difference between field and value conditions?"
+    ]
+  },
+  "debrief": "The where clause became {\"value\": \"[coalesce(field(concat('tags[', current('tagName'), ']')), '')]\", \"equals\": \"\"}. Lesson: Terraform and JSON validation only check syntax; policy semantics are validated by the Azure Resource Manager on PUT. Mitigations: deploy policies to a sandbox subscription (or management group) first, run a what-if/plan against a real API in CI, and keep rules small and unit-tested with known compliant/non-compliant samples.",
+  "references": [
+    "infra/policies/require-rg-tags.rule.json",
+    "infra/terraform/20-governance/main.tf",
+    "docs/labs/04-governance.md"
+  ],
+  "checker": {
+    "status": "implemented",
+    "script": "checkers/c001-policy-rule.js",
+    "timeoutSeconds": 180,
+    "pollSeconds": 300,
+    "watch": [
+      "infra/policies/require-rg-tags.rule.json"
+    ],
+    "watchGit": true
+  },
+  "validation": {
+    "status": "partial",
+    "notes": "Local, git and Azure failing paths proven on the live environment; the passing path is proven with a fake Azure CLI in tests. A real pass needs your fix + apply."
+  }
+}

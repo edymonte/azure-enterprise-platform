@@ -1,0 +1,95 @@
+{
+  "id": "C019",
+  "number": 19,
+  "cycle": 3,
+  "title": "Green tests, broken release",
+  "topic": "Smoke recovery",
+  "difficulty": 3,
+  "timeMinutes": 60,
+  "scenario": "\"Add a featured column to products.\" Unit tests pass in memory — but the SQL is wrong. (FEAT-04)",
+  "mission": "Let the PostSync smoke catch a bad release in dev, keep prod untouched, roll back by revert and propose the missing integration test.",
+  "objectives": [
+    "Explain unit vs integration vs smoke",
+    "Recover dev by reverting the deploy PR",
+    "Design the missing test"
+  ],
+  "prerequisites": {
+    "platform": [
+      "aks",
+      "github"
+    ],
+    "layers": [
+      "30-data",
+      "40-aks"
+    ],
+    "notes": "C011 done (the API really uses SQL)."
+  },
+  "cost": "Cluster running cost only.",
+  "steps": [
+    {
+      "title": "Ship the bad change",
+      "detail": "Select a non-existent column; tests stay green; merge; merge the dev deploy PR."
+    },
+    {
+      "title": "Observe",
+      "detail": "Pods Ready? Smoke? Argo CD sync status?",
+      "command": "kubectl -n portal-dev logs job/customer-portal-smoke"
+    },
+    {
+      "title": "Roll back",
+      "detail": "Revert the dev deploy PR; do not promote."
+    },
+    {
+      "title": "Fix forward",
+      "detail": "New branch with the fix and an integration test against SQL."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "smoke-failed-recorded",
+      "text": "A failed smoke for the bad tag is visible in the dev sync history"
+    },
+    {
+      "id": "prod-untouched",
+      "text": "Prod values never referenced the bad tag"
+    },
+    {
+      "id": "dev-restored",
+      "text": "Dev runs a tag whose smoke passed"
+    },
+    {
+      "id": "integration-test",
+      "text": "An integration test that exercises the SQL path exists"
+    }
+  ],
+  "expectedResult": "A bad release stopped in dev with zero customer impact.",
+  "recovery": "If Argo CD keeps retrying, the revert has not merged yet — check the PR.",
+  "dont": [
+    "Do not promote a release whose smoke failed",
+    "Do not use kubectl rollout undo"
+  ],
+  "hints": [
+    "/readyz only pings the database; /api/products runs the query.",
+    "The sync operation fails when a PostSync hook fails.",
+    "An integration test can run against a SQL container in CI."
+  ],
+  "interview": {
+    "question": "Your unit tests passed but production would have broken. What was missing in your test strategy?",
+    "followUps": [
+      "Where do contract and integration tests run?"
+    ]
+  },
+  "debrief": "In-memory mode hid the SQL error from unit tests; readiness only pings the DB; the smoke exercised the real query and failed the sync. Rollback is a Git revert; the durable fix is an integration test in CI.",
+  "references": [
+    "docs/E2E-FEATURE-FLOW.md",
+    "gitops/charts/customer-portal/templates/smoke-test.yaml"
+  ],
+  "checker": {
+    "status": "planned",
+    "plan": "Read-only: Argo CD application history (kubectl get application -o json), git log of envs values, test file scan."
+  },
+  "validation": {
+    "status": "pending",
+    "notes": "Checker not implemented yet; needs a running cluster."
+  }
+}

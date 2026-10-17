@@ -1,0 +1,100 @@
+{
+  "id": "C002",
+  "number": 2,
+  "cycle": 1,
+  "title": "Remote state you can trust",
+  "topic": "Terraform state",
+  "difficulty": 1,
+  "timeMinutes": 30,
+  "scenario": "\"Audit wants proof that nobody can read or overwrite Terraform state with a storage key, and that we can roll back a corrupted state file.\" — Security & Compliance",
+  "mission": "Prove the state backend is Entra-ID-only, versioned and locked, and practise recovering a previous state version.",
+  "objectives": [
+    "Explain control plane vs data plane on Storage",
+    "Show blob versioning protecting state",
+    "Explain lease-based locking"
+  ],
+  "prerequisites": {
+    "platform": [
+      "azure"
+    ],
+    "layers": [
+      "00-bootstrap",
+      "05-identity",
+      "10-foundation",
+      "20-governance"
+    ],
+    "notes": "At least two applies of a layer so a state blob has more than one version."
+  },
+  "cost": "Cents — blob versions of small JSON files.",
+  "steps": [
+    {
+      "title": "Inspect the account",
+      "detail": "Read the storage account properties that matter: shared key access, versioning, public access.",
+      "command": "az storage account show -n <state_storage_account_name> --query \"{sharedKey:allowSharedKeyAccess, public:allowBlobPublicAccess, tls:minimumTlsVersion}\""
+    },
+    {
+      "title": "List state blobs and versions",
+      "detail": "With --auth-mode login only. Find a layer with two or more versions.",
+      "command": "az storage blob list --account-name <sa> -c tfstate --auth-mode login --include v -o table"
+    },
+    {
+      "title": "See the lock",
+      "detail": "Start a plan of 10-foundation and, while it runs, look at the blob lease state in a second terminal."
+    },
+    {
+      "title": "Explain recovery",
+      "detail": "Write down the exact steps to restore a previous version of 20-governance.tfstate (do not do it on a healthy state)."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "shared-key-disabled",
+      "text": "Shared key access is disabled on the state storage account"
+    },
+    {
+      "id": "versioning-enabled",
+      "text": "Blob versioning is enabled"
+    },
+    {
+      "id": "layer-blobs",
+      "text": "State blobs exist for 05-identity, 10-foundation and 20-governance"
+    },
+    {
+      "id": "multiple-versions",
+      "text": "At least one state blob has two or more versions"
+    }
+  ],
+  "expectedResult": "You can show, with commands, that state access is identity-based and recoverable.",
+  "recovery": "If listing fails with 403, your data-plane role is missing or still propagating (wait 5 minutes). Never enable shared keys to \"fix\" it.",
+  "dont": [
+    "Do not enable shared key access",
+    "Do not restore a state version on a healthy layer",
+    "Do not edit state files by hand"
+  ],
+  "hints": [
+    "Being Owner gives you the control plane. What gives you the blobs?",
+    "Versioning and soft delete are properties of the blob service, not of the container.",
+    "az storage account blob-service-properties show -n <sa> shows isVersioningEnabled."
+  ],
+  "interview": {
+    "question": "Where does your Terraform state live, who can read it, and how would you recover a corrupted state?",
+    "followUps": [
+      "Why is 00-bootstrap on local state?",
+      "How does locking work on Azure Storage?"
+    ]
+  },
+  "debrief": "State is the inventory mapping code to real resource IDs. Entra-only access (no shared keys) means every read/write is an auditable identity with a data-plane role. Versioning lets you promote a previous version to current; the blob lease is the lock that blocks concurrent applies.",
+  "references": [
+    "infra/terraform/00-bootstrap/main.tf",
+    "docs/labs/01-bootstrap-state.md",
+    "docs/decisions/ADR-0001-layered-terraform-state.md"
+  ],
+  "checker": {
+    "status": "planned",
+    "plan": "Read-only: az storage account show (allowSharedKeyAccess), blob-service-properties (isVersioningEnabled), az storage blob list --auth-mode login --include v."
+  },
+  "validation": {
+    "status": "pending",
+    "notes": "Checker not implemented yet."
+  }
+}

@@ -1,0 +1,115 @@
+{
+  "id": "C014",
+  "number": 14,
+  "cycle": 2,
+  "title": "The node drain that never finishes",
+  "topic": "Helm",
+  "difficulty": 2,
+  "timeMinutes": 40,
+  "scenario": "\"The AKS upgrade has been stuck for an hour on 'draining node'. The cluster autoscaler cannot remove the extra node either. Nothing is broken — but nothing moves.\" — Platform on-call",
+  "mission": "Find why voluntary disruptions are blocked and fix the chart so every component has a PodDisruptionBudget that protects availability without blocking drains — in every environment.",
+  "objectives": [
+    "Compute ALLOWED DISRUPTIONS from a PDB and the real replica count",
+    "Make chart behaviour depend on per-environment values",
+    "Validate a chart offline with helm lint and helm template"
+  ],
+  "prerequisites": {
+    "platform": [
+      "offline"
+    ],
+    "layers": [],
+    "notes": "Works with the platform stopped: only helm and git are needed."
+  },
+  "cost": "None — offline.",
+  "steps": [
+    {
+      "title": "Render dev",
+      "detail": "Render the chart exactly as Argo CD would for dev and find every PodDisruptionBudget and HorizontalPodAutoscaler.",
+      "command": "helm template customer-portal gitops/charts/customer-portal -f gitops/envs/dev/platform.values.yaml -f gitops/envs/dev/values.yaml"
+    },
+    {
+      "title": "Do the arithmetic",
+      "detail": "For each PDB: minimum replicas in this environment minus minAvailable = allowed disruptions. What happens at 0?"
+    },
+    {
+      "title": "Design the fix",
+      "detail": "Both api and web need a budget; each budget must select only its own pods; the budgets must sit behind a values switch named pdb.enabled (default true)."
+    },
+    {
+      "title": "Validate offline",
+      "detail": "Lint and render dev and prod, then render with --set pdb.enabled=false.",
+      "command": "helm lint gitops/charts/customer-portal -f gitops/envs/dev/platform.values.yaml -f gitops/envs/dev/values.yaml"
+    },
+    {
+      "title": "Commit on a branch",
+      "detail": "Commit the chart change; open a PR so CI runs helm lint too."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "helm-lint",
+      "text": "helm lint passes for dev and prod"
+    },
+    {
+      "id": "pdb-api",
+      "text": "Exactly one PodDisruptionBudget selects only the API pods (dev and prod)"
+    },
+    {
+      "id": "pdb-web",
+      "text": "Exactly one PodDisruptionBudget selects only the web pods (dev and prod)"
+    },
+    {
+      "id": "drain-allowed",
+      "text": "Every budget allows at least 1 voluntary disruption at each environment's minimum replicas"
+    },
+    {
+      "id": "values-switch",
+      "text": "pdb.enabled=false renders no PodDisruptionBudget"
+    },
+    {
+      "id": "committed",
+      "text": "The chart change is committed"
+    }
+  ],
+  "expectedResult": "Node drains and autoscaler scale-downs proceed in dev and prod, while each component keeps at least one pod during voluntary disruptions where it runs more than one.",
+  "recovery": "If Argo CD shows the PDB OutOfSync after the merge, sync the app — never kubectl delete the PDB to unblock a drain.",
+  "dont": [
+    "Do not kubectl delete pdb to unblock an upgrade",
+    "Do not remove the budgets altogether",
+    "Do not hard-code environment names in templates"
+  ],
+  "hints": [
+    "kubectl get pdb shows ALLOWED DISRUPTIONS. Compute it by hand for dev: what is the minimum number of API pods there?",
+    "With 1 replica, minAvailable: 1 allows 0 disruptions. maxUnavailable: 1 always allows one, whatever the replica count.",
+    "Helm docs: \"Flow control\" (if) and \"Values files\". Wrap each budget in {{- if .Values.pdb.enabled }} and read the budget from values."
+  ],
+  "interview": {
+    "question": "An AKS upgrade is stuck draining a node. How do you find the cause and fix it properly?",
+    "followUps": [
+      "minAvailable vs maxUnavailable — when each?",
+      "Why is a PDB on a single-replica deployment a trap?"
+    ]
+  },
+  "debrief": "In dev the HPA allows 1 API pod, so minAvailable: 1 meant ALLOWED DISRUPTIONS = 0: every drain (upgrade, autoscaler scale-down, node image update) waits forever, and AKS eventually fails the upgrade. maxUnavailable: 1 expresses the real intent (\"never take more than one pod at a time\") and keeps working at any replica count. The values switch keeps the policy configurable per environment without template branches on environment names.",
+  "references": [
+    "gitops/charts/customer-portal/templates/platform.yaml",
+    "gitops/charts/customer-portal/values.yaml",
+    "gitops/envs/dev/values.yaml",
+    "infra/terraform/40-aks/main.tf"
+  ],
+  "checker": {
+    "status": "implemented",
+    "script": "checkers/c014-helm-pdb.js",
+    "timeoutSeconds": 120,
+    "pollSeconds": 0,
+    "watch": [
+      "gitops/charts/customer-portal/",
+      "gitops/envs/"
+    ],
+    "watchGit": true
+  },
+  "validation": {
+    "status": "validated",
+    "notes": "Validated end to end offline: failing state on the current chart, automatic re-check on file change and commit, pass and celebration on a fixed copy."
+  }
+}

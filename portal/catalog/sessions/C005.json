@@ -1,0 +1,91 @@
+{
+  "id": "C005",
+  "number": 5,
+  "cycle": 1,
+  "title": "Hub & spoke under review",
+  "topic": "Networking",
+  "difficulty": 1,
+  "timeMinutes": 30,
+  "scenario": "\"Architecture review tomorrow: prove the spoke cannot be reached from the internet except through Front Door and the operator IP, and that private DNS resolves in both VNets.\" — Lead architect",
+  "mission": "Produce the network evidence pack and explain the NSG and peering design.",
+  "objectives": [
+    "Verify bidirectional peering",
+    "Read NSG rule priorities",
+    "Explain private DNS zone links"
+  ],
+  "prerequisites": {
+    "platform": [
+      "azure"
+    ],
+    "layers": [
+      "10-foundation"
+    ],
+    "notes": ""
+  },
+  "cost": "None.",
+  "steps": [
+    {
+      "title": "Peering",
+      "detail": "Check both directions are Connected.",
+      "command": "az network vnet peering list -g rg-mfs-hub-lab --vnet-name vnet-mfs-hub-lab -o table"
+    },
+    {
+      "title": "NSG",
+      "detail": "List the AKS NSG rules and explain the order.",
+      "command": "az network nsg rule list -g rg-mfs-portal-lab --nsg-name nsg-mfs-aks-lab -o table"
+    },
+    {
+      "title": "Private DNS links",
+      "detail": "Each private zone must be linked to hub and spoke.",
+      "command": "az network private-dns link vnet list -g rg-mfs-hub-lab -z privatelink.vaultcore.azure.net -o table"
+    },
+    {
+      "title": "Answer the reviewer",
+      "detail": "Is peering transitive? If a second spoke peers with the hub, can it reach this spoke?"
+    }
+  ],
+  "criteria": [
+    {
+      "id": "peering-connected",
+      "text": "Hub↔spoke peering is Connected in both directions"
+    },
+    {
+      "id": "nsg-rules",
+      "text": "NSG has Front Door (100), operator IP (110) and deny Internet (4000) rules"
+    },
+    {
+      "id": "dns-links",
+      "text": "Both private DNS zones are linked to the hub and spoke VNets"
+    }
+  ],
+  "expectedResult": "A short evidence pack you could paste into a design review.",
+  "recovery": "If a link or peering is missing, it is drift: plan + apply 10-foundation.",
+  "dont": [
+    "Do not change NSG rules in the portal"
+  ],
+  "hints": [
+    "Peering is two resources, one per side.",
+    "Lower priority numbers win.",
+    "Private DNS zones live in the hub and are linked to every VNet that must resolve them."
+  ],
+  "interview": {
+    "question": "Walk me through hub & spoke: why private DNS zones in the hub, and is peering transitive?",
+    "followUps": [
+      "Hub & spoke vs one big VNet?",
+      "How many VNet IPs does a pod use with CNI Overlay?"
+    ]
+  },
+  "debrief": "Peering is non-transitive: spoke-to-spoke needs a hub router (Firewall/NVA) or direct peering. NSG rules are evaluated by priority, allow-specific before deny-broad. Private DNS zones centralised in the hub are linked to each VNet so private endpoints resolve consistently.",
+  "references": [
+    "infra/terraform/10-foundation/main.tf",
+    "docs/labs/03-network-foundation.md"
+  ],
+  "checker": {
+    "status": "planned",
+    "plan": "Read-only: az network vnet peering list, az network nsg rule list, az network private-dns link vnet list."
+  },
+  "validation": {
+    "status": "pending",
+    "notes": "Checker not implemented yet."
+  }
+}

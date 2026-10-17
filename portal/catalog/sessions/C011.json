@@ -1,0 +1,89 @@
+{
+  "id": "C011",
+  "number": 11,
+  "cycle": 2,
+  "title": "Is it really talking to Azure SQL?",
+  "topic": "Workload identity",
+  "difficulty": 3,
+  "timeMinutes": 45,
+  "scenario": "\"The smoke test is green, but the product list looks like demo data. Prove the API reads from Azure SQL with its managed identity — no passwords.\" — QA lead",
+  "mission": "Wire workload identity end to end and prove the database path with evidence the smoke test alone does not give.",
+  "objectives": [
+    "Trace SA annotation → federated credential → managed identity → SQL user",
+    "Grant the identity in SQL with the script",
+    "Prove the data source from /readyz"
+  ],
+  "prerequisites": {
+    "platform": [
+      "aks"
+    ],
+    "layers": [
+      "30-data",
+      "40-aks"
+    ],
+    "notes": "GitOps bootstrapped (C012) or the chart deployed by Argo CD."
+  },
+  "cost": "Cluster running cost only.",
+  "steps": [
+    {
+      "title": "Follow the chain",
+      "detail": "List the federated credentials of the API identity and compare subjects with the service accounts.",
+      "command": "az identity federated-credential list -g rg-mfs-portal-lab --identity-name <api-identity> -o table"
+    },
+    {
+      "title": "Grant SQL access",
+      "detail": "Create the contained user for the managed identity.",
+      "command": "./scripts/sql-grant-app-identity.ps1"
+    },
+    {
+      "title": "Prove the data source",
+      "detail": "Read /readyz through the API server service proxy (no exec, no port-forward needed).",
+      "command": "kubectl get --raw \"/api/v1/namespaces/portal-dev/services/customer-portal-api:80/proxy/readyz\""
+    }
+  ],
+  "criteria": [
+    {
+      "id": "fic-per-namespace",
+      "text": "A federated credential exists for each portal namespace"
+    },
+    {
+      "id": "sa-annotated",
+      "text": "The API service account carries the workload identity client id"
+    },
+    {
+      "id": "readyz-sql",
+      "text": "/readyz reports database: sql in dev and prod"
+    }
+  ],
+  "expectedResult": "Evidence that the API reads from Azure SQL, not the in-memory fallback.",
+  "recovery": "Login failed for user <token-identified principal>: the SQL user is missing — run the grant script again.",
+  "dont": [
+    "Do not create a SQL login with a password",
+    "Do not trust a green smoke test as proof of the database path"
+  ],
+  "hints": [
+    "Four links: service account annotation, pod label, federated credential subject, SQL user.",
+    "The subject format is system:serviceaccount:<namespace>:<name>.",
+    "/readyz returns the database mode the API is using."
+  ],
+  "interview": {
+    "question": "Explain workload identity on AKS and how the pod gets a token for Azure SQL.",
+    "followUps": [
+      "Why is a passing smoke test not proof of the integration?"
+    ]
+  },
+  "debrief": "The kubelet projects a service-account token; the webhook injects AZURE_FEDERATED_TOKEN_FILE; Entra exchanges it (subject match) for a managed-identity token; SQL maps it to a contained user. The smoke test checks /api/products returns 200, which the in-memory catalog also satisfies — /readyz database mode is the real proof.",
+  "references": [
+    "infra/terraform/40-aks/main.tf",
+    "scripts/sql-grant-app-identity.ps1",
+    "app/customer-portal/api/src/app.js"
+  ],
+  "checker": {
+    "status": "planned",
+    "plan": "Read-only: az identity federated-credential list, kubectl get sa -o json, kubectl get --raw service proxy /readyz."
+  },
+  "validation": {
+    "status": "pending",
+    "notes": "Checker not implemented yet; needs a running cluster."
+  }
+}

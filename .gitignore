@@ -14,6 +14,9 @@ crash.log
 # Node
 node_modules/
 
+# Learning portal progress (local, per learner)
+portal/.data/
+
 # OS / editor
 .DS_Store
 Thumbs.db

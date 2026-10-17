@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="portal-token" content="%%PORTAL_TOKEN%%">
+  <title>Platform Academy</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <img src="/favicon.svg" alt="" class="brand-logo">
+        <div>
+          <div class="brand-title">Platform Academy</div>
+          <div class="brand-sub">azure-enterprise-platform</div>
+        </div>
+      </div>
+      <nav class="nav" aria-label="Main">
+        <a href="#/practice" data-view="practice" class="nav-item"><span class="nav-ico">⌂</span>Active practice</a>
+        <a href="#/map" data-view="map" class="nav-item"><span class="nav-ico">◈</span>Curriculum map</a>
+        <a href="#/progress" data-view="progress" class="nav-item"><span class="nav-ico">▲</span>Progress</a>
+        <a href="#/environment" data-view="environment" class="nav-item"><span class="nav-ico">◎</span>Environment</a>
+      </nav>
+      <div class="sidebar-foot">
+        <div class="conn" id="conn"><span class="dot"></span><span id="conn-text">Connecting…</span></div>
+        <div class="learner">
+          <div class="avatar" id="avatar">★</div>
+          <div>
+            <div class="learner-name">Learner</div>
+            <div class="learner-rank" id="side-rank">—</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <div class="rank-block">
+          <div class="rank-orb" aria-hidden="true"></div>
+          <div class="rank-text">
+            <div class="rank-title" id="rank-title">—</div>
+            <div class="xp-row"><div class="xp-bar"><div class="xp-fill" id="xp-fill"></div></div><span class="xp-num" id="xp-num">0 XP</span></div>
+          </div>
+        </div>
+        <div class="top-stat" title="Coins: earned per completion, doubled when SOLO, minus 2 per hint"><span class="coin">●</span><span id="coins">0</span></div>
+        <div class="top-stat" title="Cycle badges"><span class="badge-ico">✦</span><span id="badge-count">0</span></div>
+        <div class="env-pills" id="env-pills"></div>
+      </header>
+      <div class="validation-banner hidden" id="validation-banner">Validation mode — every session is unlocked (PORTAL_UNLOCK_ALL=1). Completions still require a passing checker.</div>
+      <main class="content" id="view"></main>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="celebration" role="dialog" aria-modal="true" aria-labelledby="cele-title">
+    <canvas id="confetti"></canvas>
+    <div class="cele-card">
+      <div class="cele-medal">✓</div>
+      <h2 id="cele-title">Session complete</h2>
+      <p id="cele-sub"></p>
+      <div class="cele-rewards" id="cele-rewards"></div>
+      <div class="cele-badges" id="cele-badges"></div>
+      <p class="cele-next" id="cele-next"></p>
+      <button class="btn btn-primary" id="cele-close">Continue</button>
+    </div>
+  </div>
+  <div class="toast hidden" id="toast" role="status"></div>
+  <script src="/celebrate.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

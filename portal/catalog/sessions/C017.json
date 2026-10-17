@@ -1,0 +1,100 @@
+{
+  "id": "C017",
+  "number": 17,
+  "cycle": 3,
+  "title": "Feature to production, by the book",
+  "topic": "Promotion",
+  "difficulty": 3,
+  "timeMinutes": 60,
+  "scenario": "\"Customer service needs GET /api/products/:id. Unknown ids must return 404. It has to be in production this week, with evidence.\" — Product owner (FEAT-01)",
+  "mission": "Ship FEAT-01 from a feature branch to production through PR, CI, a dev deploy PR, smoke, promotion and a prod deploy PR — with the same image.",
+  "objectives": [
+    "Run the standard loop end to end",
+    "Promote the exact artifact that passed dev",
+    "Fill the release-evidence block"
+  ],
+  "prerequisites": {
+    "platform": [
+      "aks",
+      "github"
+    ],
+    "layers": [
+      "40-aks"
+    ],
+    "notes": "C012 done; GITOPS_PR_TOKEN set."
+  },
+  "cost": "Cluster running cost; runner minutes.",
+  "steps": [
+    {
+      "title": "Branch and code",
+      "detail": "Route + two tests (found, 404).",
+      "command": "git switch -c feature/FEAT-01-product-by-id"
+    },
+    {
+      "title": "PR and CI",
+      "detail": "Required checks green, squash merge."
+    },
+    {
+      "title": "Dev deploy PR",
+      "detail": "app.yml builds, scans, pushes and opens the dev deploy PR. Merge it; wait for SMOKE OK."
+    },
+    {
+      "title": "Promote",
+      "detail": "Run app.yml with promote_to_prod; merge the prod PR; wait for SMOKE OK in prod."
+    },
+    {
+      "title": "Evidence",
+      "detail": "Paste the release-evidence block into the prod PR."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "feature-merged",
+      "text": "A FEAT-01 PR is merged to main with green checks"
+    },
+    {
+      "id": "same-image",
+      "text": "Dev and prod values reference the same API tag"
+    },
+    {
+      "id": "smoke-both",
+      "text": "Both PostSync smoke jobs logged SMOKE OK for that tag"
+    },
+    {
+      "id": "endpoint-live",
+      "text": "GET /api/products/2 returns one product in prod"
+    }
+  ],
+  "expectedResult": "A feature in production with a complete audit trail of PRs and runs.",
+  "recovery": "Smoke failed in dev: do not promote. Revert the deploy PR, fix forward.",
+  "dont": [
+    "Do not push to main",
+    "Do not build a second image for prod"
+  ],
+  "hints": [
+    "Which workflow input copies dev tags to prod?",
+    "The smoke job compares /api/info version with the expected tag.",
+    "Release evidence template is at the end of docs/E2E-FEATURE-FLOW.md."
+  ],
+  "interview": {
+    "question": "Walk me through your CI/CD from a feature branch to production in two minutes.",
+    "followUps": [
+      "Why does CI open PRs instead of deploying?",
+      "Build once, deploy many — why?"
+    ]
+  },
+  "debrief": "CI never touches the cluster (ADR-0003): it writes Git, Argo CD pulls. Promotion copies the tag that passed dev, so prod runs the verified artifact. Every step is a PR with checks — that is the audit trail.",
+  "references": [
+    "docs/E2E-FEATURE-FLOW.md",
+    ".github/workflows/app.yml",
+    "docs/decisions/ADR-0003-ci-opens-prs-never-deploys.md"
+  ],
+  "checker": {
+    "status": "planned",
+    "plan": "Read-only: gh pr list/view, git show for dev/prod values, kubectl logs of both smoke jobs, HTTP GET through Front Door or service proxy."
+  },
+  "validation": {
+    "status": "pending",
+    "notes": "Checker not implemented yet; needs a running cluster."
+  }
+}

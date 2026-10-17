@@ -1,0 +1,86 @@
+{
+  "id": "C024",
+  "number": 24,
+  "cycle": 3,
+  "title": "Security says SQL is exposed",
+  "topic": "Governance",
+  "difficulty": 2,
+  "timeMinutes": 40,
+  "scenario": "\"Our scanner shows the SQL server accepting public connections. Close it — and make sure it cannot happen again.\" — Security operations (GD-06)",
+  "mission": "Close public access through code and decide how to move the SQL guardrail from Audit to Deny without breaking the identity grant workflow.",
+  "objectives": [
+    "Read policy compliance",
+    "Close drift through Terraform",
+    "Weigh Deny against operational access"
+  ],
+  "prerequisites": {
+    "platform": [
+      "azure"
+    ],
+    "layers": [
+      "20-governance",
+      "30-data"
+    ],
+    "notes": "Sealed injection: sql_temporary_public_access=true applied by someone else."
+  },
+  "cost": "None.",
+  "steps": [
+    {
+      "title": "Find it",
+      "detail": "Compliance state of sqlNoPublicNetwork.",
+      "command": "az policy state list --filter \"policyDefinitionReferenceId eq 'sqlNoPublicNetwork'\" -o table"
+    },
+    {
+      "title": "Close it",
+      "detail": "apply 30-data without the variable."
+    },
+    {
+      "title": "Decide",
+      "detail": "Write the trade-off: Deny would block the grant script's firewall rule — what is the alternative path (jump pod in the VNet)?"
+    }
+  ],
+  "criteria": [
+    {
+      "id": "sql-closed",
+      "text": "SQL public network access is Disabled"
+    },
+    {
+      "id": "compliant",
+      "text": "sqlNoPublicNetwork reports Compliant"
+    },
+    {
+      "id": "decision-recorded",
+      "text": "An ADR or post-mortem records the Audit→Deny decision"
+    }
+  ],
+  "expectedResult": "Exposure closed and a decision on prevention.",
+  "recovery": "Compliance can take up to 30 minutes to refresh; trigger a scan: az policy state trigger-scan.",
+  "dont": [
+    "Do not create an exemption to silence it"
+  ],
+  "hints": [
+    "Compliance is evaluated asynchronously.",
+    "Which script needs your IP on the SQL firewall?",
+    "A job inside the VNet removes the need for public access."
+  ],
+  "interview": {
+    "question": "Policy flagged a public database. How do you fix it and prevent recurrence without blocking the team?",
+    "followUps": [
+      "Audit vs Deny vs DeployIfNotExists?"
+    ]
+  },
+  "debrief": "Fix the drift with Terraform; prevent with Deny once the operational path no longer needs public access. Exemptions are for justified, time-boxed exceptions — not for silencing.",
+  "references": [
+    "docs/game-days.md",
+    "infra/terraform/30-data/main.tf",
+    "infra/policies/sql-deny-public-network.rule.json"
+  ],
+  "checker": {
+    "status": "planned",
+    "plan": "Read-only: az sql server show, az policy state list, decision file headings."
+  },
+  "validation": {
+    "status": "pending",
+    "notes": "Checker not implemented yet."
+  }
+}

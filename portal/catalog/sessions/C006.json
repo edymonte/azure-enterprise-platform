@@ -1,0 +1,94 @@
+{
+  "id": "C006",
+  "number": 6,
+  "cycle": 1,
+  "title": "Guardrail for secrets",
+  "topic": "Governance",
+  "difficulty": 2,
+  "timeMinutes": 45,
+  "scenario": "\"After an incident at another bank, the regulator asks us to guarantee Key Vaults keep deleted secrets for at least 7 days.\" — Risk & Compliance",
+  "mission": "Add a third custom policy (Key Vault soft-delete retention ≥ 7 days) to the platform guardrails initiative, in Audit, through code.",
+  "objectives": [
+    "Write a custom policy with an alias",
+    "Extend an initiative without touching the assignment",
+    "Read a plan that updates in place"
+  ],
+  "prerequisites": {
+    "platform": [
+      "azure"
+    ],
+    "layers": [
+      "20-governance"
+    ],
+    "notes": "Session C001 completed (initiative assigned)."
+  },
+  "cost": "None.",
+  "steps": [
+    {
+      "title": "Find the alias",
+      "detail": "Find the policy alias for soft-delete retention days on Key Vaults.",
+      "command": "az provider show -n Microsoft.KeyVault --expand \"resourceTypes/aliases\" --query \"resourceTypes[?resourceType=='vaults'].aliases[].name\" -o tsv"
+    },
+    {
+      "title": "Write the rule",
+      "detail": "New JSON file under infra/policies/, same effect parameter pattern as the SQL policy."
+    },
+    {
+      "title": "Wire it",
+      "detail": "New azurerm_policy_definition + a policy_definition_reference in the initiative."
+    },
+    {
+      "title": "Plan and apply",
+      "detail": "Expect 1 to add and 1 to change (the initiative updates in place); the assignment must not change."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "kv-policy-file",
+      "text": "A rule file checks Microsoft.KeyVault/vaults/softDeleteRetentionInDays less than 7"
+    },
+    {
+      "id": "kv-definition",
+      "text": "The custom definition exists in Azure"
+    },
+    {
+      "id": "initiative-four-refs",
+      "text": "The initiative references four policies, including the Key Vault one"
+    },
+    {
+      "id": "still-audit",
+      "text": "The guardrail effect is still Audit"
+    }
+  ],
+  "expectedResult": "Initiative v2 with a new control, zero changes to the assignment.",
+  "recovery": "If the plan shows the assignment being replaced, you changed its parameters — revert and keep the new control on the guardrailEffect parameter.",
+  "dont": [
+    "Do not switch to Deny",
+    "Do not create a second assignment"
+  ],
+  "hints": [
+    "Aliases map JSON paths of a resource type to policy fields.",
+    "Copy the SQL policy block in main.tf and change name and file.",
+    "Pass effect = \"[parameters('guardrailEffect')]\" in the new reference."
+  ],
+  "interview": {
+    "question": "How do you roll out a new guardrail without breaking teams?",
+    "followUps": [
+      "What is an exemption?",
+      "Policy vs RBAC?"
+    ]
+  },
+  "debrief": "Initiatives give one assignment and one compliance score for many controls. Adding a reference updates the set definition in place, so existing assignments pick it up. Audit first, measure non-compliance, communicate, then Deny.",
+  "references": [
+    "docs/labs/04-governance.md",
+    "infra/terraform/20-governance/main.tf"
+  ],
+  "checker": {
+    "status": "planned",
+    "plan": "Offline: parse infra/policies/*.json for the alias. Read-only: az policy definition list --query custom, az policy set-definition show."
+  },
+  "validation": {
+    "status": "pending",
+    "notes": "Checker not implemented yet."
+  }
+}

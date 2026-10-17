@@ -1,0 +1,95 @@
+{
+  "id": "C007",
+  "number": 7,
+  "cycle": 1,
+  "title": "Private data, no public doors",
+  "topic": "Private data",
+  "difficulty": 2,
+  "timeMinutes": 45,
+  "scenario": "\"The customer database and the secrets store must not have a public endpoint. Applications authenticate with Entra ID only — no SQL passwords anywhere.\" — CISO",
+  "mission": "Deploy Key Vault and Azure SQL behind private endpoints with Entra-only authentication, and store the first secret out-of-band.",
+  "objectives": [
+    "Explain private endpoints and their DNS",
+    "Configure Entra-only SQL with an admin group",
+    "Keep secret values out of Terraform state"
+  ],
+  "prerequisites": {
+    "platform": [
+      "azure"
+    ],
+    "layers": [
+      "10-foundation",
+      "20-governance"
+    ],
+    "notes": "Your current public IP must be in operator_ip_ranges."
+  },
+  "cost": "≈ US$0.70/day (SQL Basic + 2 private endpoints).",
+  "steps": [
+    {
+      "title": "Read the code",
+      "detail": "Find in 30-data: public network flags, the Entra admin, the private endpoints and their DNS zone groups."
+    },
+    {
+      "title": "Apply",
+      "detail": "Read the plan before y.",
+      "command": "./scripts/azp.ps1 apply 30-data"
+    },
+    {
+      "title": "Store the banner secret",
+      "detail": "Create the portal-banner secret with az keyvault secret set (value never in Git or Terraform)."
+    },
+    {
+      "title": "Look at DNS",
+      "detail": "Resolve the Key Vault name from your machine and explain the CNAME chain."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "two-endpoints",
+      "text": "Two private endpoints with IPs in 10.60.8.0/24"
+    },
+    {
+      "id": "sql-private",
+      "text": "SQL server has public network access disabled"
+    },
+    {
+      "id": "sql-entra-only",
+      "text": "SQL server uses Entra-only authentication"
+    },
+    {
+      "id": "banner-secret",
+      "text": "Secret portal-banner exists (name only — the value is never read)"
+    }
+  ],
+  "expectedResult": "Data services reachable only from the VNet, identities instead of passwords.",
+  "recovery": "ForbiddenByFirewall on Key Vault = network layer (your IP changed?), not RBAC. Separate network → identity → authorization.",
+  "dont": [
+    "Do not put the secret value in azurerm_key_vault_secret",
+    "Do not enable SQL public access to \"test quickly\""
+  ],
+  "hints": [
+    "Which Terraform attribute controls public network access on SQL and on Key Vault?",
+    "A private endpoint needs a private DNS zone group to register its A record.",
+    "az sql server show --query \"{public:publicNetworkAccess, entraOnly:administrators.azureAdOnlyAuthentication}\""
+  ],
+  "interview": {
+    "question": "Draw how a private endpoint name resolves from inside and outside the VNet.",
+    "followUps": [
+      "Service endpoint vs private endpoint?",
+      "Why not manage secret values in Terraform?"
+    ]
+  },
+  "debrief": "Outside the VNet, <name>.vault.azure.net CNAMEs to privatelink.vaultcore.azure.net and resolves to a public IP that is firewalled. Inside, the linked private zone answers with the private endpoint IP. Secret values set out-of-band never land in state.",
+  "references": [
+    "infra/terraform/30-data/main.tf",
+    "docs/labs/05-data.md"
+  ],
+  "checker": {
+    "status": "planned",
+    "plan": "Read-only: az network private-endpoint list, az sql server show, az keyvault secret list (names only)."
+  },
+  "validation": {
+    "status": "pending",
+    "notes": "Checker not implemented yet."
+  }
+}

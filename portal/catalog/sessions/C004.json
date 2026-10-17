@@ -1,0 +1,96 @@
+{
+  "id": "C004",
+  "number": 4,
+  "cycle": 1,
+  "title": "Catch drift before the incident",
+  "topic": "Terraform drift",
+  "difficulty": 2,
+  "timeMinutes": 45,
+  "scenario": "\"Last month someone deleted a private DNS link by hand and the API lost its database for an hour. We only noticed when customers called.\" — Platform manager",
+  "mission": "Add scheduled drift detection to CI and prove the foundation layer has no drift today.",
+  "objectives": [
+    "Explain drift as state vs reality",
+    "Use terraform plan -detailed-exitcode in automation",
+    "Design a scheduled, read-only workflow with OIDC"
+  ],
+  "prerequisites": {
+    "platform": [
+      "azure",
+      "github"
+    ],
+    "layers": [
+      "10-foundation"
+    ],
+    "notes": "Repository variables from session C003 in place."
+  },
+  "cost": "None (GitHub-hosted runner minutes).",
+  "steps": [
+    {
+      "title": "Run a plan locally",
+      "detail": "Confirm today's baseline: no changes on 10-foundation.",
+      "command": "./scripts/azp.ps1 plan 10-foundation"
+    },
+    {
+      "title": "Design the workflow",
+      "detail": "A scheduled workflow (cron) that runs plan for 10-foundation with -detailed-exitcode and fails (or opens an issue) on exit code 2."
+    },
+    {
+      "title": "Mind the identity",
+      "detail": "Which federated subject will a scheduled run on main present? Make sure it matches an existing credential."
+    },
+    {
+      "title": "Ship it",
+      "detail": "Branch, PR, required checks green, merge. Trigger it once with workflow_dispatch."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "drift-workflow",
+      "text": "A workflow under .github/workflows has a schedule trigger and runs terraform plan with -detailed-exitcode"
+    },
+    {
+      "id": "drift-oidc",
+      "text": "The workflow uses OIDC (id-token: write) and no secrets"
+    },
+    {
+      "id": "drift-run-success",
+      "text": "The latest run of the drift workflow on main succeeded"
+    },
+    {
+      "id": "no-drift-now",
+      "text": "terraform plan on 10-foundation reports no changes"
+    }
+  ],
+  "expectedResult": "Drift becomes a red workflow and a notification, not a customer call.",
+  "recovery": "Exit code 1 means the plan itself failed (auth, state lock); 2 means drift. Treat them differently in the workflow.",
+  "dont": [
+    "Do not run apply from the scheduled workflow",
+    "Do not use a client secret for the schedule"
+  ],
+  "hints": [
+    "terraform plan has an option that makes the exit code tell you whether there are changes.",
+    "Exit codes: 0 no changes, 1 error, 2 changes present.",
+    "A schedule always runs on the default branch, so its subject is ref:refs/heads/main."
+  ],
+  "interview": {
+    "question": "How do you detect configuration drift in a Terraform-managed platform?",
+    "followUps": [
+      "Should drift detection auto-remediate?",
+      "What else besides scheduled plans? (locks, policy, activity log alerts)"
+    ]
+  },
+  "debrief": "Scheduled plan with -detailed-exitcode turns drift into a signal. Auto-apply is risky (it can revert a legitimate emergency change), so most teams alert and require a human PR. Complement with resource locks on critical shared resources (private DNS zones) and activity-log alerts on deletions.",
+  "references": [
+    "docs/labs/03-network-foundation.md",
+    "docs/game-days.md",
+    ".github/workflows/infra.yml"
+  ],
+  "checker": {
+    "status": "planned",
+    "plan": "Offline: parse workflow YAML for schedule + -detailed-exitcode + id-token: write. Live: gh run list for the workflow on main; terraform plan -detailed-exitcode on 10-foundation (read-only)."
+  },
+  "validation": {
+    "status": "pending",
+    "notes": "Checker not implemented yet."
+  }
+}

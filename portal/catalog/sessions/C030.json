@@ -1,0 +1,94 @@
+{
+  "id": "C030",
+  "number": 30,
+  "cycle": 4,
+  "title": "Final incident: the database disappeared",
+  "topic": "Incident",
+  "difficulty": 3,
+  "timeMinutes": 90,
+  "scenario": "\"P1: the portal returns 503 in production. Readiness is failing everywhere. Nobody deployed anything.\" — Incident commander",
+  "mission": "Run the full incident: detect, diagnose under the method, restore through Terraform, write the post-mortem and give a two-minute English briefing.",
+  "objectives": [
+    "Apply Observation → Hypothesis → Test → Evidence under pressure",
+    "Restore drift with Terraform",
+    "Communicate an incident clearly"
+  ],
+  "prerequisites": {
+    "platform": [
+      "aks"
+    ],
+    "layers": [
+      "10-foundation",
+      "30-data",
+      "40-aks"
+    ],
+    "notes": "Sealed injection by a partner (GD-04 or a combination). Do not read docs/game-days.md first."
+  },
+  "cost": "Running platform cost. Plan the teardown right after.",
+  "steps": [
+    {
+      "title": "Stabilise the facts",
+      "detail": "What is failing, since when, where?"
+    },
+    {
+      "title": "Hypotheses",
+      "detail": "Write at least two before testing."
+    },
+    {
+      "title": "Test from inside",
+      "detail": "Resolve the SQL name from a pod."
+    },
+    {
+      "title": "Restore",
+      "detail": "Plan and apply the layer that drifted."
+    },
+    {
+      "title": "Post-mortem and briefing",
+      "detail": "docs/postmortems/final-incident.md + 2-minute narration."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "ready-again",
+      "text": "/readyz reports database: sql in dev and prod"
+    },
+    {
+      "id": "no-drift",
+      "text": "terraform plan reports no changes for 10-foundation and 30-data"
+    },
+    {
+      "id": "postmortem-final",
+      "text": "docs/postmortems/final-incident.md has the five sections and a timeline"
+    }
+  ],
+  "expectedResult": "Service restored, root cause found, prevention agreed.",
+  "recovery": "If you are stuck for 15 minutes, write the current hypothesis table and ask for a hint — that is part of the method.",
+  "dont": [
+    "Do not fix with portal clicks",
+    "Do not restart pods hoping it helps"
+  ],
+  "hints": [
+    "503 on readiness = the API cannot reach its dependency.",
+    "Does the SQL name resolve to a private IP from inside the cluster?",
+    "A missing private DNS VNet link is drift on 10-foundation."
+  ],
+  "interview": {
+    "question": "Tell me about an incident you handled: what happened, how you found the cause and what you changed.",
+    "followUps": [
+      "How would you detect this before customers?"
+    ]
+  },
+  "debrief": "Private DNS link removal makes pods resolve SQL publicly → blocked → readiness fails. Terraform restores the link; prevention: drift detection (C004), resource locks on DNS zones, an alert on readiness.",
+  "references": [
+    "docs/game-days.md",
+    "docs/runbook.md"
+  ],
+  "checker": {
+    "status": "planned",
+    "plan": "Read-only: kubectl get --raw service proxy /readyz, terraform plan -detailed-exitcode, post-mortem headings."
+  },
+  "validation": {
+    "status": "pending",
+    "notes": "Checker not implemented yet; needs a running cluster."
+  }
+}

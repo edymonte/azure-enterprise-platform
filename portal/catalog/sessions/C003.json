@@ -1,0 +1,97 @@
+{
+  "id": "C003",
+  "number": 3,
+  "cycle": 1,
+  "title": "Pipelines without secrets",
+  "topic": "OIDC & identity",
+  "difficulty": 2,
+  "timeMinutes": 40,
+  "scenario": "\"Pen-test finding: any branch can run a job with environment: lab and receive a token with Contributor on the subscription. Close it without adding secrets.\" — Red team report",
+  "mission": "Restrict which branches can deploy to the lab environment and prove the OIDC trust is exactly the three expected subjects.",
+  "objectives": [
+    "Read federated credential subjects and map them to GitHub job contexts",
+    "Restrict environment deployment branches",
+    "Discuss splitting plan and apply identities"
+  ],
+  "prerequisites": {
+    "platform": [
+      "azure",
+      "github"
+    ],
+    "layers": [
+      "05-identity"
+    ],
+    "notes": "gh CLI signed in with admin rights on the repository."
+  },
+  "cost": "None.",
+  "steps": [
+    {
+      "title": "List the trust",
+      "detail": "List the federated credentials of app-mfs-github-actions and map each subject to the job that can present it.",
+      "command": "az ad app federated-credential list --id <github_client_id> -o table"
+    },
+    {
+      "title": "Confirm there are no secrets",
+      "detail": "Check that the app has no password credentials.",
+      "command": "az ad app credential list --id <github_client_id>"
+    },
+    {
+      "title": "Restrict the environment",
+      "detail": "Configure the lab environment so only protected branches (main) can deploy to it. Use gh api — no portal clicks."
+    },
+    {
+      "title": "Design the split",
+      "detail": "Write 5 lines: how would a read-only \"plan\" identity and a privileged \"apply\" identity map to subjects and roles?"
+    }
+  ],
+  "criteria": [
+    {
+      "id": "three-subjects",
+      "text": "Exactly three federated subjects: pull_request, ref:refs/heads/main, environment:lab"
+    },
+    {
+      "id": "no-password",
+      "text": "The GitHub app has no client secret"
+    },
+    {
+      "id": "env-branch-policy",
+      "text": "The lab environment only allows deployments from protected branches"
+    },
+    {
+      "id": "env-reviewer",
+      "text": "The lab environment still requires a reviewer"
+    }
+  ],
+  "expectedResult": "A job on a feature branch can no longer obtain the environment:lab token.",
+  "recovery": "If a workflow on main stops deploying, check that main is protected — protected_branches policy only matches protected branches.",
+  "dont": [
+    "Do not add a client secret",
+    "Do not remove the reviewer rule",
+    "Do not widen subjects with wildcards"
+  ],
+  "hints": [
+    "Which GitHub setting decides which branches may use an environment?",
+    "The environments API accepts deployment_branch_policy with protected_branches and custom_branch_policies.",
+    "gh api -X PUT repos/<owner>/<repo>/environments/lab with reviewers and deployment_branch_policy[protected_branches]=true."
+  ],
+  "interview": {
+    "question": "How does a GitHub workflow authenticate to Azure without secrets, and what stops another branch from impersonating your deploy job?",
+    "followUps": [
+      "What is in the OIDC token subject?",
+      "Why separate plan and apply identities?"
+    ]
+  },
+  "debrief": "The subject is the trust boundary: Entra only exchanges a GitHub token whose sub matches exactly. environment:lab is presented by any job that declares environment: lab, so the environment itself must restrict branches and require reviewers. A stronger design uses a Reader-only identity for PR plans and a privileged identity only for environment:lab.",
+  "references": [
+    "infra/terraform/05-identity/main.tf",
+    "docs/labs/02-identity.md"
+  ],
+  "checker": {
+    "status": "planned",
+    "plan": "Read-only: az ad app federated-credential list, az ad app credential list, gh api repos/<repo>/environments/lab."
+  },
+  "validation": {
+    "status": "pending",
+    "notes": "Checker not implemented yet."
+  }
+}

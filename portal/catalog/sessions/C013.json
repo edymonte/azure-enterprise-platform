@@ -1,0 +1,86 @@
+{
+  "id": "C013",
+  "number": 13,
+  "cycle": 2,
+  "title": "Pods stuck in Pending",
+  "topic": "Scheduling",
+  "difficulty": 2,
+  "timeMinutes": 35,
+  "scenario": "\"After the last release some pods stayed Pending for minutes and the HPA shows <unknown>. We have two small nodes — make the workloads fit and autoscale.\" — SRE on call",
+  "mission": "Diagnose scheduling with requests/limits and allocatable capacity, and make the HPA read real metrics.",
+  "objectives": [
+    "Read node allocatable vs requested",
+    "Explain requests vs limits",
+    "Fix an HPA without metrics"
+  ],
+  "prerequisites": {
+    "platform": [
+      "aks"
+    ],
+    "layers": [
+      "40-aks"
+    ],
+    "notes": "Apps deployed (C012)."
+  },
+  "cost": "Cluster running cost only.",
+  "steps": [
+    {
+      "title": "Look at the nodes",
+      "detail": "Allocated resources section of each node.",
+      "command": "kubectl describe nodes | Select-String -Context 0,8 \"Allocated resources\""
+    },
+    {
+      "title": "Look at the HPA",
+      "detail": "Targets must show a percentage, not <unknown>.",
+      "command": "kubectl get hpa -A"
+    },
+    {
+      "title": "Change through Git",
+      "detail": "If requests need tuning, change chart values via PR."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "no-pending",
+      "text": "No pods in Pending in the portal namespaces"
+    },
+    {
+      "id": "hpa-metrics",
+      "text": "Every HPA reports current CPU utilisation"
+    },
+    {
+      "id": "requests-fit",
+      "text": "Total CPU requests are below 80% of allocatable"
+    }
+  ],
+  "expectedResult": "Workloads fit with headroom and scale on real metrics.",
+  "recovery": "HPA <unknown>: containers without CPU requests, or metrics-server not ready.",
+  "dont": [
+    "Do not remove requests to \"make it schedule\"",
+    "Do not kubectl edit the HPA"
+  ],
+  "hints": [
+    "The scheduler only looks at requests, never at limits or real usage.",
+    "HPA utilisation = usage / request.",
+    "kubectl top pods -A shows real usage."
+  ],
+  "interview": {
+    "question": "Requests vs limits: what does the scheduler use, what does the kubelet enforce?",
+    "followUps": [
+      "What happens when memory exceeds the limit? And CPU?"
+    ]
+  },
+  "debrief": "Scheduling is by requests; CPU limits throttle, memory limits OOM-kill. HPA needs requests to compute utilisation. On a 2-node cluster leave headroom for surge, system pods and the smoke job.",
+  "references": [
+    "gitops/charts/customer-portal/values.yaml",
+    "gitops/charts/customer-portal/templates/platform.yaml"
+  ],
+  "checker": {
+    "status": "planned",
+    "plan": "Read-only: kubectl get pods/hpa -o json, kubectl get nodes -o json (allocatable) and pod requests."
+  },
+  "validation": {
+    "status": "pending",
+    "notes": "Checker not implemented yet; needs a running cluster."
+  }
+}

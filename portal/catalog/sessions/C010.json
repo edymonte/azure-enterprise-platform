@@ -1,0 +1,94 @@
+{
+  "id": "C010",
+  "number": 10,
+  "cycle": 2,
+  "title": "Who can talk to the API server?",
+  "topic": "AKS security",
+  "difficulty": 2,
+  "timeMinutes": 35,
+  "scenario": "\"Security wants every cluster login tied to a named Entra identity, no local admin accounts, and the API server reachable only from approved IPs.\" — CISO",
+  "mission": "Prove the cluster access model and practise the \"kubectl stopped working\" diagnosis.",
+  "objectives": [
+    "Verify local accounts disabled and Azure RBAC",
+    "Use kubelogin with your Entra identity",
+    "Tell network timeouts from identity errors"
+  ],
+  "prerequisites": {
+    "platform": [
+      "aks"
+    ],
+    "layers": [
+      "40-aks"
+    ],
+    "notes": "Cluster running."
+  },
+  "cost": "Cluster running cost only.",
+  "steps": [
+    {
+      "title": "Get credentials",
+      "detail": "Use Entra credentials, not --admin.",
+      "command": "az aks get-credentials -g rg-mfs-portal-lab -n aks-mfs-portal-lab; kubelogin convert-kubeconfig -l azurecli"
+    },
+    {
+      "title": "Prove identity",
+      "detail": "kubectl get nodes, then kubectl auth whoami."
+    },
+    {
+      "title": "Inspect the profile",
+      "detail": "Read disableLocalAccounts, aadProfile and authorizedIpRanges.",
+      "command": "az aks show -g rg-mfs-portal-lab -n aks-mfs-portal-lab --query \"{local:disableLocalAccounts, rbac:aadProfile.enableAzureRbac, ips:apiServerAccessProfile.authorizedIpRanges}\""
+    },
+    {
+      "title": "Explain the failure modes",
+      "detail": "Timeout vs Unauthorized vs Forbidden: which layer fails in each?"
+    }
+  ],
+  "criteria": [
+    {
+      "id": "local-accounts-disabled",
+      "text": "Local accounts are disabled"
+    },
+    {
+      "id": "azure-rbac",
+      "text": "Entra integration with Azure RBAC is enabled"
+    },
+    {
+      "id": "authorized-ips",
+      "text": "Authorized IP ranges equal your operator IP ranges"
+    },
+    {
+      "id": "kubectl-entra",
+      "text": "kubectl works with your Entra identity"
+    }
+  ],
+  "expectedResult": "Every action in the cluster is attributable to a named identity.",
+  "recovery": "Timeout on kubectl after your IP changed: update operatorIpRanges, re-run bootstrap and apply 10, 30 and 40.",
+  "dont": [
+    "Do not use az aks get-credentials --admin",
+    "Do not open the API server to 0.0.0.0/0"
+  ],
+  "hints": [
+    "A timeout happens before authentication.",
+    "kubelogin turns Azure CLI tokens into Kubernetes credentials.",
+    "Compare authorizedIpRanges with your current public IP."
+  ],
+  "interview": {
+    "question": "kubectl times out this morning but worked yesterday. What do you check first and why?",
+    "followUps": [
+      "Private cluster vs authorized IPs?"
+    ]
+  },
+  "debrief": "Timeout = network (authorized IPs, private DNS of a private cluster); 401 = authentication (token); 403 = authorization (RBAC role). Disabling local accounts removes shared kubeconfig credentials that bypass Entra.",
+  "references": [
+    "docs/labs/06-aks.md",
+    "infra/terraform/40-aks/main.tf"
+  ],
+  "checker": {
+    "status": "planned",
+    "plan": "Read-only: az aks show; kubectl auth whoami / get nodes."
+  },
+  "validation": {
+    "status": "pending",
+    "notes": "Checker not implemented yet; needs a running cluster."
+  }
+}
