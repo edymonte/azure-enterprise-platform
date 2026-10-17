@@ -386,10 +386,35 @@
     return text.split(/(`[^`]+`)/).map((part) => (/^`[^`]+`$/.test(part) ? h('code', {}, part.slice(1, -1)) : part));
   }
 
+  // Personal course links (stored locally, never in the repository).
+  function linksBlock(target) {
+    const list = state.links?.[target] ?? [];
+    const open = ui.linkForm === target;
+    const block = h('div', { class: 'links-block' },
+      h('div', { class: 'links-head' }, h('b', {}, 'My course links'),
+        h('button', { class: 'btn copy', onclick: () => { ui.linkForm = open ? null : target; render(true); } }, open ? 'Cancel' : '+ Add link')),
+      list.length ? h('ul', { class: 'links-list' }, list.map((l, i) => h('li', {},
+        h('a', { href: l.url, target: '_blank', rel: 'noopener noreferrer' }, `${l.label} ↗`),
+        h('button', { class: 'ws-icon', title: 'Remove link', onclick: () => post(`/api/links/${target}/remove`, { index: i }).catch((e) => toast(e.message)) }, '✕'))))
+        : (open ? null : h('div', { class: 'muted small' }, 'Paste the lesson you use for this topic (e.g. a module of your course) to open it from here.')));
+    if (open) {
+      const label = h('input', { class: 'link-input', type: 'text', placeholder: 'Name, e.g. AZ-400 › Module 12', maxlength: '80' });
+      const url = h('input', { class: 'link-input', type: 'url', placeholder: 'https://…', maxlength: '500' });
+      const save = () => post(`/api/links/${target}`, { label: label.value, url: url.value })
+        .then(() => { ui.linkForm = null; render(true); toast('Link saved.', 'info'); })
+        .catch((e) => toast(e.message));
+      url.addEventListener('keydown', (e) => { if (e.key === 'Enter') save(); });
+      block.append(h('div', { class: 'link-form' }, label, url, h('button', { class: 'btn btn-primary copy', onclick: save }, 'Save')));
+      requestAnimationFrame(() => label.focus());
+    }
+    return block;
+  }
+
   function learnBody(s) {
     const L = s.learn;
     const out = [
       h('div', { class: 'learn-banner' }, h('b', {}, 'Learn first. '), 'New to this topic? Read this before the task. Reading it is free — it does not count as a hint.'),
+      linksBlock(s.id),
       h('h2', {}, `Concepts behind “${s.title}”`),
     ];
     for (const c of L.concepts) {
@@ -891,6 +916,7 @@
             h('label', {}, cb, h('span', { class: 'study-title' }, item.title)),
             item.detail ? h('div', { class: 'muted small' }, item.detail) : null,
             item.link ? h('a', { href: item.link, target: '_blank', rel: 'noopener noreferrer', class: 'small' }, 'Open reference ↗') : null,
+            linksBlock(item.id),
             item.done && item.at ? h('div', { class: 'muted small' }, `Done ${day(item.at)}`) : null);
         })));
     });
@@ -958,7 +984,8 @@
   function render(force = false) {
     if (!state) return;
     // Do not rebuild the page under the learner's cursor while they type.
-    if (!force && document.activeElement && document.activeElement.tagName === 'TEXTAREA') return;
+    const active = document.activeElement;
+    if (!force && active && (active.tagName === 'TEXTAREA' || active.closest?.('.link-form'))) return;
     const y = window.scrollY;
     renderChrome();
     const r = route();

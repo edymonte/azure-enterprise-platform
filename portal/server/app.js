@@ -139,6 +139,7 @@ export function createApp(config) {
         })),
       },
       timeline: progress.timeline(30),
+      links: progress.links(),
       interview: Object.fromEntries(catalog.sessions.map((s) => [s.id, progress.data.interview?.[s.id] ?? { passes: 0 }])),
       sessions,
       next: nextStep(sessions),
@@ -297,6 +298,14 @@ export function createApp(config) {
         await readJson(req);
         probe.refresh({ tools: true });
         return send(res, 202, { ok: true });
+      }
+      const link = pathname.match(/^\/api\/links\/([A-Za-z0-9-]{1,80})(\/remove)?$/);
+      if (req.method === 'POST' && link) {
+        const body = await readJson(req);
+        if (link[2]) progress.removeLink(link[1], body.index);
+        else progress.addLink(link[1], body.label, body.url);
+        pushState();
+        return send(res, 200, { ok: true });
       }
       const study = pathname.match(/^\/api\/study\/([a-z0-9-]{1,80})$/);
       if (req.method === 'POST' && study) {
