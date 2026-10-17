@@ -58,6 +58,33 @@
     }
   ],
   "expectedResult": "Pipeline authenticates again; prevention recorded.",
+  "learn": {
+    "concepts": [
+      {
+        "title": "Read the error code first",
+        "body": "Entra errors start with `AADSTS`. `AADSTS700213` (and similar 7002xx) means the presented token did not match any federated credential — an *authentication* problem. `AuthorizationFailed` on a scope means the identity is known but lacks a role — an *authorization* problem. Different layers, different fixes."
+      },
+      {
+        "title": "Post-mortems",
+        "body": "A blameless post-mortem answers: what happened · impact · root cause · how we detected it · what we change so it does not happen again. Five short sections are enough."
+      }
+    ],
+    "example": {
+      "title": "comparing what was presented with what is trusted",
+      "body": "The error message contains the presented subject; list the trusted ones and compare character by character:",
+      "code": "az ad app federated-credential list --id <client-id> --query \"[].subject\" -o tsv"
+    },
+    "glossary": [
+      {
+        "term": "AADSTS",
+        "def": "Prefix of Entra ID (Azure AD) security token service errors."
+      },
+      {
+        "term": "Blameless",
+        "def": "Post-mortem style focused on systems, not people."
+      }
+    ]
+  },
   "recovery": "If the error is AuthorizationFailed instead, you are in the RBAC layer — different fix.",
   "dont": [
     "Do not add a client secret as a workaround"

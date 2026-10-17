@@ -57,6 +57,41 @@
     }
   ],
   "expectedResult": "You learn about errors from the platform, not from customers.",
+  "learn": {
+    "concepts": [
+      {
+        "title": "What to measure",
+        "body": "*Golden signals*: latency, traffic, errors, saturation. *RED* (rate, errors, duration) fits request-driven services; *USE* (utilisation, saturation, errors) fits resources like nodes and disks."
+      },
+      {
+        "title": "Percentiles and ratios",
+        "body": "Averages hide the slow tail — alert on p95/p99 latency computed from histograms. Alert on the *error ratio* (errors ÷ requests), not on raw counts that grow with traffic."
+      },
+      {
+        "title": "KQL",
+        "body": "Kusto Query Language queries Log Analytics: a table, then piped operators (`where`, `summarize`, `project`, `order by`)."
+      }
+    ],
+    "example": {
+      "title": "a KQL query on a different signal",
+      "body": "Count container restarts per pod in the last hour:",
+      "code": "KubePodInventory\n| where TimeGenerated > ago(1h)\n| summarize restarts = max(ContainerRestartCount) by Name\n| order by restarts desc"
+    },
+    "glossary": [
+      {
+        "term": "SLO",
+        "def": "Target for a service level indicator, e.g. 99.5% of requests succeed."
+      },
+      {
+        "term": "Error budget",
+        "def": "Allowed failure (100% − SLO) that can be \"spent\" on change."
+      },
+      {
+        "term": "Histogram",
+        "def": "Metric that counts observations in buckets, enabling percentiles."
+      }
+    ]
+  },
   "recovery": "No data: check the Prometheus data collection rule and ama-metrics pods.",
   "dont": [
     "Do not alert on averages for latency"

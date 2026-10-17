@@ -62,6 +62,41 @@
     }
   ],
   "expectedResult": "Data services reachable only from the VNet, identities instead of passwords.",
+  "learn": {
+    "concepts": [
+      {
+        "title": "Private endpoints",
+        "body": "A private endpoint puts a network interface with a private IP of YOUR VNet in front of a PaaS service (SQL, Key Vault). Traffic stays on the Microsoft backbone; you can then disable the public endpoint."
+      },
+      {
+        "title": "DNS makes it work",
+        "body": "Clients keep using the normal name (`<name>.vault.azure.net`). Azure answers with a CNAME to `<name>.privatelink.vaultcore.azure.net`. Inside VNets linked to the private zone, that name resolves to the private IP; outside, to a public IP that is blocked. A *DNS zone group* on the endpoint registers the A record automatically."
+      },
+      {
+        "title": "Entra-only SQL and out-of-band secrets",
+        "body": "With Entra-only authentication SQL has no password logins; an Entra group is the admin and applications use managed identities. Secret *values* are set with the CLI outside Terraform, so they never land in Terraform state."
+      }
+    ],
+    "example": {
+      "title": "following a CNAME chain",
+      "body": "From your laptop, resolving any Azure service with a private endpoint shows the chain (public view):",
+      "code": "Resolve-DnsName <name>.vault.azure.net | Select-Object Name, Type, NameHost, IPAddress"
+    },
+    "glossary": [
+      {
+        "term": "Private Link",
+        "def": "The Azure technology behind private endpoints."
+      },
+      {
+        "term": "DNS zone group",
+        "def": "Endpoint setting that writes its A record into the private DNS zone."
+      },
+      {
+        "term": "Managed identity",
+        "def": "An Entra identity for an Azure resource, with no secret to manage."
+      }
+    ]
+  },
   "recovery": "ForbiddenByFirewall on Key Vault = network layer (your IP changed?), not RBAC. Separate network → identity → authorization.",
   "dont": [
     "Do not put the secret value in azurerm_key_vault_secret",

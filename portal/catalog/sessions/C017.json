@@ -66,6 +66,37 @@
     }
   ],
   "expectedResult": "A feature in production with a complete audit trail of PRs and runs.",
+  "learn": {
+    "concepts": [
+      {
+        "title": "The standard loop",
+        "body": "feature branch → PR → CI (tests, lint, scans) → squash merge → the app pipeline builds and pushes images → it opens a *deploy PR* that bumps the dev tag → merge → Argo CD syncs dev → PostSync smoke → promotion PR copies the same tag to prod → merge → prod smoke."
+      },
+      {
+        "title": "Build once, deploy many",
+        "body": "Prod must run the exact artifact that passed dev. Rebuilding for prod could produce different bytes (dependencies changed overnight). Promotion therefore copies the tag (better: the digest) instead of building again."
+      }
+    ],
+    "example": {
+      "title": "reading what each environment runs",
+      "body": "The environment values in Git are the source of truth for what is deployed:",
+      "code": "git show origin/main:gitops/envs/dev/values.yaml | Select-String -Context 0,1 \"api:\"\ngit show origin/main:gitops/envs/prod/values.yaml | Select-String -Context 0,1 \"api:\""
+    },
+    "glossary": [
+      {
+        "term": "Deploy PR",
+        "def": "PR that only changes environment values (image tags)."
+      },
+      {
+        "term": "Promotion",
+        "def": "Moving a verified artifact to the next environment."
+      },
+      {
+        "term": "Release evidence",
+        "def": "Links to PRs, runs and smoke logs proving the release."
+      }
+    ]
+  },
   "recovery": "Smoke failed in dev: do not promote. Revert the deploy PR, fix forward.",
   "dont": [
     "Do not push to main",

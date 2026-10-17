@@ -56,6 +56,37 @@
     }
   ],
   "expectedResult": "Evidence that the API reads from Azure SQL, not the in-memory fallback.",
+  "learn": {
+    "concepts": [
+      {
+        "title": "Workload identity, step by step",
+        "body": "1) The pod runs with a Kubernetes *service account* annotated with a managed identity client id. 2) A webhook injects a projected token file into the pod. 3) A *federated credential* on the managed identity trusts the subject `system:serviceaccount:<namespace>:<name>`. 4) The SDK exchanges the token for an Entra token. 5) SQL maps that identity to a contained database user."
+      },
+      {
+        "title": "Why a green smoke test is not proof",
+        "body": "If SQL is not configured, the API falls back to an in-memory catalog and `/api/products` still returns 200. The smoke test checks the endpoint answers; `/readyz` reports which database mode the API is really using."
+      }
+    ],
+    "example": {
+      "title": "reading a service through the API server proxy",
+      "body": "You can call a service from your laptop without exec or port-forward; the API server proxies the request:",
+      "code": "kubectl get --raw \"/api/v1/namespaces/<ns>/services/<svc>:80/proxy/healthz\""
+    },
+    "glossary": [
+      {
+        "term": "Service account",
+        "def": "Kubernetes identity of a pod."
+      },
+      {
+        "term": "Projected token",
+        "def": "Short-lived token file mounted into the pod for federation."
+      },
+      {
+        "term": "Contained user",
+        "def": "Database user that exists only inside the database (no server login)."
+      }
+    ]
+  },
   "recovery": "Login failed for user <token-identified principal>: the SQL user is missing — run the grant script again.",
   "dont": [
     "Do not create a SQL login with a password",

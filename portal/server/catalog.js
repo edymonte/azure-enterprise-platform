@@ -50,6 +50,11 @@ function validateSession(s, file, portalRoot) {
   requireArray(s, 'dont', file);
   requireArray(s, 'hints', file, { min: 3 });
   if (!s.interview || typeof s.interview.question !== 'string') fail(file, '"interview.question" is required');
+  const L = s.learn;
+  if (!L || !Array.isArray(L.concepts) || L.concepts.length === 0) fail(file, '"learn.concepts" is required');
+  for (const c of L.concepts) if (typeof c.title !== 'string' || typeof c.body !== 'string') fail(file, 'every learn concept needs "title" and "body"');
+  if (!L.example || typeof L.example.title !== 'string' || typeof L.example.body !== 'string') fail(file, '"learn.example" needs "title" and "body"');
+  if (!Array.isArray(L.glossary) || L.glossary.length < 2) fail(file, '"learn.glossary" needs at least 2 terms');
 
   const pre = s.prerequisites;
   if (!pre || !Array.isArray(pre.platform) || pre.platform.length === 0) fail(file, '"prerequisites.platform" is required');

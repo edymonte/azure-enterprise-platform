@@ -54,6 +54,41 @@
     }
   ],
   "expectedResult": "Lateral movement to the API is blocked and you can demonstrate it.",
+  "learn": {
+    "concepts": [
+      {
+        "title": "Default allow and how to flip it",
+        "body": "Without NetworkPolicies every pod can talk to every pod. As soon as a pod is *selected* by an ingress NetworkPolicy, it only accepts the traffic that some policy explicitly allows — everything else is dropped."
+      },
+      {
+        "title": "Selectors",
+        "body": "`podSelector` chooses the pods the policy protects; `from` lists allowed sources by `namespaceSelector` and/or `podSelector`. The label `kubernetes.io/metadata.name` exists on every namespace and is handy for selecting namespaces by name."
+      },
+      {
+        "title": "An engine must enforce it",
+        "body": "A NetworkPolicy is just YAML unless the network dataplane enforces it. This cluster uses Cilium (`network_policy = \"cilium\"`)."
+      }
+    ],
+    "example": {
+      "title": "testing a flow with a throwaway pod",
+      "body": "Run a temporary pod in another namespace and try to reach a service; `--rm` deletes it on exit. A timeout means the policy blocked it:",
+      "code": "kubectl run nettest --rm -it --restart=Never -n default --image=curlimages/curl -- curl -m 5 http://<svc>.<ns>"
+    },
+    "glossary": [
+      {
+        "term": "East-west traffic",
+        "def": "Traffic between workloads inside the cluster."
+      },
+      {
+        "term": "Ingress / egress policy",
+        "def": "Rules for incoming / outgoing pod traffic."
+      },
+      {
+        "term": "Cilium",
+        "def": "eBPF-based networking that enforces policies."
+      }
+    ]
+  },
   "recovery": "If the ingress returns 502 after a policy change, the ingress namespace was not allowed — revert the PR.",
   "dont": [
     "Do not disable the policy to debug",

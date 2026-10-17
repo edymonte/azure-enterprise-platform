@@ -60,6 +60,40 @@
     }
   ],
   "expectedResult": "A running cluster and a written answer to \"can we upgrade?\"",
+  "learn": {
+    "concepts": [
+      {
+        "title": "Quotas",
+        "body": "Each subscription has vCPU quotas per region and per VM family. A trial typically has 4 regional vCPUs. Creating or scaling VMs beyond it fails with `QuotaExceeded` — including the temporary nodes of an upgrade."
+      },
+      {
+        "title": "Node pools, autoscaler and surge",
+        "body": "AKS nodes live in node pools (VM scale sets). The cluster autoscaler moves the node count between `min_count` and `max_count`. During an upgrade AKS adds *surge* nodes first (`max_surge`, e.g. 33% rounded up), moves pods, then removes old nodes."
+      },
+      {
+        "title": "Decision records (ADR)",
+        "body": "An ADR is a short Markdown file: *Context* (the forces), *Decision* (what we chose) and *Consequences* (what we gain and give up). The repo already has ADR-0001…0007 as examples."
+      }
+    ],
+    "example": {
+      "title": "quota math for a different cluster",
+      "body": "Pool of 3 × 4-vCPU nodes, max_surge 50%: 50% of 3 = 1.5 → 2 surge nodes. Peak during upgrade = (3 + 2) × 4 = 20 vCPUs. With a 16 vCPU quota, the upgrade fails; options: surge 1 (16 vCPUs), scale down first, or raise the quota."
+    },
+    "glossary": [
+      {
+        "term": "VM family",
+        "def": "Group of VM sizes sharing a quota (e.g. DSv5)."
+      },
+      {
+        "term": "Surge node",
+        "def": "Extra node created temporarily during an upgrade."
+      },
+      {
+        "term": "ADR",
+        "def": "Architecture Decision Record."
+      }
+    ]
+  },
   "recovery": "QuotaExceeded on apply: reduce max_count or VM size via variables, never by hand.",
   "dont": [
     "Do not request a quota increase before reasoning about the alternatives",

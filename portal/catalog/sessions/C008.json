@@ -52,6 +52,37 @@
     }
   ],
   "expectedResult": "Public DNS owned by Azure DNS; private names answered by linked private zones.",
+  "learn": {
+    "concepts": [
+      {
+        "title": "Delegation",
+        "body": "The registrar (Registro.br) tells the `.br` zone which name servers are authoritative for your domain (NS records). Pointing them to Azure DNS hands every record of the domain to Azure DNS — and therefore to Terraform."
+      },
+      {
+        "title": "Split horizon",
+        "body": "The same name can resolve differently depending on where you ask: public resolvers see the public chain; VNets linked to a private zone see private IPs. That is by design for private endpoints."
+      }
+    ],
+    "example": {
+      "title": "asking a specific resolver",
+      "body": "`-Server` forces a public resolver, bypassing your local cache — useful to check propagation:",
+      "code": "Resolve-DnsName example.com -Type NS -Server 1.1.1.1"
+    },
+    "glossary": [
+      {
+        "term": "NS record",
+        "def": "Says which servers are authoritative for a zone."
+      },
+      {
+        "term": "Propagation",
+        "def": "Time for caches (TTL) to pick up a DNS change."
+      },
+      {
+        "term": "DNSSEC",
+        "def": "DNS signing; a DS record at the parent without a signed zone breaks resolution."
+      }
+    ]
+  },
   "recovery": "If NS still show the registrar, propagation is pending or DNSSEC is enabled at the registrar.",
   "dont": [
     "Do not create public records by hand — every record is Terraform"

@@ -61,6 +61,41 @@
     }
   ],
   "expectedResult": "Initiative v2 with a new control, zero changes to the assignment.",
+  "learn": {
+    "concepts": [
+      {
+        "title": "Aliases",
+        "body": "A policy reads resource properties through *aliases*: names like `Microsoft.KeyVault/vaults/enableRbacAuthorization` that map to a JSON path of the resource. If a property has no alias, a policy cannot check it."
+      },
+      {
+        "title": "Extending an initiative",
+        "body": "An initiative lists policy references. Adding a new reference updates the set definition *in place*; the existing assignment keeps working and starts evaluating the new control. Parameters flow from the assignment → initiative → each policy."
+      },
+      {
+        "title": "Soft delete",
+        "body": "Key Vault soft delete keeps deleted secrets recoverable for a retention period (7–90 days). The retention value is what the regulator cares about in this session."
+      }
+    ],
+    "example": {
+      "title": "a policy on another Key Vault property",
+      "body": "This (different) rule audits vaults that still use access policies instead of RBAC:",
+      "code": "{\n  \"if\": { \"allOf\": [\n    { \"field\": \"type\", \"equals\": \"Microsoft.KeyVault/vaults\" },\n    { \"field\": \"Microsoft.KeyVault/vaults/enableRbacAuthorization\", \"notEquals\": true }\n  ] },\n  \"then\": { \"effect\": \"[parameters('effect')]\" }\n}"
+    },
+    "glossary": [
+      {
+        "term": "Alias",
+        "def": "Policy-facing name of a resource property."
+      },
+      {
+        "term": "Policy reference",
+        "def": "Entry of an initiative pointing to one policy definition with its parameters."
+      },
+      {
+        "term": "In-place update",
+        "def": "Plan symbol `~`: the resource changes without being recreated."
+      }
+    ]
+  },
   "recovery": "If the plan shows the assignment being replaced, you changed its parameters — revert and keep the new control on the guardrailEffect parameter.",
   "dont": [
     "Do not switch to Deny",

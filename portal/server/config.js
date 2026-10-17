@@ -37,5 +37,9 @@ export function loadConfig(env = process.env) {
     // Validation mode: every session is unlocked (used to test checkers out of order).
     // Completions still require a passing checker; the UI shows a banner.
     unlockAll: env.PORTAL_UNLOCK_ALL === '1',
+    // Opt-in: a real PowerShell inside the portal page. Off by default because
+    // it lets the page run commands on this machine (see README, Security).
+    terminal: env.PORTAL_TERMINAL === '1',
+    terminalShell: env.PORTAL_TERMINAL_SHELL || 'pwsh',
   };
 }

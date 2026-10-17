@@ -54,6 +54,41 @@
     }
   ],
   "expectedResult": "Workloads fit with headroom and scale on real metrics.",
+  "learn": {
+    "concepts": [
+      {
+        "title": "Requests vs limits",
+        "body": "The scheduler places pods using **requests** (reserved CPU/memory), never real usage or limits. **Limits** are enforced at run time: CPU above the limit is throttled; memory above the limit kills the container (OOMKilled)."
+      },
+      {
+        "title": "Allocatable capacity and Pending",
+        "body": "Each node has *allocatable* resources (capacity minus system reservations). If no node has enough unrequested allocatable for a pod, the pod stays `Pending`, with an event like `Insufficient cpu`."
+      },
+      {
+        "title": "HPA",
+        "body": "The Horizontal Pod Autoscaler scales replicas on utilisation = usage ÷ request. Without CPU requests (or without metrics) it shows `<unknown>` and cannot scale."
+      }
+    ],
+    "example": {
+      "title": "why is this pod Pending?",
+      "body": "The events at the bottom of describe tell you the reason; the node view tells you how much is already requested:",
+      "code": "kubectl describe pod <pod> -n <ns> | Select-String -Context 0,5 \"Events\"\nkubectl describe node <node> | Select-String -Context 0,8 \"Allocated resources\""
+    },
+    "glossary": [
+      {
+        "term": "Allocatable",
+        "def": "Node resources available to pods."
+      },
+      {
+        "term": "Throttling",
+        "def": "CPU slowed down when a container hits its CPU limit."
+      },
+      {
+        "term": "OOMKilled",
+        "def": "Container killed for exceeding its memory limit."
+      }
+    ]
+  },
   "recovery": "HPA <unknown>: containers without CPU requests, or metrics-server not ready.",
   "dont": [
     "Do not remove requests to \"make it schedule\"",

@@ -62,6 +62,33 @@
     }
   ],
   "expectedResult": "Service restored, root cause found, prevention agreed.",
+  "learn": {
+    "concepts": [
+      {
+        "title": "Incident method",
+        "body": "Observation (what exactly fails, since when, where) → known facts → at least two hypotheses → the cheapest test that separates them → evidence → conclusion → change through Git/Terraform → validation. Write each step down: it keeps you calm and makes the post-mortem easy."
+      },
+      {
+        "title": "Communicating",
+        "body": "Short, regular updates: impact, current hypothesis, next step, next update time. In the final briefing: what happened, how you found it, what you changed, what prevents a repeat."
+      }
+    ],
+    "example": {
+      "title": "a hypothesis table",
+      "body": "Keep it as a Markdown table during the incident:",
+      "code": "| # | Hypothesis | Test | Result |\n|---|---|---|---|\n| 1 | Bad release | compare deploy history with start time | |\n| 2 | Dependency unreachable | resolve + connect from a pod | |"
+    },
+    "glossary": [
+      {
+        "term": "Incident commander",
+        "def": "Person coordinating the response and communication."
+      },
+      {
+        "term": "Timeline",
+        "def": "Time-stamped list of events, used in the post-mortem."
+      }
+    ]
+  },
   "recovery": "If you are stuck for 15 minutes, write the current hypothesis table and ask for a hint — that is part of the method.",
   "dont": [
     "Do not fix with portal clicks",

@@ -58,6 +58,41 @@
     }
   ],
   "expectedResult": "Old pods kept serving during the incident; Git history tells the story.",
+  "learn": {
+    "concepts": [
+      {
+        "title": "Rolling updates keep the old version alive",
+        "body": "A Deployment update creates a new ReplicaSet and only removes old pods when new ones are Ready. If the new pods cannot start, the old ones keep serving: the site stays up, but the new version never goes live."
+      },
+      {
+        "title": "ImagePullBackOff",
+        "body": "The kubelet cannot pull the image (wrong tag, missing registry permission, network). It retries with growing delays. `kubectl describe pod` shows the exact reason in Events, e.g. `manifest unknown` for a tag that does not exist."
+      },
+      {
+        "title": "Recovering through Git",
+        "body": "With GitOps, the fix for a bad deploy PR is `git revert` of that PR (a new commit that undoes it). Argo CD then syncs the previous tag. Editing the Deployment by hand would be reverted by self-heal anyway."
+      }
+    ],
+    "example": {
+      "title": "reverting a merged PR",
+      "body": "Find the merge commit, revert it on a branch and open a PR. For a squash merge there is a single parent, so no `-m` is needed:",
+      "code": "git log --oneline -5\ngit switch -c revert/bad-tag\ngit revert <sha>\ngit push -u origin revert/bad-tag\ngh pr create --fill"
+    },
+    "glossary": [
+      {
+        "term": "ReplicaSet",
+        "def": "Keeps N identical pods running; one per Deployment version."
+      },
+      {
+        "term": "Progressing / Degraded",
+        "def": "Argo CD health states while a rollout is stuck."
+      },
+      {
+        "term": "git revert",
+        "def": "New commit that undoes a previous one — history is preserved."
+      }
+    ]
+  },
   "recovery": "If the revert does not sync, check the Argo CD app is on auto-sync and the PR was merged to main.",
   "dont": [
     "Do not kubectl set image",

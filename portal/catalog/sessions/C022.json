@@ -57,6 +57,36 @@
     }
   ],
   "expectedResult": "Two CI/CD platforms, one platform contract.",
+  "learn": {
+    "concepts": [
+      {
+        "title": "Workload identity federation in Azure DevOps",
+        "body": "A service connection of type \"Workload identity federation\" does the same as GitHub OIDC: Azure DevOps issues a token with a subject like `sc://<org>/<project>/<connection>`, and an Entra app trusts it. No secret is stored."
+      },
+      {
+        "title": "Library and environments",
+        "body": "Variable groups (Pipelines → Library) hold shared non-secret values. Environments hold approvals and checks, evaluated when a deployment job targets them."
+      },
+      {
+        "title": "Same platform contract",
+        "body": "The pipeline tool changes, the contract does not: CI builds and opens a deploy PR on GitHub; Argo CD deploys."
+      }
+    ],
+    "example": {
+      "title": "side-by-side vocabulary",
+      "body": "GitHub reusable workflow ≈ ADO template; `environment:` ≈ deployment job environment; `azure/login` with OIDC ≈ `AzureCLI@2` with a WIF service connection."
+    },
+    "glossary": [
+      {
+        "term": "Service connection",
+        "def": "ADO object that holds how a pipeline authenticates to an external service."
+      },
+      {
+        "term": "Variable group",
+        "def": "Reusable set of pipeline variables."
+      }
+    ]
+  },
   "recovery": "AADSTS700213: subject mismatch — compare the error subject with the federated credential.",
   "dont": [
     "Do not create a secret-based service connection",

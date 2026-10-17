@@ -51,6 +51,33 @@
     }
   ],
   "expectedResult": "Proof that the gate works before anything is built for deployment.",
+  "learn": {
+    "concepts": [
+      {
+        "title": "Required checks",
+        "body": "Branch protection on `main` lists checks that must pass before a PR can merge. A red check blocks the merge button (here even for admins)."
+      },
+      {
+        "title": "Why build only after merge",
+        "body": "If images are only built from `main`, a commit that never passed CI can never become a deployable artifact. The PR pipeline gives fast feedback; the main pipeline produces artifacts."
+      }
+    ],
+    "example": {
+      "title": "seeing all runs of a branch",
+      "body": "Each push to the PR branch triggers CI; list them to see red then green:",
+      "code": "gh run list --branch <branch> --workflow ci.yml --limit 5"
+    },
+    "glossary": [
+      {
+        "term": "Branch protection",
+        "def": "Rules on a branch: PR required, checks, reviews, linear history."
+      },
+      {
+        "term": "Fast feedback",
+        "def": "Keeping PR checks quick so developers fix issues while the context is fresh."
+      }
+    ]
+  },
   "recovery": "If merge was possible while red, branch protection is misconfigured — check required checks.",
   "dont": [
     "Do not use admin merge",

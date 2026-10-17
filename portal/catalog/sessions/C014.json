@@ -72,6 +72,41 @@
     }
   ],
   "expectedResult": "Node drains and autoscaler scale-downs proceed in dev and prod, while each component keeps at least one pod during voluntary disruptions where it runs more than one.",
+  "learn": {
+    "concepts": [
+      {
+        "title": "Voluntary vs involuntary disruptions",
+        "body": "An *involuntary* disruption is a node crash. A *voluntary* one is planned: a node drain during an AKS upgrade, a node-image update, or the autoscaler removing a node. Kubernetes evicts pods during voluntary disruptions — and asks PodDisruptionBudgets first."
+      },
+      {
+        "title": "PodDisruptionBudget (PDB)",
+        "body": "A PDB says how many pods of a set must stay up during voluntary disruptions, using either `minAvailable` (\"keep at least N\") or `maxUnavailable` (\"take at most N down\"). `kubectl get pdb` shows **ALLOWED DISRUPTIONS** = how many pods may be evicted right now. If it is 0, every drain waits — forever."
+      },
+      {
+        "title": "Helm values and conditionals",
+        "body": "Helm renders templates with values from `values.yaml`, overridden per environment (`-f gitops/envs/<env>/values.yaml`). `{{- if .Values.x.enabled }} … {{- end }}` renders a block only when a value is true. `helm template` renders locally; `helm lint` checks the chart — both work with the cluster stopped."
+      }
+    ],
+    "example": {
+      "title": "the arithmetic on a different workload",
+      "body": "A queue worker runs 4 replicas with `minAvailable: 3` → allowed disruptions = 4 − 3 = 1: a drain can evict one pod at a time, fine. Scale it to 3 replicas and allowed disruptions become 0: drains block. With `maxUnavailable: 1` instead, allowed disruptions stay 1 at 4, 3 or 2 replicas (but with 1 replica the only pod can go down — decide if that is acceptable for that environment).",
+      "code": "apiVersion: policy/v1\nkind: PodDisruptionBudget\nmetadata: { name: queue-worker }\nspec:\n  minAvailable: 3\n  selector: { matchLabels: { app: queue-worker } }"
+    },
+    "glossary": [
+      {
+        "term": "Drain",
+        "def": "Evicting all pods from a node so it can be removed or upgraded."
+      },
+      {
+        "term": "Eviction",
+        "def": "API-initiated pod removal that respects PDBs."
+      },
+      {
+        "term": "Selector",
+        "def": "Labels a PDB uses to find its pods; must match the pod template labels."
+      }
+    ]
+  },
   "recovery": "If Argo CD shows the PDB OutOfSync after the merge, sync the app — never kubectl delete the PDB to unblock a drain.",
   "dont": [
     "Do not kubectl delete pdb to unblock an upgrade",

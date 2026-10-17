@@ -65,6 +65,41 @@
     }
   ],
   "expectedResult": "Git is the only way to change the cluster.",
+  "learn": {
+    "concepts": [
+      {
+        "title": "GitOps",
+        "body": "In GitOps the desired state of the cluster lives in Git. An agent inside the cluster (Argo CD) *pulls* it and applies it continuously. CI never holds cluster credentials: it only writes to Git (opens PRs)."
+      },
+      {
+        "title": "Sync, health and self-heal",
+        "body": "*Synced* means the cluster matches Git; *Healthy* means the resources are working. With `selfHeal: true`, manual changes are reverted automatically. *App-of-apps*: one root Application points to a folder of Applications."
+      },
+      {
+        "title": "PostSync hooks",
+        "body": "A Kubernetes Job annotated `argocd.argoproj.io/hook: PostSync` runs after each sync. If it fails, the sync operation is marked failed — that turns \"pods are running\" into \"the release really works\"."
+      }
+    ],
+    "example": {
+      "title": "reading Argo CD status without the UI",
+      "body": "Applications are Kubernetes resources, so kubectl can show their status:",
+      "code": "kubectl -n argocd get applications -o custom-columns=NAME:.metadata.name,SYNC:.status.sync.status,HEALTH:.status.health.status"
+    },
+    "glossary": [
+      {
+        "term": "Application",
+        "def": "Argo CD resource: a Git path + a destination namespace."
+      },
+      {
+        "term": "Pull vs push",
+        "def": "Pull: the cluster fetches changes. Push: a pipeline applies to the cluster."
+      },
+      {
+        "term": "Hook",
+        "def": "Resource Argo CD runs at a sync phase (PreSync, PostSync…)."
+      }
+    ]
+  },
   "recovery": "Sync Failed with a smoke error: read the job log first (version mismatch vs database path vs web tier).",
   "dont": [
     "Do not kubectl apply or edit the app",

@@ -62,6 +62,37 @@
     }
   ],
   "expectedResult": "Every action in the cluster is attributable to a named identity.",
+  "learn": {
+    "concepts": [
+      {
+        "title": "Who can reach the API server",
+        "body": "The Kubernetes API server is the front door of the cluster. *Authorized IP ranges* restrict which networks can even open a TCP connection to it. A blocked IP gets a **timeout**, not an error message."
+      },
+      {
+        "title": "Authentication vs authorization",
+        "body": "With Entra integration, `kubelogin` turns your Azure CLI login into a Kubernetes token (authentication → 401 if missing). Azure RBAC roles then decide what you can do (authorization → 403 Forbidden). Disabling *local accounts* removes the shared admin kubeconfig that would bypass Entra."
+      }
+    ],
+    "example": {
+      "title": "triage by symptom",
+      "body": "timeout → network (IP allow list, private DNS); `Unauthorized` (401) → token/login; `Forbidden` (403) → missing role binding. The same triage applies to Key Vault and SQL.",
+      "code": "kubectl auth whoami\nkubectl auth can-i list pods -n <namespace>"
+    },
+    "glossary": [
+      {
+        "term": "kubelogin",
+        "def": "Credential plugin that fetches Entra tokens for kubectl."
+      },
+      {
+        "term": "Local account",
+        "def": "Static Kubernetes admin credential; disabled here."
+      },
+      {
+        "term": "Azure RBAC for Kubernetes",
+        "def": "Azure role assignments that authorise Kubernetes API actions."
+      }
+    ]
+  },
   "recovery": "Timeout on kubectl after your IP changed: update operatorIpRanges, re-run bootstrap and apply 10, 30 and 40.",
   "dont": [
     "Do not use az aks get-credentials --admin",
