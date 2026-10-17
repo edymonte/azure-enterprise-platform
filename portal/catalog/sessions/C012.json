@@ -1,0 +1,100 @@
+{
+  "id": "C012",
+  "number": 12,
+  "cycle": 2,
+  "title": "Hand the cluster to Git",
+  "topic": "GitOps",
+  "difficulty": 3,
+  "timeMinutes": 60,
+  "scenario": "\"From today nobody deploys with kubectl. Whatever is in Git is what runs, and the deploy is only done when the smoke test says so.\" — Head of Platform",
+  "mission": "Bootstrap Argo CD, render the platform values through a PR, ship v1.0.0 and get both environments Synced and Healthy with a passing PostSync smoke.",
+  "objectives": [
+    "Explain app-of-apps",
+    "Use a PostSync hook as the deploy gate",
+    "Observe self-heal reverting manual drift"
+  ],
+  "prerequisites": {
+    "platform": [
+      "aks",
+      "github"
+    ],
+    "layers": [
+      "40-aks"
+    ],
+    "notes": "GITOPS_PR_TOKEN secret set (deploy PRs need it to trigger checks)."
+  },
+  "cost": "Cluster running cost; ACR Basic ≈ US$0.17/day.",
+  "steps": [
+    {
+      "title": "Render values",
+      "detail": "Generate platform.values.yaml from Terraform outputs and open a PR.",
+      "command": "./scripts/render-gitops-values.ps1"
+    },
+    {
+      "title": "Build v1.0.0",
+      "detail": "First images by hand, then a tags PR.",
+      "command": "./scripts/build-images.ps1 -Tag v1.0.0"
+    },
+    {
+      "title": "Bootstrap",
+      "detail": "Install Argo CD and the root app.",
+      "command": "./scripts/bootstrap-gitops.ps1"
+    },
+    {
+      "title": "Wait for the gate",
+      "detail": "The PostSync smoke can take up to 7 minutes.",
+      "command": "kubectl -n portal-dev logs job/customer-portal-smoke"
+    },
+    {
+      "title": "Break it",
+      "detail": "Scale prod web to 0 by hand and watch Argo CD revert it (self-heal)."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "apps-synced",
+      "text": "All Argo CD applications are Synced and Healthy"
+    },
+    {
+      "id": "smoke-dev",
+      "text": "portal-dev smoke job logged SMOKE OK version=v1.0.0"
+    },
+    {
+      "id": "smoke-prod",
+      "text": "portal-prod smoke job logged SMOKE OK version=v1.0.0"
+    }
+  ],
+  "expectedResult": "Git is the only way to change the cluster.",
+  "recovery": "Sync Failed with a smoke error: read the job log first (version mismatch vs database path vs web tier).",
+  "dont": [
+    "Do not kubectl apply or edit the app",
+    "Do not use kubectl rollout undo"
+  ],
+  "hints": [
+    "The root application points at gitops/apps.",
+    "A PostSync hook runs after every successful sync; its failure fails the operation.",
+    "selfHeal: true in the Application spec reverts manual changes."
+  ],
+  "interview": {
+    "question": "What is GitOps, and how is it different from a pipeline that runs kubectl apply?",
+    "followUps": [
+      "Pull vs push: which has the smaller credential surface?",
+      "How do you roll back?"
+    ]
+  },
+  "debrief": "Pull-based GitOps keeps cluster credentials inside the cluster; CI only writes to Git. The PostSync smoke turns \"pods are running\" into \"the release is live\". Self-heal makes manual drift short-lived and visible.",
+  "references": [
+    "docs/labs/07-gitops.md",
+    "gitops/bootstrap/root-app.yaml",
+    "gitops/apps/portal-prod.yaml",
+    "docs/decisions/ADR-0002-argo-cd-for-gitops.md"
+  ],
+  "checker": {
+    "status": "planned",
+    "plan": "Read-only: kubectl get applications -n argocd -o json; kubectl logs job/customer-portal-smoke in both namespaces."
+  },
+  "validation": {
+    "status": "pending",
+    "notes": "Checker not implemented yet; needs a running cluster."
+  }
+}

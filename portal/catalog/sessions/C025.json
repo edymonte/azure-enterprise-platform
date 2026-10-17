@@ -1,0 +1,86 @@
+{
+  "id": "C025",
+  "number": 25,
+  "cycle": 4,
+  "title": "Open the front door",
+  "topic": "Edge",
+  "difficulty": 3,
+  "timeMinutes": 60,
+  "scenario": "\"Launch day: portal.edymonte.com.br must serve HTTPS through Front Door, and nobody may bypass it to hit the cluster directly.\" — CTO",
+  "mission": "Apply the edge layer, serve both hosts with managed certificates and lock the origin to your Front Door profile.",
+  "objectives": [
+    "Explain Front Door vs App Gateway vs Traffic Manager",
+    "Validate managed TLS",
+    "Lock the origin with X-Azure-FDID"
+  ],
+  "prerequisites": {
+    "platform": [
+      "aks"
+    ],
+    "layers": [
+      "40-aks"
+    ],
+    "notes": "Front Door has an hourly base fee — do this session in one sitting and destroy 50-edge after C026."
+  },
+  "cost": "≈ US$1.20/day Front Door Standard + WAF. Destroy after the edge sessions.",
+  "steps": [
+    {
+      "title": "Apply",
+      "detail": "Read the plan; custom domains and routes.",
+      "command": "./scripts/azp.ps1 apply 50-edge"
+    },
+    {
+      "title": "Test",
+      "detail": "curl -I https://portal.edymonte.com.br"
+    },
+    {
+      "title": "Lock the origin",
+      "detail": "Only requests with your profile's X-Azure-FDID reach the ingress (lab 10 challenge)."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "https-valid",
+      "text": "Both hosts answer HTTPS with a valid certificate"
+    },
+    {
+      "id": "origin-locked",
+      "text": "Requests without your Front Door ID are rejected by the origin"
+    },
+    {
+      "id": "direct-blocked",
+      "text": "Direct access to the ingress IP from outside is blocked"
+    }
+  ],
+  "expectedResult": "A single, protected public entry point.",
+  "recovery": "Certificate pending: the DNS validation TXT record must exist in the Azure zone (Terraform creates it).",
+  "dont": [
+    "Do not leave Front Door running for days",
+    "Do not open the NSG to Internet"
+  ],
+  "hints": [
+    "The AzureFrontDoor.Backend service tag is shared by all customers.",
+    "Front Door adds X-Azure-FDID with your profile id.",
+    "An ingress annotation or NGINX snippet can check the header."
+  ],
+  "interview": {
+    "question": "How do you stop clients from bypassing Front Door?",
+    "followUps": [
+      "Front Door vs Application Gateway — when combine them?"
+    ]
+  },
+  "debrief": "Service tag filtering limits sources to Front Door infrastructure, not your profile. The X-Azure-FDID check (or Private Link origins on Premium) binds the origin to your profile.",
+  "references": [
+    "docs/labs/10-edge.md",
+    "infra/terraform/50-edge/main.tf",
+    "docs/decisions/ADR-0005-edge-front-door-origin.md"
+  ],
+  "checker": {
+    "status": "planned",
+    "plan": "Read-only: HTTPS requests to both hosts, az afd profile show, request without header via service proxy."
+  },
+  "validation": {
+    "status": "pending",
+    "notes": "Checker not implemented yet; needs the edge layer."
+  }
+}

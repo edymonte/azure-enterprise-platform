@@ -1,0 +1,92 @@
+{
+  "id": "C020",
+  "number": 20,
+  "cycle": 3,
+  "title": "A new environment with approval",
+  "topic": "GitHub Actions",
+  "difficulty": 3,
+  "timeMinutes": 60,
+  "scenario": "\"QA needs its own environment, portal-qa, by Friday. Infra changes go through the pipeline with an approval — not from a laptop.\" — Delivery lead (FEAT-05)",
+  "mission": "Create portal-qa through Terraform and GitOps: PR plan comment, merge, pipeline apply with approval, Healthy application.",
+  "objectives": [
+    "Read a plan comment before merging",
+    "Use an environment approval for apply",
+    "Extend for_each without recreating siblings"
+  ],
+  "prerequisites": {
+    "platform": [
+      "aks",
+      "github"
+    ],
+    "layers": [
+      "40-aks"
+    ],
+    "notes": "C003 done (environment protected)."
+  },
+  "cost": "Small extra pod requests on the existing cluster.",
+  "steps": [
+    {
+      "title": "Branch",
+      "detail": "portal-qa in local.portal_namespaces, an Argo CD Application and envs/qa values.",
+      "command": "git switch -c infra/FEAT-05-qa-namespace"
+    },
+    {
+      "title": "Read the plan comment",
+      "detail": "Expect 1 to add, 0 to change, 0 to destroy for 40-aks."
+    },
+    {
+      "title": "Apply with approval",
+      "detail": "Run infra workflow layer=40-aks action=apply and approve in the lab environment."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "plan-comment",
+      "text": "The PR has a plan comment with 0 to destroy for 40-aks"
+    },
+    {
+      "id": "approval-recorded",
+      "text": "An approved deployment to the lab environment exists for the apply run"
+    },
+    {
+      "id": "qa-credential",
+      "text": "Federated credential fic-portal-qa exists"
+    },
+    {
+      "id": "qa-healthy",
+      "text": "The portal-qa application is Synced and Healthy"
+    }
+  ],
+  "expectedResult": "A third environment created by the pipeline, with an auditable approval.",
+  "recovery": "If the plan shows prod's credential being replaced, you used count instead of for_each semantics — stop.",
+  "dont": [
+    "Do not apply 40-aks from your laptop",
+    "Do not merge a plan you did not read"
+  ],
+  "hints": [
+    "for_each addresses by key, so adding a key adds one resource.",
+    "The approval lives on the environment, not in the workflow.",
+    "gh api repos/<repo>/actions/runs/<id>/approvals"
+  ],
+  "interview": {
+    "question": "How do you make infrastructure changes safe in a team?",
+    "followUps": [
+      "Why for_each instead of count?",
+      "Where is the approval gate and why there?"
+    ]
+  },
+  "debrief": "Plan on PR + apply on an approved environment gives four-eyes control. for_each keyed by namespace added fic-portal-qa without touching dev/prod.",
+  "references": [
+    "docs/E2E-FEATURE-FLOW.md",
+    ".github/workflows/infra.yml",
+    "infra/terraform/40-aks/main.tf"
+  ],
+  "checker": {
+    "status": "planned",
+    "plan": "Read-only: gh api PR comments and run approvals, az identity federated-credential list, kubectl get application portal-qa."
+  },
+  "validation": {
+    "status": "pending",
+    "notes": "Checker not implemented yet; needs a running cluster."
+  }
+}

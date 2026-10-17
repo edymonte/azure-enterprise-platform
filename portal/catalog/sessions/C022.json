@@ -1,0 +1,89 @@
+{
+  "id": "C022",
+  "number": 22,
+  "cycle": 3,
+  "title": "The other team uses Azure DevOps",
+  "topic": "Azure DevOps",
+  "difficulty": 2,
+  "timeMinutes": 60,
+  "scenario": "\"The client's second team lives in Azure DevOps. Same platform, same rules: no secrets, approvals, PR-based deploys.\" — Account lead (FEAT-08)",
+  "mission": "Create a workload-identity-federation service connection, variable groups and an environment, and ship a small UI change through pipelines/azure-devops/app.yml.",
+  "objectives": [
+    "Create a WIF service connection manually and trust it in Terraform",
+    "Compare GitHub and Azure DevOps side by side",
+    "Keep secrets out of pipeline variables"
+  ],
+  "prerequisites": {
+    "platform": [
+      "azure",
+      "azure-devops"
+    ],
+    "layers": [
+      "05-identity"
+    ],
+    "notes": "Azure DevOps organization; companion lab-gitflow missions 0–7 recommended first."
+  },
+  "cost": "Free tier minutes.",
+  "steps": [
+    {
+      "title": "Service connection",
+      "detail": "Manual WIF connection; copy issuer and subject into ado_federated_* and apply 05-identity."
+    },
+    {
+      "title": "Library and environment",
+      "detail": "Variable groups with non-secret values; environment with approval."
+    },
+    {
+      "title": "Run app.yml",
+      "detail": "Small UI change; the pipeline builds, scans, pushes and opens the deploy PR on GitHub."
+    },
+    {
+      "title": "Compare",
+      "detail": "Fill a side-by-side table: triggers, identity, approvals, artifact, deploy PR."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "ado-fic",
+      "text": "The Azure DevOps federated credential exists on its app"
+    },
+    {
+      "id": "ado-run-success",
+      "text": "The latest app pipeline run succeeded"
+    },
+    {
+      "id": "ado-deploy-pr",
+      "text": "A deploy PR opened by the Azure DevOps pipeline exists on GitHub"
+    }
+  ],
+  "expectedResult": "Two CI/CD platforms, one platform contract.",
+  "recovery": "AADSTS700213: subject mismatch — compare the error subject with the federated credential.",
+  "dont": [
+    "Do not create a secret-based service connection",
+    "Do not store secrets in plain pipeline variables"
+  ],
+  "hints": [
+    "The subject looks like sc://<org>/<project>/<connection>.",
+    "addSpnToEnvironment exposes the federated token to scripts.",
+    "Templates + extends are the ADO equivalent of reusable workflows."
+  ],
+  "interview": {
+    "question": "Compare GitHub Actions and Azure DevOps for this platform: identity, approvals, reuse.",
+    "followUps": [
+      "When would you recommend each to a client?"
+    ]
+  },
+  "debrief": "Both exchange a platform-issued OIDC token for an Entra token; the subject format differs. Approvals live on environments in both. The platform contract (CI writes Git, Argo CD deploys) stays identical.",
+  "references": [
+    "docs/labs/09-azure-devops.md",
+    "pipelines/azure-devops/"
+  ],
+  "checker": {
+    "status": "planned",
+    "plan": "Read-only: az ad app federated-credential list (ADO app), az pipelines runs list, gh pr list --author."
+  },
+  "validation": {
+    "status": "pending",
+    "notes": "Checker not implemented yet."
+  }
+}

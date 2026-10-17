@@ -1,0 +1,89 @@
+{
+  "id": "C023",
+  "number": 23,
+  "cycle": 3,
+  "title": "The pipeline cannot log in",
+  "topic": "GitHub Actions",
+  "difficulty": 2,
+  "timeMinutes": 35,
+  "scenario": "\"Every infra run fails since this morning with AADSTS700213. Nobody touched the pipeline.\" — Incident channel (GD-05)",
+  "mission": "Diagnose a federation failure (authentication, not RBAC), fix it in Terraform and write the post-mortem.",
+  "objectives": [
+    "Tell federation errors from RBAC errors",
+    "Compare token subject vs credential subject",
+    "Write a 5-line post-mortem"
+  ],
+  "prerequisites": {
+    "platform": [
+      "azure",
+      "github"
+    ],
+    "layers": [
+      "05-identity"
+    ],
+    "notes": "Ask someone (or a sealed instruction) to change one subject in 05-identity without telling you which."
+  },
+  "cost": "None.",
+  "steps": [
+    {
+      "title": "Read the error",
+      "detail": "Which part of the token did Entra reject?"
+    },
+    {
+      "title": "Compare",
+      "detail": "Token subject from the error vs federated credentials.",
+      "command": "az ad app federated-credential list --id <github_client_id> -o table"
+    },
+    {
+      "title": "Fix in code",
+      "detail": "PR to 05-identity; plan; apply."
+    },
+    {
+      "title": "Post-mortem",
+      "detail": "docs/postmortems/GD-05.md: What happened · Impact · Root cause · Detection · Prevention."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "subjects-restored",
+      "text": "The three expected subjects are back"
+    },
+    {
+      "id": "infra-run-green",
+      "text": "The latest infra run on main succeeded"
+    },
+    {
+      "id": "postmortem",
+      "text": "docs/postmortems/GD-05.md has the five sections"
+    }
+  ],
+  "expectedResult": "Pipeline authenticates again; prevention recorded.",
+  "recovery": "If the error is AuthorizationFailed instead, you are in the RBAC layer — different fix.",
+  "dont": [
+    "Do not add a client secret as a workaround"
+  ],
+  "hints": [
+    "AADSTS700213 means no matching federated identity record.",
+    "The error message prints the presented subject.",
+    "Plan on PR for the identity layer would have shown the change."
+  ],
+  "interview": {
+    "question": "A pipeline suddenly fails to authenticate to Azure. Walk me through your diagnosis.",
+    "followUps": [
+      "Authentication vs authorization — how do you tell them apart in Azure?"
+    ]
+  },
+  "debrief": "Federation errors (AADSTS7002xx) are about the token/subject; RBAC errors are AuthorizationFailed on a scope. Fix in Terraform, prevent with plan-on-PR and CODEOWNERS on the identity layer.",
+  "references": [
+    "docs/game-days.md",
+    "infra/terraform/05-identity/main.tf"
+  ],
+  "checker": {
+    "status": "planned",
+    "plan": "Read-only: az ad app federated-credential list, gh run list --workflow infra.yml, post-mortem file headings."
+  },
+  "validation": {
+    "status": "pending",
+    "notes": "Checker not implemented yet."
+  }
+}

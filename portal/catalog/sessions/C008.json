@@ -1,0 +1,84 @@
+{
+  "id": "C008",
+  "number": 8,
+  "cycle": 1,
+  "title": "DNS from both sides",
+  "topic": "DNS",
+  "difficulty": 2,
+  "timeMinutes": 30,
+  "scenario": "\"Marketing will announce portal.edymonte.com.br next week. Confirm the domain is served by our Azure DNS and that internal names resolve privately.\" — Product owner",
+  "mission": "Verify public delegation and private resolution, and explain the difference.",
+  "objectives": [
+    "Verify NS delegation from the registrar",
+    "Inspect private DNS records created by private endpoints",
+    "Explain split-horizon behaviour"
+  ],
+  "prerequisites": {
+    "platform": [
+      "azure"
+    ],
+    "layers": [
+      "00-bootstrap",
+      "10-foundation",
+      "30-data"
+    ],
+    "notes": "Delegation submitted at the registrar (done in day 1)."
+  },
+  "cost": "Cents (DNS zone + queries).",
+  "steps": [
+    {
+      "title": "Public delegation",
+      "detail": "Ask a public resolver for the NS of the domain.",
+      "command": "Resolve-DnsName edymonte.com.br -Type NS -Server 8.8.8.8"
+    },
+    {
+      "title": "Private records",
+      "detail": "List A records in both privatelink zones.",
+      "command": "az network private-dns record-set a list -g rg-mfs-hub-lab -z privatelink.database.windows.net -o table"
+    },
+    {
+      "title": "Explain",
+      "detail": "Why does the same SQL name resolve to different IPs from your laptop and from a pod?"
+    }
+  ],
+  "criteria": [
+    {
+      "id": "ns-delegated",
+      "text": "Public resolvers return the Azure DNS name servers for the domain"
+    },
+    {
+      "id": "private-a-records",
+      "text": "Each privatelink zone has an A record for its private endpoint"
+    }
+  ],
+  "expectedResult": "Public DNS owned by Azure DNS; private names answered by linked private zones.",
+  "recovery": "If NS still show the registrar, propagation is pending or DNSSEC is enabled at the registrar.",
+  "dont": [
+    "Do not create public records by hand — every record is Terraform"
+  ],
+  "hints": [
+    "Delegation is a set of NS records at the parent zone (.br).",
+    "Private endpoint DNS zone groups create the A records for you.",
+    "From inside the VNet the privatelink zone answers; from outside the public zone does."
+  ],
+  "interview": {
+    "question": "A pod resolves the SQL server to a public IP and times out. What happened?",
+    "followUps": [
+      "Why does the public DNS zone live in the bootstrap layer?"
+    ]
+  },
+  "debrief": "Split-horizon: the public chain ends in a firewalled public IP; inside linked VNets, the privatelink zone answers with the private IP. A missing VNet link makes pods resolve the public IP → timeout (game day GD-04).",
+  "references": [
+    "docs/labs/01-bootstrap-state.md",
+    "docs/labs/05-data.md",
+    "docs/game-days.md"
+  ],
+  "checker": {
+    "status": "planned",
+    "plan": "Read-only: DNS NS query against a public resolver, az network private-dns record-set a list for both zones."
+  },
+  "validation": {
+    "status": "pending",
+    "notes": "Checker not implemented yet."
+  }
+}

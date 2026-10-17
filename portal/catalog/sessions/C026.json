@@ -1,0 +1,84 @@
+{
+  "id": "C026",
+  "number": 26,
+  "cycle": 4,
+  "title": "WAF blocking real customers",
+  "topic": "Edge",
+  "difficulty": 2,
+  "timeMinutes": 40,
+  "scenario": "\"After switching WAF to Prevention, customers get 403 and 429 during the campaign.\" — Support (GD-09)",
+  "mission": "Move WAF from Detection to Prevention safely, reproduce a false positive with an aggressive rate limit, and tune it from evidence.",
+  "objectives": [
+    "Read WAF logs",
+    "Explain Detection-first rollouts",
+    "Tune rate limits from traffic percentiles"
+  ],
+  "prerequisites": {
+    "platform": [
+      "aks"
+    ],
+    "layers": [
+      "50-edge",
+      "60-observability"
+    ],
+    "notes": "Right after C025."
+  },
+  "cost": "Front Door running cost.",
+  "steps": [
+    {
+      "title": "Probe in Detection",
+      "detail": "SQL injection probe returns 200 but is logged."
+    },
+    {
+      "title": "Prevention",
+      "detail": "Same probe returns 403."
+    },
+    {
+      "title": "False positive",
+      "detail": "Lower waf_rate_limit_per_minute to 10, browse, read the logs, tune."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "prevention-blocks",
+      "text": "An injection probe is blocked (403) in Prevention"
+    },
+    {
+      "id": "rate-limit-tuned",
+      "text": "The rate limit is back above the observed p99 per client"
+    },
+    {
+      "id": "waf-logs",
+      "text": "WAF log query returns the blocked requests"
+    }
+  ],
+  "expectedResult": "A WAF that blocks attacks, not customers.",
+  "recovery": "Locked out yourself? Raise the limit through Terraform; never disable the WAF policy.",
+  "dont": [
+    "Do not disable managed rules globally"
+  ],
+  "hints": [
+    "Detection logs what Prevention would block.",
+    "RateLimitPerClient appears in the WAF logs.",
+    "Use KQL on AzureDiagnostics / FrontDoorWebApplicationFirewallLog."
+  ],
+  "interview": {
+    "question": "Why roll out a WAF in Detection first, and how do you tune it?",
+    "followUps": [
+      "Per-path exclusions vs global?"
+    ]
+  },
+  "debrief": "Detection gives a baseline of what would be blocked; Prevention after tuning. Rate limits come from real traffic percentiles, not guesses.",
+  "references": [
+    "docs/labs/10-edge.md",
+    "docs/game-days.md"
+  ],
+  "checker": {
+    "status": "planned",
+    "plan": "Read-only: HTTP probe through Front Door, Log Analytics query, terraform output of waf settings."
+  },
+  "validation": {
+    "status": "pending",
+    "notes": "Checker not implemented yet; needs the edge layer."
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "id": "C029",
+  "number": 29,
+  "cycle": 4,
+  "title": "Monitoring as code with Datadog",
+  "topic": "Observability",
+  "difficulty": 2,
+  "timeMinutes": 60,
+  "scenario": "\"The client standardises on Datadog. Monitors and SLOs must be code-reviewed like everything else.\" — Client platform owner",
+  "mission": "Enable the Datadog Agent through GitOps, get APM with unified service tagging, and create monitors and an SLO with Terraform.",
+  "objectives": [
+    "Unified service tagging",
+    "Protect the API key with workload identity / CSI",
+    "Compare Azure Monitor and Datadog"
+  ],
+  "prerequisites": {
+    "platform": [
+      "aks"
+    ],
+    "layers": [
+      "40-aks",
+      "70-datadog"
+    ],
+    "notes": "Datadog trial account; DD_API_KEY and DD_APP_KEY in the environment (never in Git)."
+  },
+  "cost": "Datadog trial (14 days).",
+  "steps": [
+    {
+      "title": "Secret out-of-band",
+      "detail": "./scripts/datadog-secret.ps1"
+    },
+    {
+      "title": "Agent via GitOps",
+      "detail": "datadog.enabled: true through a PR."
+    },
+    {
+      "title": "Monitors as code",
+      "detail": "apply 70-datadog."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "agent-running",
+      "text": "Datadog agent pods are Running"
+    },
+    {
+      "id": "apm-service",
+      "text": "APM service customer-portal-api has env and version tags"
+    },
+    {
+      "id": "monitors-terraform",
+      "text": "Monitors and the SLO exist in Terraform state"
+    }
+  ],
+  "expectedResult": "Two observability stacks, both as code.",
+  "recovery": "Agents crash: the secret is missing — re-run the secret script.",
+  "dont": [
+    "Do not commit the API key",
+    "Do not create monitors in the UI"
+  ],
+  "hints": [
+    "DD_ENV, DD_SERVICE, DD_VERSION.",
+    "tags.datadoghq.com labels in the chart.",
+    "terraform state list in 70-datadog."
+  ],
+  "interview": {
+    "question": "Azure Monitor vs Datadog: how would you advise a client?",
+    "followUps": [
+      "Why monitors as code?"
+    ]
+  },
+  "debrief": "Unified tagging links traces, logs and metrics per env/version; monitors as code bring review and history. Advise on cost, team skills and multi-cloud needs.",
+  "references": [
+    "docs/labs/12-datadog.md",
+    "infra/terraform/70-datadog/main.tf",
+    "docs/decisions/ADR-0006-dual-observability.md"
+  ],
+  "checker": {
+    "status": "planned",
+    "plan": "Read-only: kubectl get pods -n datadog, terraform state list (70-datadog), Datadog API read."
+  },
+  "validation": {
+    "status": "pending",
+    "notes": "Checker not implemented yet; needs a Datadog account."
+  }
+}

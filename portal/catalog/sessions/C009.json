@@ -1,0 +1,93 @@
+{
+  "id": "C009",
+  "number": 9,
+  "cycle": 2,
+  "title": "A cluster inside a 4-vCPU quota",
+  "topic": "AKS capacity",
+  "difficulty": 2,
+  "timeMinutes": 45,
+  "scenario": "\"We have exactly 4 vCPUs in the region. Bring up the cluster, and tell me whether a Kubernetes upgrade would even fit.\" — Engineering manager",
+  "mission": "Apply 40-aks, measure quota usage and record the capacity decision (nodes, autoscaler and upgrade surge) as an ADR.",
+  "objectives": [
+    "Read regional and family quota",
+    "Compute surge capacity for upgrades",
+    "Write a decision record with trade-offs"
+  ],
+  "prerequisites": {
+    "platform": [
+      "azure"
+    ],
+    "layers": [
+      "10-foundation",
+      "20-governance",
+      "30-data"
+    ],
+    "notes": "Apply takes 10–15 min unattended."
+  },
+  "cost": "≈ US$3/day while running (2 × D2s_v5). Stop it at night: az aks stop.",
+  "steps": [
+    {
+      "title": "Check quota first",
+      "detail": "Total Regional vCPUs and DSv5 family.",
+      "command": "az vm list-usage --location eastus2 -o table | Select-String \"Total Regional vCPUs|DSv5\""
+    },
+    {
+      "title": "Apply",
+      "detail": "Start it and do something else.",
+      "command": "./scripts/azp.ps1 apply 40-aks"
+    },
+    {
+      "title": "Do the math",
+      "detail": "Autoscaler max 2 nodes × 2 vCPU + max_surge 33% during an upgrade: does it fit in 4?"
+    },
+    {
+      "title": "Record the decision",
+      "detail": "Write docs/decisions/ADR-0008-aks-capacity-under-quota.md (Context, Decision, Consequences)."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "cluster-succeeded",
+      "text": "AKS cluster provisioningState is Succeeded"
+    },
+    {
+      "id": "within-quota",
+      "text": "Regional vCPU usage is within the quota"
+    },
+    {
+      "id": "capacity-adr",
+      "text": "ADR-0008 exists with Context, Decision and Consequences sections and the quota numbers"
+    }
+  ],
+  "expectedResult": "A running cluster and a written answer to \"can we upgrade?\"",
+  "recovery": "QuotaExceeded on apply: reduce max_count or VM size via variables, never by hand.",
+  "dont": [
+    "Do not request a quota increase before reasoning about the alternatives",
+    "Do not leave the cluster running overnight"
+  ],
+  "hints": [
+    "Surge nodes are extra nodes created during an upgrade.",
+    "33% of 2 nodes rounds up to 1 extra node.",
+    "Options: scale to 1 node before upgrading, a smaller surge, or a temporary quota increase."
+  ],
+  "interview": {
+    "question": "Your cluster upgrade fails with a quota error. Walk me through the diagnosis and the options.",
+    "followUps": [
+      "Why ignore_changes on node_count?"
+    ]
+  },
+  "debrief": "At 2 nodes, max_surge 33% adds 1 node (6 vCPU > 4): the upgrade fails. Choices: upgrade at 1 node, reduce surge (slower, riskier), or temporary quota. The ADR makes the trade-off explicit for the next engineer.",
+  "references": [
+    "infra/terraform/40-aks/main.tf",
+    "infra/terraform/40-aks/variables.tf",
+    "docs/labs/06-aks.md"
+  ],
+  "checker": {
+    "status": "planned",
+    "plan": "Read-only: az aks show, az vm list-usage; offline: ADR-0008 headings."
+  },
+  "validation": {
+    "status": "pending",
+    "notes": "Checker not implemented yet; needs a deployed cluster."
+  }
+}

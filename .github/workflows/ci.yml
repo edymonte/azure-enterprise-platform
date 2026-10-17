@@ -44,6 +44,17 @@ jobs:
       - run: npm ci
       - run: npm test
 
+  portal:
+    name: learning portal
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: azure/setup-helm@v4
+      - run: npm --prefix portal test
+
   helm:
     runs-on: ubuntu-latest
     steps:

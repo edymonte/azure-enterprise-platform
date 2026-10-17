@@ -1,0 +1,85 @@
+{
+  "id": "C028",
+  "number": 28,
+  "cycle": 4,
+  "title": "Release made it slow",
+  "topic": "Rollback",
+  "difficulty": 3,
+  "timeMinutes": 45,
+  "scenario": "\"Since release <sha>, p95 latency went from 80 ms to 900 ms. Fix it now.\" — SRE pager (FEAT-07 / GD-02)",
+  "mission": "Detect a latency regression from the alert, prove it is not saturation, and roll back with git revert.",
+  "objectives": [
+    "Read p95 and CPU together",
+    "Explain why the HPA does not help",
+    "Roll back via Git"
+  ],
+  "prerequisites": {
+    "platform": [
+      "aks"
+    ],
+    "layers": [
+      "40-aks",
+      "60-observability"
+    ],
+    "notes": "Inject chaos.latencyMs: \"800\" in prod through a deploy PR (you or a partner)."
+  },
+  "cost": "Cluster + observability running cost.",
+  "steps": [
+    {
+      "title": "Detect",
+      "detail": "Alert e-mail / Grafana p95 panel."
+    },
+    {
+      "title": "Diagnose",
+      "detail": "CPU normal? Then not saturation; look at recent changes."
+    },
+    {
+      "title": "Roll back",
+      "detail": "git revert of the deploy PR; Argo CD syncs."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "latency-back",
+      "text": "p95 latency back under the SLO threshold"
+    },
+    {
+      "id": "revert-trail",
+      "text": "A revert commit of the chaos change exists on main"
+    },
+    {
+      "id": "time-to-restore",
+      "text": "Time to restore recorded in the post-mortem"
+    }
+  ],
+  "expectedResult": "Restore in minutes with a Git audit trail.",
+  "recovery": "Do not wait for the HPA: latency is not CPU-bound here.",
+  "dont": [
+    "Do not kubectl rollout undo",
+    "Do not scale up as the \"fix\""
+  ],
+  "hints": [
+    "Is CPU high? If not, more pods will not help.",
+    "Argo CD history shows the last values change.",
+    "Revert the PR, not the commit on main by hand."
+  ],
+  "interview": {
+    "question": "Latency spiked after a release. Walk me through detection, diagnosis and rollback.",
+    "followUps": [
+      "Revert vs fix forward — how do you decide?"
+    ]
+  },
+  "debrief": "Correlate the regression with the change timeline; revert first, investigate after. Git revert keeps the cluster and the audit trail consistent.",
+  "references": [
+    "docs/E2E-FEATURE-FLOW.md",
+    "docs/game-days.md"
+  ],
+  "checker": {
+    "status": "planned",
+    "plan": "Read-only: Prometheus query via Azure Monitor workspace, git log --grep Revert, post-mortem file."
+  },
+  "validation": {
+    "status": "pending",
+    "notes": "Checker not implemented yet; needs the observability layer."
+  }
+}

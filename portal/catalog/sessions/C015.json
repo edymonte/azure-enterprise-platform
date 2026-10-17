@@ -1,0 +1,87 @@
+{
+  "id": "C015",
+  "number": 15,
+  "cycle": 2,
+  "title": "Zero trust inside the cluster",
+  "topic": "NetworkPolicy",
+  "difficulty": 2,
+  "timeMinutes": 40,
+  "scenario": "\"If one pod in the cluster is compromised, can it call our customer API directly? Show me, don't tell me.\" — Security architect",
+  "mission": "Prove the portal pods only accept traffic from the ingress controller, the metric collectors and the smoke test, using Cilium-enforced NetworkPolicies.",
+  "objectives": [
+    "Read a NetworkPolicy and predict allowed flows",
+    "Test a denied flow with a throwaway pod",
+    "Explain why the network policy engine matters"
+  ],
+  "prerequisites": {
+    "platform": [
+      "aks"
+    ],
+    "layers": [
+      "40-aks"
+    ],
+    "notes": "Apps deployed (C012)."
+  },
+  "cost": "Cluster running cost only.",
+  "steps": [
+    {
+      "title": "Read the policy",
+      "detail": "Which namespaces and pods may reach port 8080?",
+      "command": "kubectl -n portal-dev get networkpolicy -o yaml"
+    },
+    {
+      "title": "Check the engine",
+      "detail": "A NetworkPolicy without an enforcing engine is just YAML.",
+      "command": "az aks show -g rg-mfs-portal-lab -n aks-mfs-portal-lab --query networkProfile.networkPolicy"
+    },
+    {
+      "title": "Test from outside",
+      "detail": "Run a disposable curl pod in the default namespace and call the API service. Expect a timeout. Delete the pod afterwards."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "policy-present",
+      "text": "The allow-ingress NetworkPolicy exists in portal-dev and portal-prod"
+    },
+    {
+      "id": "engine-enforcing",
+      "text": "The cluster network policy engine is cilium"
+    },
+    {
+      "id": "no-debug-leftovers",
+      "text": "No debug pods are left in the default namespace"
+    }
+  ],
+  "expectedResult": "Lateral movement to the API is blocked and you can demonstrate it.",
+  "recovery": "If the ingress returns 502 after a policy change, the ingress namespace was not allowed — revert the PR.",
+  "dont": [
+    "Do not disable the policy to debug",
+    "Do not leave debug pods running"
+  ],
+  "hints": [
+    "A pod selected by any ingress policy denies everything not explicitly allowed.",
+    "namespaceSelector uses the kubernetes.io/metadata.name label.",
+    "kubectl run tmp --rm -it --image=curlimages/curl -- curl -m 5 http://customer-portal-api.portal-dev"
+  ],
+  "interview": {
+    "question": "How do you limit east-west traffic in Kubernetes, and how do you prove it works?",
+    "followUps": [
+      "Ingress vs egress policies?",
+      "What does Cilium add over basic NetworkPolicy?"
+    ]
+  },
+  "debrief": "Selecting the pods with an ingress policy flips them to default-deny for ingress; only listed sources pass. Enforcement depends on the dataplane (Cilium here). Egress policies are the next step to stop data exfiltration.",
+  "references": [
+    "gitops/charts/customer-portal/templates/platform.yaml",
+    "infra/terraform/40-aks/main.tf"
+  ],
+  "checker": {
+    "status": "planned",
+    "plan": "Read-only: kubectl get networkpolicy -A -o json, az aks show networkProfile, kubectl get pods -n default."
+  },
+  "validation": {
+    "status": "pending",
+    "notes": "Checker not implemented yet; needs a running cluster."
+  }
+}

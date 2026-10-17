@@ -1,0 +1,83 @@
+{
+  "id": "C018",
+  "number": 18,
+  "cycle": 3,
+  "title": "The bug that never reached main",
+  "topic": "GitHub Actions",
+  "difficulty": 1,
+  "timeMinutes": 30,
+  "scenario": "\"A refactor almost broke the product mapping last sprint. Show me the gate that stops it.\" — Engineering manager (FEAT-03)",
+  "mission": "Open a PR with a deliberate bug, watch CI block the merge, fix it and merge — nothing from the red commit may reach the registry.",
+  "objectives": [
+    "Read required checks on a protected branch",
+    "Prove a red commit produced no artifact",
+    "Explain fast feedback in CI"
+  ],
+  "prerequisites": {
+    "platform": [
+      "github"
+    ],
+    "layers": [],
+    "notes": "Works with the platform stopped."
+  },
+  "cost": "Runner minutes only.",
+  "steps": [
+    {
+      "title": "Introduce the bug",
+      "detail": "Return title instead of name in the mapping, keep the test unchanged.",
+      "command": "git switch -c feature/FEAT-03-refactor-mapping"
+    },
+    {
+      "title": "Watch it fail",
+      "detail": "gh pr checks --watch: the app job goes red, merge is blocked."
+    },
+    {
+      "title": "Fix and merge",
+      "detail": "Push the fix, green, squash merge."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "red-then-green",
+      "text": "The FEAT-03 PR has one failed and one successful ci run"
+    },
+    {
+      "id": "merged-green",
+      "text": "The PR was merged only after all required checks passed"
+    },
+    {
+      "id": "no-artifact-from-red",
+      "text": "No image tag in ACR matches the red commit"
+    }
+  ],
+  "expectedResult": "Proof that the gate works before anything is built for deployment.",
+  "recovery": "If merge was possible while red, branch protection is misconfigured — check required checks.",
+  "dont": [
+    "Do not use admin merge",
+    "Do not change the test to make it pass"
+  ],
+  "hints": [
+    "Which workflow runs unit tests on pull requests?",
+    "app.yml only builds on main.",
+    "gh run list --branch <branch> shows both runs."
+  ],
+  "interview": {
+    "question": "What runs on a pull request in your pipeline, and why there?",
+    "followUps": [
+      "How do you keep PR feedback under 5 minutes?"
+    ]
+  },
+  "debrief": "Required checks + protected main turn tests into a gate; building only after merge means a red commit can never produce a deployable image.",
+  "references": [
+    ".github/workflows/ci.yml",
+    "docs/E2E-FEATURE-FLOW.md"
+  ],
+  "checker": {
+    "status": "planned",
+    "plan": "Read-only: gh pr view --json, gh run list for the branch, az acr repository show-tags."
+  },
+  "validation": {
+    "status": "pending",
+    "notes": "Checker not implemented yet."
+  }
+}

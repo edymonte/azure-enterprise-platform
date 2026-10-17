@@ -1,0 +1,88 @@
+{
+  "id": "C027",
+  "number": 27,
+  "cycle": 4,
+  "title": "See it before the customer does",
+  "topic": "Observability",
+  "difficulty": 2,
+  "timeMinutes": 50,
+  "scenario": "\"Last incident we learned about errors from Twitter. I want a dashboard and an alert that would have told us first.\" — Head of Support",
+  "mission": "Apply the observability layer, import the dashboard, query the logs with KQL and get an SLO alert e-mail triggered through GitOps.",
+  "objectives": [
+    "Golden signals vs RED vs USE",
+    "KQL over container logs",
+    "Alert that auto-resolves"
+  ],
+  "prerequisites": {
+    "platform": [
+      "aks"
+    ],
+    "layers": [
+      "40-aks",
+      "60-observability"
+    ],
+    "notes": "Traffic needed: run the traffic loop from lab 11."
+  },
+  "cost": "≈ US$0.30/day Managed Grafana Essential + ingestion within the 1 GB/day cap.",
+  "steps": [
+    {
+      "title": "Apply and import",
+      "detail": "apply 60-observability; ./scripts/grafana-import.ps1"
+    },
+    {
+      "title": "Traffic",
+      "detail": "Generate load for 5 minutes."
+    },
+    {
+      "title": "KQL",
+      "detail": "Find the 5xx in ContainerLogV2."
+    },
+    {
+      "title": "Alert",
+      "detail": "chaos.errorRate in dev via PR → alert e-mail → revert → resolved."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "grafana-dashboard",
+      "text": "The portal dashboard exists in Managed Grafana"
+    },
+    {
+      "id": "alert-fired",
+      "text": "The error-ratio alert fired and resolved"
+    },
+    {
+      "id": "kql-saved",
+      "text": "A saved KQL query returns the injected errors"
+    }
+  ],
+  "expectedResult": "You learn about errors from the platform, not from customers.",
+  "recovery": "No data: check the Prometheus data collection rule and ama-metrics pods.",
+  "dont": [
+    "Do not alert on averages for latency"
+  ],
+  "hints": [
+    "Histograms give p95/p99.",
+    "Alerts on ratios beat alerts on counts.",
+    "ContainerLogV2 | where LogMessage has \"500\""
+  ],
+  "interview": {
+    "question": "How do you avoid alert fatigue while still catching real incidents?",
+    "followUps": [
+      "What is an error budget?"
+    ]
+  },
+  "debrief": "SLO-based alerts on error ratio and latency percentiles reflect user pain; auto-resolve closes the loop after the revert.",
+  "references": [
+    "docs/labs/11-azure-observability.md",
+    "infra/terraform/60-observability/main.tf"
+  ],
+  "checker": {
+    "status": "planned",
+    "plan": "Read-only: az grafana dashboard list, az monitor alert history/activity, Log Analytics query."
+  },
+  "validation": {
+    "status": "pending",
+    "notes": "Checker not implemented yet; needs the observability layer."
+  }
+}

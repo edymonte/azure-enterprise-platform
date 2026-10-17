@@ -1,0 +1,89 @@
+{
+  "id": "C021",
+  "number": 21,
+  "cycle": 3,
+  "title": "Promote the digest, not the tag",
+  "topic": "Promotion",
+  "difficulty": 3,
+  "timeMinutes": 50,
+  "scenario": "\"Audit asked: how do you know prod runs the exact bytes you tested? A tag can be re-pushed.\" — Security review",
+  "mission": "Change the pipeline and chart so deploy PRs pin images by digest, and promotion copies the digest.",
+  "objectives": [
+    "Explain tag mutability",
+    "Read a digest after push",
+    "Render images as repo@sha256 in the chart"
+  ],
+  "prerequisites": {
+    "platform": [
+      "github"
+    ],
+    "layers": [],
+    "notes": "Offline-friendly: workflow and chart changes are validated without the cluster."
+  },
+  "cost": "Runner minutes only.",
+  "steps": [
+    {
+      "title": "Find where tags are written",
+      "detail": "The bump and promote steps in app.yml."
+    },
+    {
+      "title": "Capture the digest",
+      "detail": "Read the pushed digest (az acr repository show or docker buildx metadata)."
+    },
+    {
+      "title": "Template support",
+      "detail": "portal.image helper renders @digest when set, tag otherwise."
+    },
+    {
+      "title": "Prove it",
+      "detail": "helm template shows image: <repo>@sha256:... for prod."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "pipeline-writes-digest",
+      "text": "app.yml writes a digest into the deploy PR"
+    },
+    {
+      "id": "promote-copies-digest",
+      "text": "Promotion copies the digest from dev to prod"
+    },
+    {
+      "id": "chart-renders-digest",
+      "text": "The chart renders repo@sha256 when a digest is set"
+    },
+    {
+      "id": "lint-green",
+      "text": "helm lint passes for dev and prod"
+    }
+  ],
+  "expectedResult": "Prod runs content-addressed images.",
+  "recovery": "If smoke compares a version tag, keep the tag as a label/env var for EXPECTED_VERSION.",
+  "dont": [
+    "Do not drop the human-readable version — keep it for the smoke test"
+  ],
+  "hints": [
+    "A digest is the hash of the manifest; tags are pointers.",
+    "az acr repository show -n <acr> --image customer-portal-api:<tag> --query digest",
+    "Add image.api.digest and branch in the helper."
+  ],
+  "interview": {
+    "question": "Tag vs digest: what would you deploy to production and why?",
+    "followUps": [
+      "How does image signing fit (cosign / Notation)?"
+    ]
+  },
+  "debrief": "Digests are immutable and content-addressed; promotion by digest guarantees bit-for-bit equality between environments. Keep the tag for humans and for the smoke version check.",
+  "references": [
+    ".github/workflows/app.yml",
+    "gitops/charts/customer-portal/templates/_helpers.tpl"
+  ],
+  "checker": {
+    "status": "planned",
+    "plan": "Offline: parse app.yml, helm template with a digest value, helm lint."
+  },
+  "validation": {
+    "status": "pending",
+    "notes": "Checker not implemented yet."
+  }
+}

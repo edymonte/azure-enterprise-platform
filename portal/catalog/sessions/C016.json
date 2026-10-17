@@ -1,0 +1,91 @@
+{
+  "id": "C016",
+  "number": 16,
+  "cycle": 2,
+  "title": "Deploy succeeded, version never went live",
+  "topic": "Image recovery",
+  "difficulty": 2,
+  "timeMinutes": 40,
+  "scenario": "\"The pipeline says the deploy succeeded but users still see the old version. Argo CD is yellow.\" — Support ticket (game day GD-03)",
+  "mission": "Ship a deploy PR with an image tag that does not exist, diagnose the ImagePullBackOff, and recover through Git.",
+  "objectives": [
+    "Read Progressing/Degraded in Argo CD",
+    "Diagnose ImagePullBackOff with describe/events",
+    "Recover with git revert"
+  ],
+  "prerequisites": {
+    "platform": [
+      "aks",
+      "github"
+    ],
+    "layers": [
+      "40-aks"
+    ],
+    "notes": "Apps deployed (C012)."
+  },
+  "cost": "Cluster running cost only.",
+  "steps": [
+    {
+      "title": "Inject (yourself)",
+      "detail": "PR that sets image.api.tag in gitops/envs/dev/values.yaml to v9.9.9; merge it."
+    },
+    {
+      "title": "Observe",
+      "detail": "Why is the site still up?",
+      "command": "kubectl -n portal-dev get pods; kubectl -n portal-dev describe pod <new-pod>"
+    },
+    {
+      "title": "Recover",
+      "detail": "Revert the deploy PR — never edit the Deployment."
+    },
+    {
+      "title": "Prevent",
+      "detail": "How does the app pipeline guarantee it only writes tags it just pushed?"
+    }
+  ],
+  "criteria": [
+    {
+      "id": "dev-healthy",
+      "text": "All portal-dev deployments are Available with every pod Ready"
+    },
+    {
+      "id": "tags-exist",
+      "text": "Every image tag referenced by dev values exists in ACR"
+    },
+    {
+      "id": "revert-commit",
+      "text": "A revert commit of the bad tag exists on main"
+    }
+  ],
+  "expectedResult": "Old pods kept serving during the incident; Git history tells the story.",
+  "recovery": "If the revert does not sync, check the Argo CD app is on auto-sync and the PR was merged to main.",
+  "dont": [
+    "Do not kubectl set image",
+    "Do not delete the failing pods to \"retry\""
+  ],
+  "hints": [
+    "A rolling update keeps old pods until new ones are Ready.",
+    "Events show manifest unknown for a missing tag.",
+    "git revert <merge-sha> on a branch, PR, merge."
+  ],
+  "interview": {
+    "question": "A deploy is green in CI but the new version never goes live. How do you investigate?",
+    "followUps": [
+      "Why did users not notice an outage?"
+    ]
+  },
+  "debrief": "maxUnavailable/maxSurge kept the old ReplicaSet serving while the new one could not pull. The fix is a Git revert; the prevention is CI writing only tags it has just pushed (and, better, digests).",
+  "references": [
+    "docs/game-days.md",
+    "gitops/envs/dev/values.yaml",
+    ".github/workflows/app.yml"
+  ],
+  "checker": {
+    "status": "planned",
+    "plan": "Read-only: kubectl get deploy/pods -o json, az acr repository show-tags, git log --grep Revert on main."
+  },
+  "validation": {
+    "status": "pending",
+    "notes": "Checker not implemented yet; needs a running cluster."
+  }
+}
