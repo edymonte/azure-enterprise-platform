@@ -117,6 +117,50 @@
     return h('button', { class: 'btn btn-warn', onclick: (e) => { e.stopPropagation(); openLaunch(s.id, 'resume'); } }, 'Continue');
   }
 
+  // "What do I do now?" — the first pending criterion and the concrete action.
+  function nextCard() {
+    const n = state.next;
+    const pct = n.progress ? Math.round((n.progress.passed / n.progress.total) * 100) : 0;
+    const bar = h('div', { class: 'progress-fill' });
+    requestAnimationFrame(() => { bar.style.width = `${pct}%`; });
+    return h('section', { class: 'card next-card' },
+      h('div', { class: 'next-main' },
+        h('div', { class: 'next-label' }, n.checking ? 'Next step · checking your evidence…' : 'Next step'),
+        n.session ? h('div', { class: 'next-session' }, n.session) : null,
+        h('div', { class: 'next-text' }, n.text),
+        n.how ? h('div', { class: 'next-how' }, h('b', {}, 'How: '), n.how) : null,
+        n.progress ? h('div', { class: 'next-progress' }, h('div', { class: 'progress-track' }, bar), h('span', { class: 'muted small' }, `${n.progress.passed}/${n.progress.total} criteria verified`)) : null),
+      n.sessionId ? h('button', { class: 'btn btn-primary', onclick: () => { location.hash = `#/session/${n.sessionId}`; } }, 'Open session →') : null);
+  }
+
+  function howItWorksCard() {
+    try { if (localStorage.getItem('howItWorks:hidden') === '1') return null; } catch { /* storage unavailable */ }
+    const steps = [
+      ['1', 'Start', 'Press Start (or Continue) on the highlighted session.'],
+      ['2', 'Learn', 'Read the Learn tab: concepts from zero and a worked example.'],
+      ['3', 'Do', 'Follow the Task steps. Run commands in Terminal 1 (right panel).'],
+      ['4', 'Verified', 'Save and commit — the portal checks by itself. All green = celebration.'],
+    ];
+    return h('section', { class: 'card how-card' },
+      h('div', { class: 'how-head' }, h('h3', {}, 'How it works'),
+        h('button', { class: 'btn btn-ghost copy', onclick: () => { try { localStorage.setItem('howItWorks:hidden', '1'); } catch { /* storage unavailable */ } render(true); } }, 'Got it, hide')),
+      h('div', { class: 'how-steps' }, steps.map(([n, t, d]) => h('div', { class: 'how-step' }, h('div', { class: 'how-n' }, n), h('div', {}, h('b', {}, t), h('div', { class: 'muted small' }, d))))));
+  }
+
+  // Criteria with live status and the concrete action for each one.
+  function criteriaGuide(s) {
+    const observed = new Map((s.lastObservation?.criteria ?? []).map((c) => [c.id, c.status]));
+    let firstPending = true;
+    return h('ol', { class: 'crit-guide' }, s.criteria.map((c) => {
+      const st = observed.get(c.id) ?? 'none';
+      const isNext = st !== 'pass' && firstPending;
+      if (isNext) firstPending = false;
+      return h('li', { class: `crit-item ${st} ${isNext ? 'next' : ''}` },
+        h('div', { class: 'crit-head' }, h('span', { class: 'c-ico' }, { pass: '✓', fail: '✕', skipped: '–', none: '·' }[st]), h('span', {}, c.text), isNext ? h('span', { class: 'chip warn' }, 'do this now') : null),
+        c.how ? h('div', { class: 'crit-how' }, c.how) : null);
+    }));
+  }
+
   function renderPractice() {
     const ss = state.sessions;
     const done = ss.filter((s) => s.state === 'COMPLETED').length;
@@ -125,9 +169,7 @@
     const locked = ss.filter(isLocked).length;
     const nextId = state.next.sessionId;
 
-    const next = h('section', { class: 'card next-card' },
-      h('div', {}, h('div', { class: 'next-label' }, 'Next step'), h('div', { class: 'next-text' }, state.next.text)),
-      nextId ? h('button', { class: 'btn btn-primary', onclick: () => { location.hash = `#/session/${nextId}`; } }, 'Open session →') : null);
+    const next = nextCard();
 
     const fill = h('div', { class: 'progress-fill' });
     const wrap = h('div', { class: 'progress-wrap' }, h('div', { class: 'progress-track' }, fill));
@@ -171,7 +213,7 @@
         sessionButton(s)));
       }
     }
-    view.replaceChildren(next, track, list);
+    view.replaceChildren(...(howItWorksCard() ? [howItWorksCard()] : []), next, track, list);
   }
 
   // ------------------------------------------------------------ map
@@ -379,7 +421,7 @@
       h('div', { class: 'section-title' }, 'Scenario'), h('blockquote', { class: 'scenario' }, s.scenario),
       h('div', { class: 'section-title' }, 'Mission'), h('p', {}, s.mission),
       h('div', { class: 'section-title' }, 'Objectives'), h('ul', { class: 'list' }, s.objectives.map((o) => h('li', {}, o))),
-      h('div', { class: 'section-title' }, 'Success criteria'), h('ul', { class: 'list' }, s.criteria.map((c) => h('li', {}, c.text))),
+      h('div', { class: 'section-title' }, 'Success criteria — what to do'), criteriaGuide(s),
       h('div', { class: 'section-title' }, 'Steps'), stepsList(s),
       h('div', { class: 'section-title' }, 'Expected result'), h('p', {}, s.expectedResult),
       h('div', { class: 'section-title' }, 'Notes'),
@@ -669,6 +711,119 @@
   }
   setInterval(updateLaunch, 1000);
 
+  // ------------------------------------------------------------ charts
+  // Single-series SVG charts (no legend: the card title names the series).
+  // Thin marks, recessive hairline grid, crosshair / per-bar tooltips, and a
+  // data table alongside so no value lives only in the hover layer.
+  const SVG = 'http://www.w3.org/2000/svg';
+  function svgEl(tag, attrs = {}) {
+    const el = document.createElementNS(SVG, tag);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+    return el;
+  }
+  const shortDate = (iso) => { const [, m, d] = iso.split('-'); return `${d}/${m}`; };
+  function niceMax(v) {
+    if (v <= 0) return 4;
+    const p = 10 ** Math.floor(Math.log10(v));
+    const n = [1, 2, 2.5, 5, 10].find((k) => k * p >= v);
+    return n * p;
+  }
+
+  function chartCard(title, subtitle, chart) {
+    return h('section', { class: 'card chart-card' }, h('h3', {}, title), h('div', { class: 'muted small' }, subtitle), chart);
+  }
+
+  function chartFrame(points, maxY, build) {
+    const W = 560; const H = 220; const P = { l: 40, r: 16, t: 14, b: 26 };
+    const iw = W - P.l - P.r; const ih = H - P.t - P.b;
+    const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, class: 'chart', role: 'img' });
+    const y = (v) => P.t + ih - (v / maxY) * ih;
+    for (let i = 0; i <= 4; i++) {
+      const v = (maxY / 4) * i;
+      svg.append(svgEl('line', { x1: P.l, x2: W - P.r, y1: y(v), y2: y(v), class: 'grid' }));
+      const t = svgEl('text', { x: P.l - 8, y: y(v) + 4, class: 'axis', 'text-anchor': 'end' });
+      t.textContent = Number.isInteger(v) ? v : v.toFixed(1);
+      svg.append(t);
+    }
+    const step = iw / Math.max(1, points.length - 1);
+    points.forEach((p, i) => {
+      if (i % 7 !== points.length % 7 && i !== points.length - 1) return;
+      const t = svgEl('text', { x: P.l + i * step, y: H - 6, class: 'axis', 'text-anchor': 'middle' });
+      t.textContent = shortDate(p.x);
+      svg.append(t);
+    });
+    const wrap = h('div', { class: 'chart-wrap' });
+    const tip = h('div', { class: 'chart-tip hidden' });
+    wrap.append(svg, tip);
+    build({ svg, W, H, P, iw, ih, y, step, tip, wrap });
+    return wrap;
+  }
+
+  function showTip(tip, wrap, svg, xSvg, lines) {
+    tip.replaceChildren(h('b', {}, lines[0]), ...lines.slice(1).map((l) => h('div', { class: 'muted small' }, l)));
+    tip.classList.remove('hidden');
+    const r = svg.getBoundingClientRect();
+    const px = (xSvg / svg.viewBox.baseVal.width) * r.width;
+    tip.style.left = `${Math.min(Math.max(px - 70, 0), r.width - 150)}px`;
+  }
+
+  function lineChart(points, { format }) {
+    const maxY = niceMax(Math.max(...points.map((p) => p.y)));
+    return chartFrame(points, maxY, ({ svg, P, ih, y, step, tip, wrap }) => {
+      const xs = points.map((_, i) => P.l + i * step);
+      const d = points.map((p, i) => `${i ? 'L' : 'M'}${xs[i]},${y(p.y)}`).join(' ');
+      svg.append(svgEl('path', { d: `${d} L${xs.at(-1)},${P.t + ih} L${xs[0]},${P.t + ih} Z`, class: 'area' }));
+      svg.append(svgEl('path', { d, class: 'line' }));
+      const last = points.at(-1);
+      svg.append(svgEl('circle', { cx: xs.at(-1), cy: y(last.y), r: 4.5, class: 'dot' }));
+      const label = svgEl('text', { x: xs.at(-1) - 8, y: y(last.y) - 10, class: 'end-label', 'text-anchor': 'end' });
+      label.textContent = format(last.y);
+      svg.append(label);
+      const cross = svgEl('line', { x1: 0, x2: 0, y1: P.t, y2: P.t + ih, class: 'crosshair hidden' });
+      const hover = svgEl('circle', { r: 4.5, class: 'dot hidden' });
+      svg.append(cross, hover);
+      const hit = svgEl('rect', { x: P.l, y: P.t, width: xs.at(-1) - P.l + 1, height: ih, class: 'hit', tabindex: 0 });
+      const move = (clientX) => {
+        const r = svg.getBoundingClientRect();
+        const sx = ((clientX - r.left) / r.width) * svg.viewBox.baseVal.width;
+        const i = Math.max(0, Math.min(points.length - 1, Math.round((sx - P.l) / step)));
+        cross.setAttribute('x1', xs[i]); cross.setAttribute('x2', xs[i]); cross.classList.remove('hidden');
+        hover.setAttribute('cx', xs[i]); hover.setAttribute('cy', y(points[i].y)); hover.classList.remove('hidden');
+        showTip(tip, wrap, svg, xs[i], [format(points[i].y), points[i].x]);
+      };
+      hit.addEventListener('pointermove', (e) => move(e.clientX));
+      hit.addEventListener('focus', () => { const r = svg.getBoundingClientRect(); move(r.right - 20); });
+      const leave = () => { cross.classList.add('hidden'); hover.classList.add('hidden'); tip.classList.add('hidden'); };
+      hit.addEventListener('pointerleave', leave);
+      hit.addEventListener('blur', leave);
+      svg.append(hit);
+    });
+  }
+
+  function columnChart(points) {
+    const maxY = niceMax(Math.max(...points.map((p) => p.y)));
+    return chartFrame(points, maxY, ({ svg, P, ih, y, step, tip, wrap }) => {
+      const bw = Math.min(14, step - 2);
+      points.forEach((p, i) => {
+        const cx = P.l + i * step;
+        if (p.y > 0) {
+          const top = y(p.y);
+          const hgt = P.t + ih - top;
+          const r = Math.min(4, bw / 2, hgt);
+          // Rounded data end, square at the baseline.
+          svg.append(svgEl('path', { class: 'bar', d: `M${cx - bw / 2},${P.t + ih} V${top + r} Q${cx - bw / 2},${top} ${cx - bw / 2 + r},${top} H${cx + bw / 2 - r} Q${cx + bw / 2},${top} ${cx + bw / 2},${top + r} V${P.t + ih} Z` }));
+        }
+        const hit = svgEl('rect', { x: cx - step / 2, y: P.t, width: step, height: ih, class: 'hit', tabindex: 0 });
+        const on = () => showTip(tip, wrap, svg, cx, [`${p.y} actions`, p.x, ...p.detail.filter((t) => !t.startsWith('0 '))]);
+        hit.addEventListener('pointerenter', on);
+        hit.addEventListener('focus', on);
+        hit.addEventListener('pointerleave', () => tip.classList.add('hidden'));
+        hit.addEventListener('blur', () => tip.classList.add('hidden'));
+        svg.append(hit);
+      });
+    });
+  }
+
   // ------------------------------------------------------------ progress / env
   function renderProgress() {
     const done = state.sessions.filter((s) => s.completion);
@@ -681,13 +836,36 @@
       h('td', {}, s.number), h('td', {}, s.title), h('td', {}, day(s.completedAt)),
       h('td', {}, s.completion.mode === 'SOLO' ? 'SOLO' : 'AI-assisted'), h('td', {}, s.completion.hintsUsed),
       h('td', {}, s.assessment ? `${2 + s.assessment.english + s.assessment.autonomy + s.assessment.tradeoffs}/10` : '—')));
+    const tl = state.timeline;
+    const actions = (d) => d.checks + d.interview + d.study + d.hints;
+    const activeDays = tl.filter((d) => actions(d) > 0).length;
+    const tableOpen = ui.progressTable === true;
     view.replaceChildren(
       h('section', { class: 'card' }, h('h2', {}, 'Progress'),
         h('div', { class: 'stats' },
           h('div', { class: 'stat ok' }, h('b', {}, done.length), h('span', {}, 'Completed')),
           h('div', { class: 'stat info' }, h('b', {}, solo), h('span', {}, 'SOLO')),
           h('div', { class: 'stat warn' }, h('b', {}, done.length - solo), h('span', {}, 'AI-assisted')),
-          h('div', { class: 'stat lock' }, h('b', {}, state.totals.xp), h('span', {}, 'XP')))),
+          h('div', { class: 'stat lock' }, h('b', {}, activeDays), h('span', {}, 'Active days (last 30)')))),
+      h('div', { class: 'grid-2' },
+        chartCard('Cumulative XP', `${state.totals.xp} XP · next rank ${state.totals.nextRank ? `${state.totals.nextRank.title} at ${state.totals.nextRank.minXp}` : 'reached'}`,
+          lineChart(tl.map((d) => ({ x: d.date, y: d.xp })), { format: (v) => `${v} XP` })),
+        chartCard('Daily practice', 'Checker runs, interview passes, study items and hints per day',
+          columnChart(tl.map((d) => ({ x: d.date, y: actions(d), detail: [`${d.checks} checks`, `${d.interview} interview passes`, `${d.study} study items`, `${d.hints} hints`, `${d.completions} completions`] }))))),
+      h('section', { class: 'card' }, h('h3', {}, 'Completion by cycle'),
+        h('div', { class: 'meters' }, state.track.cycles.map((c) => {
+          const list = state.sessions.filter((s) => s.cycle === c.id);
+          const n = list.filter((s) => s.state === 'COMPLETED').length;
+          const fill = h('div', { class: 'meter-fill' });
+          requestAnimationFrame(() => { fill.style.width = `${(n / list.length) * 100}%`; });
+          return h('div', { class: 'meter-row' }, h('span', { class: 'meter-label' }, `Cycle ${c.id} · ${c.title}`),
+            h('div', { class: 'meter-track', role: 'img', 'aria-label': `${n} of ${list.length} sessions completed` }, fill), h('span', { class: 'meter-value' }, `${n}/${list.length}`));
+        }))),
+      h('section', { class: 'card' },
+        h('div', { class: 'how-head' }, h('h3', {}, 'Data table (last 30 days)'),
+          h('button', { class: 'btn copy', onclick: () => { ui.progressTable = !tableOpen; render(true); } }, tableOpen ? 'Hide table' : 'Show data table')),
+        tableOpen ? h('table', {}, h('thead', {}, h('tr', {}, ['Date', 'XP (cumulative)', 'Checks', 'Interview', 'Study', 'Hints', 'Completions'].map((t) => h('th', {}, t)))),
+          h('tbody', {}, tl.slice().reverse().map((d) => h('tr', {}, [d.date, d.xp, d.checks, d.interview, d.study, d.hints, d.completions].map((v) => h('td', {}, v)))))) : null),
       h('section', { class: 'card' }, h('h3', {}, 'Badges'), badges),
       h('section', { class: 'card' }, h('h3', {}, 'Completed sessions'),
         done.length ? h('table', {}, h('thead', {}, h('tr', {}, ['#', 'Session', 'Date', 'Mode', 'Hints', 'Score'].map((t) => h('th', {}, t)))), h('tbody', {}, rows))

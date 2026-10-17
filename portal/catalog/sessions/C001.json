@@ -55,23 +55,28 @@
   "criteria": [
     {
       "id": "rule-accepted-syntax",
-      "text": "No field accessor in the local rule uses current()"
+      "text": "No field accessor in the local rule uses current()",
+      "how": "Open infra/policies/require-rg-tags.rule.json and replace the where block (lines 24–27): use \"value\" instead of \"field\". The Learn tab shows the pattern."
     },
     {
       "id": "rule-detects-missing-tag",
-      "text": "The value count over tagNames detects a missing tag with a value condition (field() + current('tagName') + operator)"
+      "text": "The value count over tagNames detects a missing tag with a value condition (field() + current('tagName') + operator)",
+      "how": "In the same where block, read the tag with field(...) inside coalesce(..., '') and compare it with \"equals\": \"\". Save the file — the check runs by itself."
     },
     {
       "id": "fix-committed",
-      "text": "The fixed rule is committed on your branch (no uncommitted change)"
+      "text": "The fixed rule is committed on your branch (no uncommitted change)",
+      "how": "In the terminal: git add infra/policies/require-rg-tags.rule.json, then git commit -m \"fix(policy): ...\" (on your fix/ branch, never on main)."
     },
     {
       "id": "definition-deployed",
-      "text": "Policy definition mfs-require-rg-tags exists in Azure with the fixed rule"
+      "text": "Policy definition mfs-require-rg-tags exists in Azure with the fixed rule",
+      "how": "In the terminal: ./scripts/azp.ps1 apply 20-governance — read the Plan line (expect 3 to add, 0 to destroy) and answer y."
     },
     {
       "id": "initiative-assigned",
-      "text": "Initiative mfs-platform-guardrails exists, references requireRgTags and is assigned to the subscription"
+      "text": "Initiative mfs-platform-guardrails exists, references requireRgTags and is assigned to the subscription",
+      "how": "Created by the same apply 20-governance. If it is still red after the apply, press Check — Azure can take a minute to show it."
     }
   ],
   "expectedResult": "20-governance fully applied (9/9). The initiative shows in Azure Policy → Assignments, and compliance starts evaluating resource groups in Audit mode.",

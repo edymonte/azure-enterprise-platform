@@ -103,6 +103,7 @@ export class ProgressStore {
     if (next >= session.hints.length) throw new UserError('All hints are already revealed.');
     const stored = this.record(id);
     stored.hints.push({ level: next + 1, at: new Date().toISOString(), afterCompletion: Boolean(rec.completedAt) });
+    this.bump('hints');
     this.save();
     return { level: next + 1, text: session.hints[next] };
   }
@@ -149,7 +150,10 @@ export class ProgressStore {
       summary: observation.summary ?? '',
       criteria: (observation.criteria ?? []).map((c) => ({ id: c.id, status: c.status })),
     }].slice(-HISTORY_LIMIT);
-    if (observation.outcome !== 'cancelled') rec.attempts = (rec.attempts ?? 0) + 1;
+    if (observation.outcome !== 'cancelled') {
+      rec.attempts = (rec.attempts ?? 0) + 1;
+      this.bump('checks');
+    }
     let result = { completed: false };
     if (observation.outcome === 'pass' && !rec.completedAt && rec.startedAt && this.isUnlocked(id)) {
       const session = this.catalog.byId.get(id);
@@ -166,9 +170,40 @@ export class ProgressStore {
         rewards: rewardsFor(session, mode, hintsBefore),
       };
       result = { completed: true, rewards: rec.completion.rewards, mode };
+      this.bump('completions');
     }
     this.save();
     return result;
+  }
+
+  // Daily activity counters for the progress charts (local date).
+  bump(kind) {
+    const d = new Date();
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    this.data.activity ??= {};
+    const day = this.data.activity[key] ?? { checks: 0, completions: 0, hints: 0, interview: 0, study: 0 };
+    day[kind] = (day[kind] ?? 0) + 1;
+    this.data.activity[key] = day;
+  }
+
+  // Last `days` days (oldest first) and cumulative XP per day.
+  timeline(days = 30) {
+    const out = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const completions = this.catalog.sessions
+      .map((s) => this.peek(s.id).completion)
+      .filter(Boolean)
+      .map((c) => ({ t: new Date(c.at).getTime(), xp: c.rewards.xp }));
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const end = d.getTime() + 86400000;
+      const xp = completions.filter((c) => c.t < end).reduce((a, c) => a + c.xp, 0);
+      out.push({ date: key, xp, ...(this.data.activity?.[key] ?? { checks: 0, completions: 0, hints: 0, interview: 0, study: 0 }) });
+    }
+    return out;
   }
 
   // Self-tracked: ticked by the learner, never used for unlocking sessions.
@@ -177,6 +212,7 @@ export class ProgressStore {
     if (typeof done !== 'boolean') throw new UserError('"done" must be a boolean.');
     this.data.study ??= {};
     this.data.study[itemId] = { done, at: new Date().toISOString() };
+    if (done) this.bump('study');
     this.save();
   }
 
@@ -186,6 +222,7 @@ export class ProgressStore {
     rec.passes += 1;
     rec.lastAt = new Date().toISOString();
     this.data.interview[id] = rec;
+    this.bump('interview');
     this.save();
     return rec;
   }

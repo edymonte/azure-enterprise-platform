@@ -68,6 +68,7 @@ function validateSession(s, file, portalRoot) {
     if (ids.has(c.id)) fail(file, `duplicate criterion id "${c.id}"`);
     ids.add(c.id);
     if (typeof c.text !== 'string') fail(file, `criterion "${c.id}" needs "text"`);
+    if (c.how !== undefined && typeof c.how !== 'string') fail(file, `criterion "${c.id}" "how" must be a string`);
   }
 
   const ch = s.checker;

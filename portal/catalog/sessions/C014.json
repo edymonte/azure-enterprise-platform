@@ -48,27 +48,33 @@
   "criteria": [
     {
       "id": "helm-lint",
-      "text": "helm lint passes for dev and prod"
+      "text": "helm lint passes for dev and prod",
+      "how": "Run helm lint for dev and prod (step 4). It must stay green after your changes."
     },
     {
       "id": "pdb-api",
-      "text": "Exactly one PodDisruptionBudget selects only the API pods (dev and prod)"
+      "text": "Exactly one PodDisruptionBudget selects only the API pods (dev and prod)",
+      "how": "In gitops/charts/customer-portal/templates/platform.yaml keep exactly one PodDisruptionBudget for the API, selecting app.kubernetes.io/name: customer-portal-api."
     },
     {
       "id": "pdb-web",
-      "text": "Exactly one PodDisruptionBudget selects only the web pods (dev and prod)"
+      "text": "Exactly one PodDisruptionBudget selects only the web pods (dev and prod)",
+      "how": "Add a second PodDisruptionBudget that selects only the web pods (app.kubernetes.io/name: customer-portal-web)."
     },
     {
       "id": "drain-allowed",
-      "text": "Every budget allows at least 1 voluntary disruption at each environment's minimum replicas"
+      "text": "Every budget allows at least 1 voluntary disruption at each environment's minimum replicas",
+      "how": "Pick a budget that still allows one disruption when dev runs a single replica (the Learn tab explains minAvailable vs maxUnavailable)."
     },
     {
       "id": "values-switch",
-      "text": "pdb.enabled=false renders no PodDisruptionBudget"
+      "text": "pdb.enabled=false renders no PodDisruptionBudget",
+      "how": "Wrap the budgets in {{- if .Values.pdb.enabled }} … {{- end }} and add pdb.enabled: true to values.yaml."
     },
     {
       "id": "committed",
-      "text": "The chart change is committed"
+      "text": "The chart change is committed",
+      "how": "Commit the chart change on a branch: git add gitops/ then git commit."
     }
   ],
   "expectedResult": "Node drains and autoscaler scale-downs proceed in dev and prod, while each component keeps at least one pod during voluntary disruptions where it runs more than one.",
