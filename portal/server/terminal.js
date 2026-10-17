@@ -121,6 +121,12 @@ export class Terminal extends EventEmitter {
       this.child.stdin.write(`${line}\n`);
       return;
     }
+    // Clearing needs a real console (cursor control), which a piped shell does
+    // not have: handle it in the portal instead of failing in PowerShell.
+    if (/^\s*(clear|cls|clear-host)\s*$/i.test(line)) {
+      this.clear();
+      return;
+    }
     this.append(`PS ${this.cwd}> ${line}\n`);
     if (line.trim() === '') {
       this.emit('status', this.status());
