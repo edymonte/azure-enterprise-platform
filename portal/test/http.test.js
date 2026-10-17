@@ -34,6 +34,7 @@ test('http: loopback only, host/origin/token checks, allow-listed ids, no secret
   assert.match(index.headers['content-security-policy'], /default-src 'none'/);
 
   assert.equal((await request(port, { headers: { Host: 'evil.example' } })).status, 421, 'DNS rebinding');
+  assert.equal((await request(port, { headers: { 'Sec-Fetch-Site': 'cross-site', 'Sec-Fetch-Mode': 'navigate' } })).status, 200, 'opening the page from a link elsewhere works');
   assert.equal((await request(port, { path: '/api/state' })).status, 401, 'token required');
   assert.equal((await request(port, { path: '/api/events?token=wrong' })).status, 401);
   assert.equal((await request(port, { method: 'POST', path: '/api/sessions/C001/start', headers: { ...json, Origin: 'http://evil.example' }, body: '{}' })).status, 403, 'cross-origin');
