@@ -261,10 +261,12 @@ export function createApp(config) {
       if (!allowedHosts.has(req.headers.host ?? '')) return send(res, 421, 'Misdirected request');
       const origin = req.headers.origin;
       if (origin && !allowedOrigins.has(origin)) return send(res, 403, 'Cross-origin request refused');
-      if (req.headers['sec-fetch-site'] === 'cross-site') return send(res, 403, 'Cross-site request refused');
-
       const url = new URL(req.url, `http://${req.headers.host}`);
       const { pathname } = url;
+      // Opening the page from a link elsewhere is a cross-site *navigation* and
+      // is fine (the page does nothing by itself). The API never accepts
+      // cross-site requests.
+      if (pathname.startsWith('/api/') && req.headers['sec-fetch-site'] === 'cross-site') return send(res, 403, 'Cross-site request refused');
 
       if (req.method === 'GET' && (pathname === '/' || pathname === '/index.html')) {
         return send(res, 200, indexHtml.replace('%%PORTAL_TOKEN%%', token), { 'Content-Type': 'text/html; charset=utf-8' });
