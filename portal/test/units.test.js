@@ -73,19 +73,34 @@ const brokenRule = {
   then: { effect: "[parameters('effect')]" },
 };
 
-test('policy analysis flags current() inside field and accepts a value condition', () => {
+test('policy analysis mirrors the engine: no runtime functions in field accessors or field()', () => {
+  // 1) Original rule: current() inside a field accessor (UnsupportedPolicyRuleField).
   assert.equal(fieldsUsingCurrent(brokenRule).length, 1);
-  const broken = analyse(brokenRule);
-  assert.equal(broken.reads.ok, false);
+  assert.equal(analyse(brokenRule).reads.ok, false);
+
+  // 2) current() nested in the field() function — rejected by Azure with
+  //    InvalidPolicyDefinition ("FIELD functions cannot contain ... CURRENT").
+  const nested = structuredClone(brokenRule);
+  nested.if.allOf[1].count.where = { value: "[coalesce(field(concat('tags[', current('tagName'), ']')), '')]", equals: '' };
+  assert.ok(analyse(nested).bad.length > 0, 'field(…current()…) must be flagged');
+
+  // 3) Accepted: fixed path + key operator with current() on the value side.
   const fixed = structuredClone(brokenRule);
-  fixed.if.allOf[1].count.where = { value: "[coalesce(field(concat('tags[', current('tagName'), ']')), '')]", equals: '' };
+  fixed.if.allOf[1].count.where = { field: 'tags', notContainsKey: "[current('tagName')]" };
   const a = analyse(fixed);
-  assert.equal(a.bad.length, 0);
+  assert.deepEqual(a.bad, []);
   assert.equal(a.reads.ok, true);
   assert.equal(a.compares, 'count greater 0');
+
+  // 4) Accepted: value expression with field('tags') (literal argument) and current() outside it.
+  const viaValue = structuredClone(brokenRule);
+  viaValue.if.allOf[1].count.where = { value: "[contains(field('tags'), current('tagName'))]", equals: false };
+  assert.deepEqual(analyse(viaValue).bad, []);
+  assert.equal(analyse(viaValue).reads.ok, true);
+
+  // 5) A where clause without an operator is not a test.
   const noOperator = structuredClone(fixed);
-  delete noOperator.if.allOf[1].count.where.equals;
-  noOperator.if.allOf[1].count.where.exists = false;
+  delete noOperator.if.allOf[1].count.where.notContainsKey;
   assert.equal(analyse(noOperator).reads.ok, false);
 });
 

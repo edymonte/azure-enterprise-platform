@@ -19,7 +19,9 @@ function rule(where) {
   }, null, 2);
 }
 const BROKEN = { field: "[concat('tags[', current('tagName'), ']')]", exists: 'false' };
-const FIXED = { value: "[coalesce(field(concat('tags[', current('tagName'), ']')), '')]", equals: '' };
+const FIXED = { field: 'tags', notContainsKey: "[current('tagName')]" };
+// The first suggested fix: current() nested in field() — Azure rejects it too.
+const NESTED = { value: "[coalesce(field(concat('tags[', current('tagName'), ']')), '')]", equals: '' };
 
 const parse = (r) => JSON.parse(r.stdout.trim().split('\n').pop());
 const statusOf = (out) => Object.fromEntries(out.criteria.map((c) => [c.id, c.status]));
@@ -136,4 +138,13 @@ test('C014: drain-friendly budgets behind a switch, committed, pass', { skip: !h
   fs.appendFileSync(path.join(root, 'gitops/envs/dev/values.yaml'), '# local edit\n');
   const dirty = parse(runNode(C014, { PORTAL_REPO_ROOT: root }));
   assert.equal(statusOf(dirty).committed, 'fail');
+});
+
+test('C001: current() nested in field() is rejected like Azure does', () => {
+  const { root, git } = gitRepo({ [RULE]: rule(BROKEN) });
+  fs.writeFileSync(path.join(root, RULE), rule(NESTED));
+  git('commit', '-qam', 'nested');
+  const out = parse(runNode(C001, { PORTAL_REPO_ROOT: root, PORTAL_FAKE_AZ: fakeAz({ 'account show': { stdout: { id: 'sub-1', name: 'lab' } } }) }));
+  assert.equal(statusOf(out)['rule-accepted-syntax'], 'fail');
+  assert.equal(statusOf(out)['fix-committed'], 'fail');
 });
