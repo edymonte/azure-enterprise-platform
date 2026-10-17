@@ -694,6 +694,61 @@
           : h('p', { class: 'muted' }, 'Nothing completed yet. Your first verified session will show up here.')));
   }
 
+  // ------------------------------------------------------------ study plan
+  function renderStudy() {
+    const plan = state.studyPlan;
+    const all = plan.sections.flatMap((s) => s.items);
+    const done = all.filter((i) => i.done).length;
+    const fill = h('div', { class: 'progress-fill' });
+    requestAnimationFrame(() => { fill.style.width = `${all.length ? (done / all.length) * 100 : 0}%`; });
+    const cards = plan.sections.map((sec) => {
+      const secDone = sec.items.filter((i) => i.done).length;
+      return h('section', { class: 'card' },
+        h('div', { class: 'cycle-head' }, h('h3', {}, sec.title), h('span', { class: `cycle-badge ${secDone === sec.items.length ? 'done' : ''}` }, `${secDone}/${sec.items.length}`)),
+        sec.note ? h('p', { class: 'muted small' }, sec.note) : null,
+        h('ul', { class: 'study-list' }, sec.items.map((item) => {
+          const cb = h('input', { type: 'checkbox', onchange: (e) => post(`/api/study/${item.id}`, { done: e.target.checked }).then(() => { if (e.target.checked) toast('Nice — one more step towards the next role.', 'info'); }).catch((err) => toast(err.message)) });
+          cb.checked = item.done;
+          return h('li', { class: `study-item ${item.done ? 'done' : ''}` },
+            h('label', {}, cb, h('span', { class: 'study-title' }, item.title)),
+            item.detail ? h('div', { class: 'muted small' }, item.detail) : null,
+            item.link ? h('a', { href: item.link, target: '_blank', rel: 'noopener noreferrer', class: 'small' }, 'Open reference ↗') : null,
+            item.done && item.at ? h('div', { class: 'muted small' }, `Done ${day(item.at)}`) : null);
+        })));
+    });
+    view.replaceChildren(
+      h('section', { class: 'card' }, h('h2', {}, plan.title), h('p', { class: 'muted' }, plan.intro),
+        h('div', { class: 'progress-caption' }, `${done}/${all.length} items`), h('div', { class: 'progress-track study-track' }, fill)),
+      ...cards);
+  }
+
+  // ------------------------------------------------------------ interview practice
+  function renderInterview() {
+    const total = state.sessions.length;
+    const practised = state.sessions.filter((s) => state.interview[s.id]?.passes > 0).length;
+    const intro = h('section', { class: 'card' }, h('h2', {}, 'Interview practice'),
+      h('p', { class: 'muted' }, 'Answer out loud, in English, in two minutes: context → what you did → why → trade-off. Press "I practised" after each pass — three passes per question builds the memory you want in a real interview.'),
+      h('div', { class: 'stats' },
+        h('div', { class: 'stat ok' }, h('b', {}, practised), h('span', {}, 'Questions practised')),
+        h('div', { class: 'stat info' }, h('b', {}, Object.values(state.interview).reduce((a, r) => a + (r.passes || 0), 0)), h('span', {}, 'Total passes')),
+        h('div', { class: 'stat warn' }, h('b', {}, state.sessions.filter((s) => (state.interview[s.id]?.passes ?? 0) >= 3).length), h('span', {}, 'Mastered (3+ passes)')),
+        h('div', { class: 'stat lock' }, h('b', {}, total - practised), h('span', {}, 'Not practised yet'))),
+      h('p', { class: 'small' }, 'More material in the repository: ', h('code', {}, 'docs/interview/'), ' (pitch, technical answers, consultant scenarios, English).'));
+    const cards = state.track.cycles.map((c) => h('section', { class: 'card' },
+      h('div', { class: 'cycle-head' }, h('h3', {}, `Cycle ${c.id} · ${c.title}`)),
+      h('ul', { class: 'study-list' }, state.sessions.filter((s) => s.cycle === c.id).map((s) => {
+        const rec = state.interview[s.id] ?? { passes: 0 };
+        return h('li', { class: `study-item ${rec.passes >= 3 ? 'done' : ''}` },
+          h('div', { class: 'iv-head' },
+            h('span', { class: 'study-title' }, s.interview.question),
+            h('span', { class: `chip ${rec.passes >= 3 ? 'ok' : rec.passes ? 'info' : ''}` }, `${rec.passes} pass${rec.passes === 1 ? '' : 'es'}`),
+            h('button', { class: 'btn copy', onclick: () => post(`/api/interview/${s.id}/practised`).then((r) => toast(r.passes >= 3 ? 'Mastered — this answer is yours now.' : `Pass ${r.passes} recorded. Keep going.`, 'info')).catch((e) => toast(e.message)) }, 'I practised')),
+          s.interview.followUps?.length ? h('div', { class: 'muted small' }, `Follow-ups: ${s.interview.followUps.join(' · ')}`) : null,
+          h('div', { class: 'muted small' }, `From session ${s.number}: ${s.title}${rec.lastAt ? ` · last pass ${day(rec.lastAt)}` : ''}`));
+      }))));
+    view.replaceChildren(intro, ...cards);
+  }
+
   function renderEnvironment() {
     const env = state.environment;
     const tools = Object.entries(env.tools ?? {}).map(([k, v]) => h('tr', {}, h('td', {}, k), h('td', {}, v.installed ? h('span', { class: 'chip ok' }, 'installed') : h('span', { class: 'chip bad' }, 'missing')), h('td', { class: 'mono' }, v.version ?? '')));
@@ -719,7 +774,7 @@
   function route() {
     const parts = location.hash.replace(/^#\/?/, '').split('/');
     if (parts[0] === 'session' && /^C\d{3}$/.test(parts[1] ?? '')) return { view: 'session', id: parts[1] };
-    return { view: ['practice', 'map', 'progress', 'environment'].includes(parts[0]) ? parts[0] : 'practice' };
+    return { view: ['practice', 'map', 'progress', 'environment', 'study', 'interview'].includes(parts[0]) ? parts[0] : 'practice' };
   }
 
   function render(force = false) {
@@ -733,6 +788,8 @@
     else if (r.view === 'map') renderMap();
     else if (r.view === 'progress') renderProgress();
     else if (r.view === 'environment') renderEnvironment();
+    else if (r.view === 'study') renderStudy();
+    else if (r.view === 'interview') renderInterview();
     else renderPractice();
     window.scrollTo(0, y);
   }

@@ -181,3 +181,16 @@ test('runner: environment blocks skip the checker with the right reason', async 
   assert.equal(setup.finished[0].blockedReason, 'platform_stopped');
   setup.runner.stop();
 });
+
+test('study plan and interview practice are self-tracked and allow-listed', () => {
+  const p = new ProgressStore({ dataDir: tempDir(), catalog }).load();
+  assert.ok(catalog.studyPlan.itemIds.size >= 10);
+  p.setStudyItem('az400-m12', true);
+  assert.equal(p.data.study['az400-m12'].done, true);
+  assert.throws(() => p.setStudyItem('../etc', true), UserError);
+  assert.throws(() => p.setStudyItem('az400-m12', 'yes'), UserError);
+  assert.equal(p.recordInterviewPractice('C001').passes, 1);
+  assert.equal(p.recordInterviewPractice('C001').passes, 2);
+  // Self-tracked marks never unlock sessions.
+  assert.equal(p.stateOf('C002').state, 'BLOCKED');
+});

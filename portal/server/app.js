@@ -120,6 +120,15 @@ export function createApp(config) {
       totals: progress.totals(),
       track: { cycles: catalog.track.cycles, ranks: catalog.track.ranks },
       environment: probe.snapshot,
+      studyPlan: {
+        title: catalog.studyPlan.title,
+        intro: catalog.studyPlan.intro,
+        sections: (catalog.studyPlan.sections ?? []).map((sec) => ({
+          ...sec,
+          items: sec.items.map((item) => ({ ...item, done: Boolean(progress.data.study?.[item.id]?.done), at: progress.data.study?.[item.id]?.at ?? null })),
+        })),
+      },
+      interview: Object.fromEntries(catalog.sessions.map((s) => [s.id, progress.data.interview?.[s.id] ?? { passes: 0 }])),
       sessions,
       next: nextStep(sessions),
     };
@@ -275,6 +284,21 @@ export function createApp(config) {
         await readJson(req);
         probe.refresh({ tools: true });
         return send(res, 202, { ok: true });
+      }
+      const study = pathname.match(/^\/api\/study\/([a-z0-9-]{1,80})$/);
+      if (req.method === 'POST' && study) {
+        const body = await readJson(req);
+        progress.setStudyItem(study[1], body.done);
+        pushState();
+        return send(res, 200, { ok: true });
+      }
+      const practice = pathname.match(/^\/api\/interview\/([^/]+)\/practised$/);
+      if (req.method === 'POST' && practice) {
+        if (!SESSION_ID.test(practice[1]) || !catalog.byId.has(practice[1])) return send(res, 404, { error: 'Unknown session' });
+        await readJson(req);
+        const rec = progress.recordInterviewPractice(practice[1]);
+        pushState();
+        return send(res, 200, { ok: true, passes: rec.passes });
       }
       const t = pathname.match(/^\/api\/terminal\/(input|restart|clear)$/);
       if (req.method === 'POST' && t) {
