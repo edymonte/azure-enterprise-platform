@@ -22,8 +22,8 @@
           "value": "[parameters('tagNames')]",
           "name": "tagName",
           "where": {
-            "field": "[concat('tags[', current('tagName'), ']')]",
-            "exists": "false"
+            "value": "[coalesce(field(concat('tags[', current('tagName'), ']')), '')]",
+            "equals": ""
           }
         },
         "greater": 0
