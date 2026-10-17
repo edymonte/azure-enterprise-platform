@@ -430,3 +430,14 @@ th { color: var(--muted); font-weight: 700; font-size: 12px; text-transform: upp
 .meter-track { height: 10px; border-radius: 99px; background: #233063; overflow: hidden; }
 .meter-fill { height: 100%; width: 0; border-radius: 99px; background: #22d3ee; transition: width .8s ease; }
 .meter-value { text-align: right; color: var(--muted); font-weight: 700; }
+
+/* ---------- personal course links ---------- */
+.links-block { margin: 8px 0 14px; padding: 10px 12px; border-radius: 10px; background: rgba(168, 85, 247, .08); border: 1px solid rgba(168, 85, 247, .35); }
+.links-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.links-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; }
+.links-list li { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.links-list a { color: #e9d5ff; font-weight: 600; text-decoration: none; }
+.links-list a:hover { text-decoration: underline; }
+.link-form { display: grid; grid-template-columns: 1fr 1.6fr auto; gap: 8px; margin-top: 8px; }
+.link-input { background: #070b18; color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: inherit; font-size: 13px; min-width: 0; }
+@media (max-width: 900px) { .link-form { grid-template-columns: 1fr; } }
