@@ -10,6 +10,8 @@ import { EnvironmentProbe } from './environment.js';
 import { Runner } from './runner.js';
 import { RepoWatcher } from './watcher.js';
 import { Terminal } from './terminal.js';
+import { Az400, LAB_ID } from './az400.js';
+import { loadSchedule } from './schedule.js';
 
 const STATIC_FILES = {
   '/app.js': ['app.js', 'text/javascript; charset=utf-8'],
@@ -38,7 +40,9 @@ const BLOCK_MESSAGES = {
 
 export function createApp(config) {
   const catalog = loadCatalog(config.portalRoot);
-  const progress = new ProgressStore({ dataDir: config.dataDir, catalog, unlockAll: config.unlockAll }).load();
+  const schedule = loadSchedule(config.portalRoot, catalog);
+  const progress = new ProgressStore({ dataDir: config.dataDir, catalog, unlockAll: config.unlockAll, scheduledSessions: schedule.scheduledSessions }).load();
+  const az400 = new Az400({ root: config.az400Root });
   const probe = new EnvironmentProbe({ repoRoot: config.repoRoot, track: catalog.track });
   const runner = new Runner({ config, catalog, probe });
   const watcher = new RepoWatcher({ repoRoot: config.repoRoot, catalog, debounceMs: config.watchDebounceMs });
@@ -139,6 +143,17 @@ export function createApp(config) {
         })),
       },
       timeline: progress.timeline(30),
+      links: progress.links(),
+      schedule: { title: schedule.title, subtitle: schedule.subtitle, start: schedule.start, lastDay: schedule.lastDay, dailyHours: schedule.dailyHours, items: schedule.items },
+      az400: {
+        available: az400.available,
+        error: az400.error,
+        root: config.az400Root,
+        repoUrl: az400.repoUrl,
+        labs: az400.labs,
+        evidence: az400.evidence,
+        progress: progress.az400(),
+      },
       interview: Object.fromEntries(catalog.sessions.map((s) => [s.id, progress.data.interview?.[s.id] ?? { passes: 0 }])),
       sessions,
       next: nextStep(sessions),
@@ -150,6 +165,15 @@ export function createApp(config) {
     for (const res of clients) res.write(payload);
   }
   const pushState = () => broadcast('state', state());
+
+  // New passing validation.json files complete AZ-400 labs (once) and celebrate.
+  function onAz400Evidence() {
+    for (const { lab, rewards } of progress.recordAz400Evidence(az400.evidence, az400.labs)) {
+      broadcast('celebrate', { id: `az400-${lab.id}`, number: lab.id, kind: 'az400', title: `Lab ${lab.id} · ${lab.title}`, rewards, mode: 'VERIFIED', badges: progress.totals().badges, unlocked: null });
+    }
+    pushState();
+  }
+  az400.on('evidence', onAz400Evidence);
 
   if (terminal) {
     terminal.on('output', (chunk) => broadcast('term', { chunk }));
@@ -298,6 +322,35 @@ export function createApp(config) {
         probe.refresh({ tools: true });
         return send(res, 202, { ok: true });
       }
+      const az = pathname.match(/^\/api\/az400\/([a-z0-9]{2,4})\/(step|score)$/);
+      if (req.method === 'POST' && az) {
+        const [, labId, what] = az;
+        if (!(labId === 'prep' || (LAB_ID.test(labId) && az400.labs.some((l) => l.id === labId)))) return send(res, 404, { error: 'Unknown lab' });
+        const body = await readJson(req);
+        if (what === 'step') progress.setAz400Step(labId, body.key, body.done);
+        else progress.setAz400Score(labId, body.value === null ? null : Number(body.value));
+        pushState();
+        return send(res, 200, { ok: true });
+      }
+      if (req.method === 'POST' && pathname === '/api/az400/run') {
+        const body = await readJson(req);
+        progress.setAz400Run(body.suffix);
+        pushState();
+        return send(res, 200, { ok: true });
+      }
+      if (req.method === 'POST' && pathname === '/api/az400/rescan') {
+        await readJson(req);
+        if (!az400.scan()) pushState();
+        return send(res, 200, { ok: true });
+      }
+      const link = pathname.match(/^\/api\/links\/([A-Za-z0-9-]{1,80})(\/remove)?$/);
+      if (req.method === 'POST' && link) {
+        const body = await readJson(req);
+        if (link[2]) progress.removeLink(link[1], body.index);
+        else progress.addLink(link[1], body.label, body.url);
+        pushState();
+        return send(res, 200, { ok: true });
+      }
       const study = pathname.match(/^\/api\/study\/([a-z0-9-]{1,80})$/);
       if (req.method === 'POST' && study) {
         const body = await readJson(req);
@@ -353,6 +406,9 @@ export function createApp(config) {
       server.listen(config.port, config.host, resolve);
     });
     await watcher.start();
+    await az400.load();
+    onAz400Evidence();
+    az400.start();
     terminal?.ensure();
     watcher.on('error', (err) => console.error('watcher:', err.message));
     probe.refresh({ tools: true }).then(() => {
@@ -366,11 +422,12 @@ export function createApp(config) {
   async function stop() {
     clearInterval(envTimer);
     terminal?.stop();
+    az400.stop();
     runner.stop();
     watcher.stop();
     for (const res of clients) res.end();
     await new Promise((resolve) => server.close(resolve));
   }
 
-  return { start, stop, server, token, state, progress, runner, probe, catalog, terminal };
+  return { start, stop, server, token, state, progress, runner, probe, catalog, terminal, az400 };
 }

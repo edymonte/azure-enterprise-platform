@@ -9,52 +9,43 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <div class="shell">
-    <aside class="sidebar">
+  <header class="band">
+    <div class="wrap band-grid">
       <div class="brand">
         <img src="/favicon.svg" alt="" class="brand-logo">
         <div>
-          <div class="brand-title">Platform Academy</div>
-          <div class="brand-sub">azure-enterprise-platform</div>
-        </div>
-      </div>
-      <nav class="nav" aria-label="Main">
-        <a href="#/practice" data-view="practice" class="nav-item"><span class="nav-ico">⌂</span>Active practice</a>
-        <a href="#/map" data-view="map" class="nav-item"><span class="nav-ico">◈</span>Curriculum map</a>
-        <a href="#/progress" data-view="progress" class="nav-item"><span class="nav-ico">▲</span>Progress</a>
-        <a href="#/study" data-view="study" class="nav-item"><span class="nav-ico">✎</span>Study plan</a>
-        <a href="#/interview" data-view="interview" class="nav-item"><span class="nav-ico">🎤</span>Interview practice</a>
-        <a href="#/environment" data-view="environment" class="nav-item"><span class="nav-ico">◎</span>Environment</a>
-      </nav>
-      <div class="sidebar-foot">
-        <div class="conn" id="conn"><span class="dot"></span><span id="conn-text">Connecting…</span></div>
-        <div class="learner">
-          <div class="avatar" id="avatar">★</div>
-          <div>
-            <div class="learner-name">Learner</div>
-            <div class="learner-rank" id="side-rank">—</div>
+          <h1>Platform Academy</h1>
+          <p id="plan-subtitle">Loading your plan…</p>
+          <div class="brand-meta">
+            <span class="conn" id="conn"><span class="dot"></span><span id="conn-text">Connecting…</span></span>
+            <span class="rank-chip" title="Rank and XP (sessions and labs verified by evidence)"><b id="rank-title">—</b><span class="xp-bar"><span class="xp-fill" id="xp-fill"></span></span><span id="xp-num">0 XP</span></span>
+            <span title="Coins: earned per verified completion"><span class="coin">●</span> <span id="coins">0</span></span>
+            <span title="Badges">✦ <span id="badge-count">0</span></span>
           </div>
         </div>
       </div>
-    </aside>
-
-    <div class="main">
-      <header class="topbar">
-        <div class="rank-block">
-          <div class="rank-orb" aria-hidden="true"></div>
-          <div class="rank-text">
-            <div class="rank-title" id="rank-title">—</div>
-            <div class="xp-row"><div class="xp-bar"><div class="xp-fill" id="xp-fill"></div></div><span class="xp-num" id="xp-num">0 XP</span></div>
-          </div>
-        </div>
-        <div class="top-stat" title="Coins: earned per completion, doubled when SOLO, minus 2 per hint"><span class="coin">●</span><span id="coins">0</span></div>
-        <div class="top-stat" title="Cycle badges"><span class="badge-ico">✦</span><span id="badge-count">0</span></div>
-        <div class="env-pills" id="env-pills"></div>
-      </header>
-      <div class="validation-banner hidden" id="validation-banner">Validation mode — every session is unlocked (PORTAL_UNLOCK_ALL=1). Completions still require a passing checker.</div>
-      <main class="content" id="view"></main>
+      <div class="stats">
+        <div class="stat"><span>AZ-400 labs verified</span><b id="s-labs">0/28</b><div class="bar"><div id="s-labs-bar"></div></div></div>
+        <div class="stat"><span>Platform sessions</span><b id="s-sessions">0/30</b><div class="bar"><div id="s-sessions-bar"></div></div></div>
+        <div class="stat pace"><span>Pace</span><b id="s-pace">—</b></div>
+        <button class="today-btn" id="today-btn" type="button"><span id="today-lbl">Today</span><b id="today-txt">—</b></button>
+      </div>
     </div>
-  </div>
+    <div class="wrap"><div class="domains" id="domains"></div></div>
+    <nav class="wrap topnav" aria-label="Main">
+      <a href="#/schedule" data-view="schedule" class="nav-item">Schedule</a>
+      <a href="#/map" data-view="map" class="nav-item">Platform sessions</a>
+      <a href="#/progress" data-view="progress" class="nav-item">Progress</a>
+      <a href="#/study" data-view="study" class="nav-item">Study plan</a>
+      <a href="#/interview" data-view="interview" class="nav-item">Interview practice</a>
+      <a href="#/environment" data-view="environment" class="nav-item">Environment</a>
+      <span class="nav-spacer"></span>
+      <span class="env-pills" id="env-pills"></span>
+      <button class="theme-btn" id="theme-btn" type="button" title="Switch light / dark theme">◐ Theme</button>
+    </nav>
+  </header>
+  <div class="wrap"><div class="validation-banner hidden" id="validation-banner">Validation mode — every session is unlocked (PORTAL_UNLOCK_ALL=1). Completions still require a passing checker.</div></div>
+  <main class="wrap content" id="view"></main>
 
   <div class="launch hidden" id="launch" role="dialog" aria-modal="true" aria-labelledby="launch-word">
     <div class="launch-ring-wrap">

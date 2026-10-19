@@ -1,6 +1,6 @@
 # Platform Academy — local learning portal
 
-A local web portal that turns this repository's route into a **gamified, 30-session track**. Open it in a browser on a second monitor; keep VS Code for commands, edits and Git. The portal **watches your evidence** (files, commits, Azure, the cluster) and moves a session forward only when its success criteria are verified — never on a click.
+A local web portal for a dated study route with two phases: the **AZ-400 course labs** (read from their own repository) and this repository's **30 Azure platform sessions**. It works like a control room: a sticky summary band (labs verified, sessions completed, pace, **Today**), progress bars per exam domain, a **dated schedule** on the left and the selected item's **runbook** on the right — light or dark theme. The portal **watches your evidence** and marks work complete only from it, never on a click: the course's own `Validate.ps1` output for AZ-400 labs, and read-only checkers for platform sessions.
 
 ```
 ┌────────── browser (second monitor) ──────────┐      ┌──────────── VS Code ────────────┐
@@ -25,6 +25,10 @@ $env:PORTAL_TERMINAL = "1"; npm --prefix portal start      # + a real PowerShell
 **Terminal (opt-in).** With `PORTAL_TERMINAL=1` the right panel gets **Terminal 1**: a real PowerShell 7 started in the repository folder (no profile). Type a command and press Enter; `cd` and variables persist; prompts such as `Apply …? [y/N]` show up and are answered with the next line; **▶ Terminal** on a step pastes its command (you still press Enter); **Restart** kills a stuck command. It is not a full PTY: full-screen programs (vim, less) and masked password prompts do not work — sign in to Azure with `az login` (browser) as usual and never type secrets into it. It is off by default because it lets the portal page run commands on this machine; the page is still protected by loopback binding, the per-process token and Origin checks, and the output is redacted.
 
 **Learn tab.** Every session starts with a *Learn* tab: the concepts explained from zero, a worked example on a *different* case and a glossary. Reading it is free (it is not a hint).
+
+**AZ-400 phase.** Clone the course next to this repository (`../az400-azure-devops-engineer-labs`) or point `PORTAL_AZ400_ROOT` at it. The portal reads `curriculum/lab-content.yml` for the labs (title, scenario, primer, five tasks) and builds each lab's runbook: *Understand → Prepare (Preflight, Setup preview, Context) → 5 tasks → Break/fix → Validate → 50 questions → Cleanup*, with copy-ready commands using your Run ID. Steps and the question score are ticked by you; a lab becomes **verified** (XP, celebration) only when the course's `Validate.ps1` writes `.state/<lab>/<run>/validation.json` with `status: passed` — the portal watches that folder. Course content is never copied into this repository.
+
+**Schedule.** `catalog/schedule.json` sets the dates: the AZ-400 preparation and Lab 00 on day one, one lab per day after that, capstones after the vacation, and the platform sessions on fixed days. A platform session on the schedule is unlocked by the plan; unscheduled ones keep the sequential lock. Edit the file to re-plan.
 
 Then open **<http://127.0.0.1:4317/>**. Stop with `Ctrl+C`.
 
@@ -64,6 +68,8 @@ Then open **<http://127.0.0.1:4317/>**. Stop with `Ctrl+C`.
 | `PORTAL_MAX_BACKOFF_SECONDS` | `1800` | Cap for exponential backoff after errors |
 | `PORTAL_WATCH_DEBOUNCE_MS` | `1500` | Debounce for file events |
 | `PORTAL_UNLOCK_ALL` | off | `1` = validation mode: every session unlocked (for testing checkers out of order). Use a separate `PORTAL_DATA_DIR`. |
+| `PORTAL_TERMINAL` | off | `1` = real PowerShell in the page (see above) |
+| `PORTAL_AZ400_ROOT` | `../az400-azure-devops-engineer-labs` | The AZ-400 course repository (read-only: catalog + evidence) |
 
 ## Security model
 
@@ -81,6 +87,7 @@ Then open **<http://127.0.0.1:4317/>**. Stop with `Ctrl+C`.
 
 ## Current limitations
 
-- Automatic checkers exist for **C001** and **C014**; the other 28 sessions have full content and an explicit "checker planned" status, so they cannot be completed until their checker ships (no simulated approvals).
-- No embedded terminal (by design in this version).
-- One learner per machine; progress is local.
+- Platform sessions: automatic checkers exist for **C001** and **C014**; the other 28 have full content and an explicit "checker planned" status, so they cannot be completed until their checker ships (no simulated approvals).
+- AZ-400: completion depends on the course's own validation; the portal does not judge the course content itself.
+- The terminal is not a full PTY (see above).
+- One learner per machine; progress is local (progress made in other tools, e.g. a hosted planning page, is not imported).

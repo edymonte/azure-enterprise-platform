@@ -3,19 +3,57 @@
   "subtitle": "30 sessions · from an empty subscription to a production-shaped platform you can operate and explain",
   "environment": {
     "settingsFile": "config/lab.settings.json",
-    "aks": { "resourceGroup": "rg-mfs-portal-lab", "name": "aks-mfs-portal-lab" }
+    "aks": {
+      "resourceGroup": "rg-mfs-portal-lab",
+      "name": "aks-mfs-portal-lab"
+    }
   },
   "cycles": [
-    { "id": 1, "title": "Foundation & governance", "badge": "Foundation Architect", "summary": "State, identity without secrets, network, policy and private data." },
-    { "id": 2, "title": "Platform & GitOps", "badge": "Cluster Operator", "summary": "AKS under real quota, workload identity, Helm, Argo CD and in-cluster security." },
-    { "id": 3, "title": "Delivery", "badge": "Delivery Engineer", "summary": "Feature to production through PRs, CI gates, smoke tests, promotion and two CI/CD platforms." },
-    { "id": 4, "title": "Edge, observability & incidents", "badge": "Platform SRE", "summary": "Front Door and WAF, golden signals, rollback under pressure and the final incident." }
+    {
+      "id": 1,
+      "title": "Foundation & governance",
+      "badge": "Foundation Architect",
+      "summary": "State, identity without secrets, network, policy and private data."
+    },
+    {
+      "id": 2,
+      "title": "Platform & GitOps",
+      "badge": "Cluster Operator",
+      "summary": "AKS under real quota, workload identity, Helm, Argo CD and in-cluster security."
+    },
+    {
+      "id": 3,
+      "title": "Delivery",
+      "badge": "Delivery Engineer",
+      "summary": "Feature to production through PRs, CI gates, smoke tests, promotion and two CI/CD platforms."
+    },
+    {
+      "id": 4,
+      "title": "Edge, observability & incidents",
+      "badge": "Platform SRE",
+      "summary": "Front Door and WAF, golden signals, rollback under pressure and the final incident."
+    }
   ],
   "ranks": [
-    { "title": "Platform Apprentice", "minXp": 0 },
-    { "title": "Cloud Engineer", "minXp": 1000 },
-    { "title": "Platform Engineer", "minXp": 2500 },
-    { "title": "Senior Platform Engineer", "minXp": 4500 },
-    { "title": "Staff Platform Engineer", "minXp": 6000 }
+    {
+      "title": "Platform Apprentice",
+      "minXp": 0
+    },
+    {
+      "title": "Cloud Engineer",
+      "minXp": 1000
+    },
+    {
+      "title": "Platform Engineer",
+      "minXp": 3000
+    },
+    {
+      "title": "Senior Platform Engineer",
+      "minXp": 6000
+    },
+    {
+      "title": "Staff Platform Engineer",
+      "minXp": 9000
+    }
   ]
 }

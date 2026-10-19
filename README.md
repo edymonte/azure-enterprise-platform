@@ -6,7 +6,7 @@ A **simulated but real** production platform for the fictional company **Monteir
 
 > Start with **[docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md)** — the whole environment explained layer by layer.
 >
-> Study day to day with the **[local learning portal](portal/README.md)**: `npm --prefix portal start` → <http://127.0.0.1:4317/> — 30 gamified sessions that unlock from verified evidence.
+> Study day to day with the **[local learning portal](portal/README.md)**: `npm --prefix portal start` → <http://127.0.0.1:4317/> — a dated schedule (AZ-400 course labs + 30 platform sessions) where progress comes from verified evidence.
 
 ## How the lab works
 
@@ -59,7 +59,7 @@ pipelines/         Azure DevOps (YAML + templates)
 .github/workflows/ GitHub Actions (ci, infra, app)
 scripts/           azp.ps1 (lifecycle) and operational scripts
 docs/              HOW-IT-WORKS, labs, ADRs, game days, costs, runbook, interview prep
-portal/            local learning portal (30 sessions, read-only checkers, progress)
+portal/            local learning portal (schedule, AZ-400 integration, read-only checkers, progress)
 ```
 
 ## Day-to-day commands
