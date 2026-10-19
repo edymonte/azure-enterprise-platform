@@ -61,6 +61,12 @@
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     return data;
   }
+  async function get(path) {
+    const res = await fetch(path, { headers: { 'X-Portal-Token': TOKEN } });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    return data;
+  }
   const act = (id, action, body) => post(`/api/sessions/${id}/${action}`, body).catch((e) => toast(e.message));
 
   const STATE_LABEL = {
@@ -131,13 +137,13 @@
     out.push({ k: 'setup', t: 'Preview, then create the sandbox', d: 'First without -Execute: it shows what it would create and changes nothing. Read the preview, then run the second line.', note: costly ? 'This lab creates paid Azure resources. Only run -Execute when you have time to finish and clean up today.' : null, code: `& "$lab/Setup.ps1" -RunId '${R}' -ProvisionOnly\n# after reviewing the preview:\n& "$lab/Setup.ps1" -RunId '${R}' -ProvisionOnly -Execute -AcknowledgeCost -AcknowledgeTenantChange` });
     out.push({ k: 'ctx', t: 'Load the context into the session', d: 'Creates $WorkRoot, $GhRepo, $ResourceGroup… used by the task commands. Note the leading dot: it loads into the current session. Run it again if you restart the terminal.', code: `. "$lab/Context.ps1" -RunId '${R}'` });
     l.checkpoints.forEach((c, i) => {
-      out.push({ ph: i === 0 ? 'Practise: 5 tasks' : null, k: `cp${i + 1}`, t: `Task ${i + 1}: ${c.title}`, d: `In the README, go to Task ${i + 1}. Run the main commands, then the positive and negative validations. Tick it only when both pass.`,
+      out.push({ ph: i === 0 ? 'Practise: 5 tasks' : null, k: `cp${i + 1}`, cp: c.id, t: `Task ${i + 1}: ${c.title}`, d: 'Run the commands, then both validations below: the positive one proves it worked, the negative one proves a failure would be caught. Tick it only when both pass. The README has the explanation of each command.',
         orig: [['Expected result', c.expected], ['If it goes wrong', c.fix]], link: [`labs/${l.slug}/README.md#task-${i + 1}`, `Go to Task ${i + 1}`] });
     });
     if (isCap) out.push({ k: 'int', t: 'Run the capstone integration', d: 'Joins the five tasks and checks the end-to-end delivery. Read the integration section first.', note: 'Creates an App Service B1 and telemetry (paid). Clean up the same day.', code: `& "$lab/Integration.ps1" -RunId '${R}' -Execute -AcknowledgeCost -AcknowledgeTenantChange` });
-    out.push({ ph: 'Break and fix', k: 'bf', t: 'Run the break/fix', d: 'Read only the Fault trigger in the README and guess how the failure will show. The script proves health, injects the fault, requires detection, repairs and proves again.', code: `& "$lab/BreakFix.ps1" -RunId '${R}' -Execute` });
+    out.push({ ph: 'Break and fix', k: 'bf', t: 'Run the break/fix', d: 'Read only the Fault trigger in the README and guess how the failure will show. The script proves health, injects the fault, requires detection, repairs and proves again.', code: `& "$lab/BreakFix.ps1" -RunId '${R}' -Execute`, bf: true });
     out.push({ k: 'val', t: 'Validate the final result', d: 'Independently re-validates the five tasks and the break/fix and writes validation.json — the portal reads it and marks the lab verified when it says passed.', code: `& "$lab/Validate.ps1" -RunId '${R}'` });
-    if (hasQ) out.push({ ph: 'Lock it in for the exam', k: 'q', t: 'Answer the 50 questions', d: 'Answer all of QUESTIONS.md before opening the answers, then read every rationale in ANSWERS.md — including the ones you got right. Record your score.', link: [`labs/${l.slug}/QUESTIONS.md`, 'Open questions'], link2: [`labs/${l.slug}/ANSWERS.md`, 'Open answers'], score: true });
+    if (hasQ) out.push({ ph: 'Lock it in for the exam', k: 'q', t: 'Answer the 50 questions', d: 'Answer them here in the portal: it grades the attempt, records your score and shows the rationale of every option — read them all, including the ones you got right.', link: [`labs/${l.slug}/QUESTIONS.md`, 'Open questions'], link2: [`labs/${l.slug}/ANSWERS.md`, 'Open answers'], score: true, quiz: true });
     out.push({ ph: 'Close', k: 'clean', t: 'Clean up everything the lab created', d: 'First without -Execute and read the list: only items of this Run ID must appear. Then with -Execute. Never skip it — it is what prevents charges.', code: `& "$lab/Cleanup.ps1" -RunId '${R}'\n# after reviewing the list:\n& "$lab/Cleanup.ps1" -RunId '${R}' -Execute` });
     return out;
   }
@@ -253,7 +259,7 @@
       h('span', { class: `pill-env ${aksKind}` }, `AKS: ${aks.status.replace('_', ' ')}`),
       h('span', { class: `pill-env ${state.az400.available ? 'ok' : 'bad'}`, title: state.az400.error ?? state.az400.root }, state.az400.available ? 'AZ-400 course' : 'AZ-400 course missing'));
     const v = route().view;
-    for (const a of document.querySelectorAll('.nav-item')) a.classList.toggle('active', a.dataset.view === v || (v === 'session' && a.dataset.view === 'map'));
+    for (const a of document.querySelectorAll('.nav-item')) a.classList.toggle('active', a.dataset.view === v || (v === 'session' && a.dataset.view === 'map') || (v === 'quiz' && a.dataset.view === 'course'));
   }
 
   // ------------------------------------------------------------ schedule view
@@ -278,7 +284,7 @@
     const rail = h('div', { class: 'rail-list' });
     let lastWeek = null;
     for (const it of items) {
-      const wk = it.date > state.schedule.lastDay ? 'After the vacation' : `Week ${Math.floor((parseIso(it.date) - parseIso(state.schedule.start)) / 864e5 / 7) + 1}`;
+      const wk = it.date > state.schedule.lastDay ? 'After the vacation' : `Week ${Math.max(1, Math.floor((parseIso(it.date) - parseIso(state.schedule.start)) / 864e5 / 7) + 1)}`;
       if (wk !== lastWeek) { rail.append(h('div', { class: 'week' }, wk)); lastWeek = wk; }
       const f = fmtShort(it.date);
       const [sk, sl] = itemStatus(it);
@@ -317,20 +323,21 @@
     if (v < 85) return ['v-mid', '70–84%: review the weak spots'];
     return ['v-ok', '85% or more: move on'];
   }
-  // The terminal takes one line: paste the first group of commands (up to the
-  // first comment, e.g. before an -Execute line that needs a review first).
+  // Runbook steps send the first group of commands (up to the first comment,
+  // e.g. before an -Execute line that needs a review first); task blocks
+  // send everything. Several lines run as one block in the same session.
   function firstCommandGroup(code) {
     const lines = [];
     for (const line of code.split('\n')) {
       if (line.trim().startsWith('#')) break;
-      if (line.trim()) lines.push(line.trim());
+      if (line.trim()) lines.push(line);
     }
-    return lines.join('; ');
+    return lines.join('\n');
   }
 
-  function codeBlock(code) {
+  function codeBlock(code, whole = false) {
     return h('div', { class: 'code' }, h('pre', {}, code), h('div', { class: 'code-actions' },
-      state.meta.terminal.enabled ? h('button', { type: 'button', title: 'Paste into the terminal below (you still press Enter)', onclick: () => sendToTerminal(firstCommandGroup(code)) }, '▶ Terminal') : null,
+      state.meta.terminal.enabled ? h('button', { type: 'button', title: 'Paste into the terminal below (you still press Enter)', onclick: () => sendToTerminal(whole ? code.trim() : firstCommandGroup(code)) }, '▶ Terminal') : null,
       h('button', { type: 'button', onclick: (e) => navigator.clipboard.writeText(code).then(() => { e.target.textContent = 'Copied'; setTimeout(() => { e.target.textContent = 'Copy'; }, 1400); }) }, 'Copy')));
   }
 
@@ -412,6 +419,9 @@
           st.note ? h('div', { class: 'note' }, st.note) : null,
           ...(st.orig ?? []).filter((o) => o[1]).map((o) => h('div', { class: 'orig' }, h('em', {}, `${o[0]} · course text`), o[1])),
           st.code ? codeBlock(st.code) : null,
+          st.cp ? taskContent(l, st.cp) : null,
+          st.bf ? breakFixReveal(l) : null,
+          st.quiz ? quizEntry(l) : null,
           st.link || st.link2 ? h('div', { class: 'links' }, st.link ? repoLink(st.link[0], st.link[1]) : null, st.link2 ? repoLink(st.link2[0], st.link2[1]) : null) : null,
           scoreRow)));
     });
@@ -892,6 +902,17 @@
     term.prompt = h('span', { class: 'term-prompt' }, 'PS> ');
     term.input = h('input', { class: 'term-input', type: 'text', spellcheck: 'false', autocomplete: 'off', 'aria-label': 'Terminal input' });
     term.input.addEventListener('keydown', (e) => {
+      // A pasted multi-line block waits here until the learner presses Enter.
+      if (term.pendingBlock) {
+        if (e.key === 'Enter') {
+          const script = term.pendingBlock;
+          clearPendingBlock();
+          term.stick = true;
+          post('/api/terminal/block', { script }).catch((err) => toast(err.message));
+        } else if (!['Shift', 'Control', 'Alt', 'Meta', 'Tab'].includes(e.key)) clearPendingBlock();
+        e.preventDefault();
+        return;
+      }
       if (e.key === 'Enter') {
         const line = term.input.value;
         term.input.value = '';
@@ -919,13 +940,30 @@
     return term.el;
   }
 
+  function clearPendingBlock() {
+    term.pendingBlock = null;
+    term.input.value = '';
+    term.input.readOnly = false;
+    term.input.classList.remove('pending');
+  }
+
   function sendToTerminal(command) {
-    if (!state.meta.terminal.enabled) return;
+    if (!state.meta.terminal.enabled || !command) return;
     ui.rightTab = 'terminal';
     render(true);
-    term.input.value = command;
+    if (command.includes('\n')) {
+      // Multi-line: run as one block (same scope) after an explicit Enter.
+      term.pendingBlock = command;
+      term.input.readOnly = true;
+      term.input.classList.add('pending');
+      term.input.value = `⏎ run the ${command.split('\n').length}-line block shown above · Esc to cancel`;
+      termAppend(`\n# block ready (press Enter in the terminal to run it):\n${command}\n`);
+    } else {
+      clearPendingBlock();
+      term.input.value = command;
+    }
     term.input.focus();
-    toast('Command pasted into the terminal — read it, then press Enter to run it.', 'info');
+    toast(command.includes('\n') ? 'Block ready — review it in the terminal, then press Enter to run it.' : 'Command pasted into the terminal — read it, then press Enter to run it.', 'info');
   }
 
   // ------------------------------------------------------------ launch screen
@@ -1244,11 +1282,198 @@
       h('section', { class: 'card' }, h('h3', {}, 'Tools'), h('table', {}, h('tbody', {}, tools))));
   }
 
+  // ------------------------------------------------------------ AZ-400 content (tasks, break/fix, quiz)
+  // Task commands and validations are read from the course on demand.
+  function labDetail(l) {
+    ui.detail ??= {};
+    if (!(l.id in ui.detail)) {
+      ui.detail[l.id] = null;
+      get(`/api/az400/${l.id}/detail`).then((d) => { ui.detail[l.id] = d; }).catch((e) => { ui.detail[l.id] = { error: e.message }; }).then(() => render(true));
+    }
+    return ui.detail[l.id];
+  }
+  // <details> keep their open/closed state across the frequent re-renders.
+  function keptDetails(key, openByDefault, cls, summary, ...body) {
+    ui.open ??= {};
+    const el = h('details', { class: cls, open: (ui.open[key] ?? openByDefault) || null }, h('summary', {}, summary), ...body);
+    el.addEventListener('toggle', () => { ui.open[key] = el.open; });
+    return el;
+  }
+
+  function taskContent(l, cpId) {
+    const d = labDetail(l);
+    if (!d) return h('p', { class: 'muted small' }, 'Loading the task commands…');
+    if (d.error) return h('p', { class: 'muted small' }, `Task commands unavailable (${d.error}) — use the README.`);
+    const c = d.checkpoints.find((x) => x.id === cpId);
+    if (!c) return null;
+    const block = (k, title, code, open) => (code ? keptDetails(`${l.id}:${cpId}:${k}`, open, 'task-block', title, codeBlock(code, true)) : null);
+    return h('div', {},
+      block('cmd', 'Commands (run after Context.ps1)', c.commands, true),
+      block('pos', 'Check it worked — positive validation', c.positive, false),
+      block('neg', 'Prove a failure is caught — negative validation', c.negative, false),
+      typeof c.evidence === 'string' && c.evidence ? h('div', { class: 'orig' }, h('em', {}, 'Evidence · course text'), c.evidence) : null);
+  }
+
+  function breakFixReveal(l) {
+    const d = labDetail(l);
+    const bf = d && !d.error ? d.breakFix : null;
+    if (!bf) return null;
+    const part = (title, code) => (code ? h('div', {}, h('h4', {}, title), codeBlock(code, true)) : null);
+    return keptDetails(`${l.id}:bf`, false, 'reveal', 'Spoiler — how the fault works (open only after your guess)',
+      h('p', { class: 'small muted' }, 'BreakFix.ps1 runs all of this for you. Read it to understand the failure, or to repeat a phase by hand.'),
+      part('1 · Inject the fault', bf.trigger), part('2 · Diagnose', bf.diagnose), part('3 · Repair', bf.repair),
+      bf.expectedFailure ? h('p', { class: 'small' }, 'Detection must fail with: ', h('code', {}, bf.expectedFailure)) : null);
+  }
+
+  const quizAttempts = (id) => az().progress.quizzes?.[id] ?? [];
+  function quizEntry(l) {
+    const tries = quizAttempts(l.id);
+    const last = tries.at(-1);
+    return h('div', { class: 'quiz-entry' },
+      h('a', { class: 'btn btn-primary', href: `#/quiz/${l.id}` }, last ? 'Retake the questions →' : 'Answer the 50 questions →'),
+      last ? h('span', { class: 'small muted' }, `Last attempt: ${last.correct}/${last.total} (${last.pct}%) · ${rel(last.at)} · ${tries.length} attempt${tries.length > 1 ? 's' : ''}`) : null);
+  }
+
+  // ------------------------------------------------------------ AZ-400 course overview
+  function renderCourse() {
+    if (!state.az400.available) {
+      view.replaceChildren(h('section', { class: 'card' }, h('h2', {}, 'AZ-400 course not found'), h('p', { class: 'muted' }, state.az400.error)));
+      return;
+    }
+    const dateOf = (id) => state.schedule.items.find((it) => it.kind === 'az400' && it.id === id)?.date;
+    const labs = az().labs;
+    const verified = labs.filter((l) => labVerified(l)).length;
+    const scores = labs.map((l) => az().progress.scores[l.id]).filter((v) => typeof v === 'number');
+    const avg = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
+    const out = [h('section', { class: 'card' },
+      h('h2', { class: 'title' }, 'AZ-400 course — every lab'),
+      h('p', { class: 'muted' }, `${labs.length} labs · ${verified} verified · ${scores.length} with a question score${avg === null ? '' : ` (average ${avg}%)`}. Grouped by exam domain, with the official weight. Click a lab to open it in the schedule.`))];
+    for (const [key, dm] of Object.entries(DOMAINS)) {
+      const group = labs.filter((l) => l.domain === key);
+      if (!group.length) continue;
+      const grid = h('div', { class: 'course-grid' });
+      for (const l of group) {
+        const p = labProgress(l);
+        const dt = dateOf(l.id);
+        const [sk, sl] = dt ? itemStatus({ kind: 'az400', id: l.id, date: dt }) : ['next', ''];
+        const score = az().progress.scores[l.id];
+        const ci = costInfo(l);
+        const card = h('button', { class: 'lab-card', type: 'button', onclick: () => { selectItem(`az400:${l.id}`); location.hash = '#/schedule'; } },
+          h('span', { class: 'lc-top' }, h('span', { class: 'mono' }, `Lab ${l.id}`), sl ? h('span', { class: `pill p-${sk}` }, sl) : null),
+          h('b', { class: 'lc-title' }, l.title),
+          h('span', { class: 'lc-meta' },
+            h('span', {}, `${l.minutes} min`), h('span', {}, '·'), h('span', {}, ci.t),
+            dt ? h('span', {}, `· ${fmtLong(dt)}`) : null),
+          h('span', { class: 'lc-meta' },
+            h('span', {}, `Steps ${p.d}/${p.t}`),
+            typeof score === 'number' ? h('span', { class: `verdict ${verdict(score)[0]}` }, `Questions ${score}%`) : null,
+            labVerified(l) ? h('span', { class: 'ev-status passed' }, 'VERIFIED') : null));
+        card.style.borderTopColor = `var(--d-${key})`;
+        grid.append(card);
+      }
+      out.push(h('section', { class: 'card' }, h('div', { class: 'domain-head' }, h('h3', {}, dm.n), h('span', { class: 'muted small' }, `exam weight ${dm.w} · ${group.length} lab${group.length > 1 ? 's' : ''}`)), grid));
+    }
+    view.replaceChildren(...out);
+  }
+
+  // ------------------------------------------------------------ AZ-400 quiz
+  // The server keeps the answers until submission; the draft lives in localStorage.
+  function quizDraft(id, value) {
+    try {
+      if (value === undefined) return JSON.parse(localStorage.getItem(`quiz:${id}`) || '{}');
+      if (value === null) localStorage.removeItem(`quiz:${id}`);
+      else localStorage.setItem(`quiz:${id}`, JSON.stringify(value));
+    } catch { /* storage unavailable */ }
+    return {};
+  }
+
+  function renderQuiz(id) {
+    const l = labById(id);
+    if (!state.az400.available || !l || Number(id) < 1 || Number(id) > 25) {
+      view.replaceChildren(h('section', { class: 'card' }, h('h2', {}, 'No questions for this lab'), h('p', { class: 'muted' }, 'Only labs 01–25 have exam questions.'), h('a', { class: 'btn', href: '#/course' }, '← AZ-400 course')));
+      return;
+    }
+    if (ui.quiz?.labId !== id) ui.quiz = { labId: id, qs: null, answers: quizDraft(id), result: null, review: null, onlyWrong: false };
+    const q = ui.quiz;
+    if (!q.qs && !q.loading) {
+      q.loading = true;
+      get(`/api/az400/${id}/questions`).then((x) => { q.qs = x; }).catch((e) => { q.error = e.message; }).then(() => { q.loading = false; render(true); });
+    }
+    const back = h('a', { class: 'btn', href: '#/schedule', onclick: () => selectItem(`az400:${id}`) }, '← Back to the lab');
+    const head = h('section', { class: 'card' },
+      h('div', { class: 'lab-top' }, h('span', { class: 'tag' }, `${DOMAINS[l.domain].n} · ${DOMAINS[l.domain].w}`), back),
+      h('h2', { class: 'title' }, h('span', { class: 'num' }, l.id), `Exam questions — ${l.title}`),
+      h('p', { class: 'muted' }, 'Answer everything before submitting. Where a question says "choose 2", both must be right to score. After submitting, every option shows why it is right or wrong.'));
+    if (q.error || (q.qs && !q.qs.length)) { view.replaceChildren(head, h('section', { class: 'card' }, h('p', { class: 'muted' }, q.error ?? 'questions.yml not found for this lab.'))); return; }
+    if (!q.qs) { view.replaceChildren(head, h('section', { class: 'card' }, h('p', { class: 'muted' }, 'Loading the questions…'))); return; }
+
+    const total = q.qs.length;
+    const answered = () => q.qs.filter((x) => (q.answers[x.id] ?? []).length === x.pick).length;
+    const count = h('span', { class: 'mono' });
+    const setCount = () => { count.textContent = `${answered()}/${total} answered`; };
+    setCount();
+    const review = q.review ? new Map(q.review.map((x) => [x.id, x])) : null;
+    const wrong = new Set(q.result?.wrong ?? []);
+    const tries = quizAttempts(id);
+
+    const submit = () => {
+      const n = answered();
+      if (n < total && !window.confirm(`${total - n} question(s) not answered. They count as wrong. Submit anyway?`)) return;
+      post(`/api/az400/${id}/quiz`, { answers: q.answers }).then((r) => {
+        q.result = r; q.review = r.review; quizDraft(id, null);
+        toast(`${r.correct}/${r.total} correct (${r.pct}%). ${verdict(r.pct)[1]}.`, 'info');
+        render(true); window.scrollTo(0, 0);
+      }).catch((e) => toast(e.message));
+    };
+    const retry = () => { ui.quiz = { labId: id, qs: q.qs, answers: {}, result: null, review: null, onlyWrong: false }; render(true); window.scrollTo(0, 0); };
+    const bar = h('section', { class: 'card quiz-bar' },
+      q.result
+        ? h('div', {}, h('b', {}, `${q.result.correct}/${q.result.total} correct · ${q.result.pct}%`), ' ', h('span', { class: `verdict ${verdict(q.result.pct)[0]}` }, verdict(q.result.pct)[1]))
+        : h('div', {}, count, tries.length ? h('span', { class: 'small muted' }, ` · last attempt ${tries.at(-1).pct}%`) : null),
+      q.result
+        ? h('div', { class: 'links' },
+          h('button', { class: 'btn', type: 'button', onclick: () => { q.onlyWrong = !q.onlyWrong; render(true); } }, q.onlyWrong ? 'Show all' : `Show only the ${wrong.size} wrong`),
+          h('button', { class: 'btn btn-primary', type: 'button', onclick: retry }, 'Try again'))
+        : h('button', { class: 'btn btn-primary', type: 'button', onclick: submit }, 'Submit and grade'));
+
+    const list = [];
+    q.qs.forEach((x, i) => {
+      const rv = review?.get(x.id);
+      if (q.onlyWrong && !wrong.has(x.id)) return;
+      const picked = new Set(q.answers[x.id] ?? []);
+      const multi = x.pick > 1;
+      const box = h('article', { class: `quiz-q ${rv ? (wrong.has(x.id) ? 'wrong' : 'right') : ''}` },
+        h('div', { class: 'quiz-meta' }, [`Question ${i + 1} of ${total}`, x.checkpointId ? `task ${x.checkpointId.replace('CP', '')}` : null, x.difficulty, multi ? `choose ${x.pick}` : null].filter(Boolean).join(' · ')),
+        h('h4', {}, x.question));
+      for (const o of x.options) {
+        const ok = rv?.correct.includes(o.key);
+        const input = h('input', { type: multi ? 'checkbox' : 'radio', name: `q-${x.id}`, value: o.key, checked: picked.has(o.key) || null, disabled: rv ? true : null });
+        const label = h('label', { class: `quiz-opt ${picked.has(o.key) ? 'picked' : ''} ${rv ? (ok ? 'is-correct' : picked.has(o.key) ? 'is-wrong' : '') : ''}` },
+          input, h('span', {}, h('b', {}, `${o.key}. `), o.text),
+          rv ? h('span', { class: 'why' }, `${ok ? '✓ ' : '✕ '}${rv.options.find((r) => r.key === o.key)?.rationale ?? ''}`) : null);
+        input.addEventListener('change', () => {
+          let keys = [...box.querySelectorAll('input:checked')].map((e) => e.value);
+          if (multi && keys.length > x.pick) { input.checked = false; keys = keys.filter((k) => k !== o.key); toast(`Choose ${x.pick} for this question.`, 'info'); }
+          q.answers[x.id] = keys;
+          quizDraft(id, q.answers);
+          for (const lb of box.querySelectorAll('.quiz-opt')) lb.classList.toggle('picked', lb.querySelector('input').checked);
+          setCount();
+        });
+        box.append(label);
+      }
+      if (rv?.explanation) box.append(h('div', { class: 'quiz-explain' }, rv.explanation));
+      if (rv?.sources.length) box.append(h('div', { class: 'links small' }, ...rv.sources.map((u, k) => h('a', { href: u, target: '_blank', rel: 'noopener noreferrer' }, `Source ${k + 1}`))));
+      list.push(box);
+    });
+    view.replaceChildren(...[head, bar, h('section', {}, ...list), q.result ? null : h('section', { class: 'card foot' }, h('span', { class: 'muted small' }, 'Done? Submit to see the rationale of every option.'), h('button', { class: 'btn btn-primary', type: 'button', onclick: submit }, 'Submit and grade'))].filter(Boolean));
+  }
+
   // ------------------------------------------------------------ routing
   function route() {
     const parts = location.hash.replace(/^#\/?/, '').split('/');
     if (parts[0] === 'session' && /^C\d{3}$/.test(parts[1] ?? '')) return { view: 'session', id: parts[1] };
-    return { view: ['schedule', 'map', 'progress', 'environment', 'study', 'interview'].includes(parts[0]) ? parts[0] : 'schedule' };
+    if (parts[0] === 'quiz' && /^[0-2][0-9]$/.test(parts[1] ?? '')) return { view: 'quiz', id: parts[1] };
+    return { view: ['schedule', 'course', 'map', 'progress', 'environment', 'study', 'interview'].includes(parts[0]) ? parts[0] : 'schedule' };
   }
 
   function render(force = false) {
@@ -1260,6 +1485,8 @@
     renderChrome();
     const r = route();
     if (r.view === 'session') renderWorkspace(r.id);
+    else if (r.view === 'course') renderCourse();
+    else if (r.view === 'quiz') renderQuiz(r.id);
     else if (r.view === 'map') renderMap();
     else if (r.view === 'progress') renderProgress();
     else if (r.view === 'environment') renderEnvironment();

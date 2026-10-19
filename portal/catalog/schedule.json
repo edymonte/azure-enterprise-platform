@@ -1,17 +1,32 @@
 {
   "title": "Vacation route — AZ-400 + Azure platform",
   "subtitle": "Up to 3 h a day · one AZ-400 lab + its questions per day · one platform session a week",
-  "start": "2026-10-18",
+  "start": "2026-10-19",
   "lastDay": "2026-11-12",
   "dailyHours": 3,
   "az400": {
-    "prep": "2026-10-18",
-    "labs": { "00": "2026-10-18" },
-    "dailyFrom": { "first": "01", "last": "25", "start": "2026-10-19" },
-    "after": { "26": "2026-11-14", "27": "2026-11-21" }
+    "prep": "2026-10-19",
+    "labs": {
+      "00": "2026-10-19"
+    },
+    "dailyFrom": {
+      "first": "01",
+      "last": "25",
+      "start": "2026-10-20"
+    },
+    "after": {
+      "26": "2026-11-14",
+      "27": "2026-11-21"
+    }
   },
   "platform": [
-    { "id": "C001", "date": "2026-10-18" },
-    { "id": "C014", "date": "2026-10-25" }
+    {
+      "id": "C001",
+      "date": "2026-10-18"
+    },
+    {
+      "id": "C014",
+      "date": "2026-10-25"
+    }
   ]
 }

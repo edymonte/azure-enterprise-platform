@@ -100,10 +100,11 @@ code, .mono { font-family: var(--f-mono); font-size: .92em; }
 
 /* ---------- schedule (rail + detail) ---------- */
 .main-grid { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 20px; align-items: start; }
-.rail { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; position: sticky; top: 196px; max-height: calc(100vh - 214px); display: flex; flex-direction: column; }
+/* The whole schedule is visible: the rail grows with the page (no inner scroll). */
+.rail { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; display: flex; flex-direction: column; }
 .rail-head { padding: 12px 14px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .rail-head h2 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
-.rail-list { overflow-y: auto; padding: 6px; }
+.rail-list { padding: 6px; }
 .week { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); padding: 10px 8px 4px; }
 .item { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; padding: 8px; border-radius: 8px; border-left: 3px solid transparent; }
 .item:hover { background: var(--sunk); }
@@ -112,7 +113,7 @@ code, .mono { font-family: var(--f-mono); font-size: .92em; }
 .item .date b { display: block; font-size: 14px; color: var(--ink); font-weight: 600; }
 .item.is-today .date b { color: var(--accent); }
 .item .t { min-width: 0; }
-.item .t b { display: block; font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item .t b { display: block; font-size: 13.5px; font-weight: 600; line-height: 1.3; }
 .item .t small { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11.5px; }
 .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; display: inline-block; }
 .pill { font-size: 10.5px; font-weight: 700; letter-spacing: .04em; padding: 2px 7px; border-radius: 999px; white-space: nowrap; text-transform: uppercase; }
@@ -133,7 +134,7 @@ code, .mono { font-family: var(--f-mono); font-size: .92em; }
 .tag.cost-warn { background: var(--warn-soft); color: var(--warn); }
 .tag.cost-ok { background: var(--ok-soft); color: var(--ok); }
 .detail h2.title { font-size: 26px; font-weight: 800; letter-spacing: -.015em; margin: 10px 0 4px; }
-.detail h2 .num { font-family: var(--f-mono); color: var(--faint); font-weight: 500; margin-right: 8px; }
+.detail h2 .num, h2.title .num { font-family: var(--f-mono); color: var(--faint); font-weight: 500; margin-right: 8px; }
 .role { color: var(--muted); margin: 0 0 14px; font-size: 14px; }
 .two { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; }
 .box { background: var(--sunk); border-radius: 8px; padding: 12px 14px; min-width: 0; }
@@ -432,12 +433,10 @@ textarea { width: 100%; min-height: 70px; background: var(--panel); color: var(-
   .ws-divider { display: none; }
   .ws-panel { min-height: 480px; margin-bottom: 14px; }
   .launch { grid-template-columns: 1fr; }
-  .rail { top: 290px; max-height: calc(100vh - 310px); }
 }
 @media (max-width: 900px) {
   .band { position: static; }
   .main-grid { grid-template-columns: 1fr; }
-  .rail { position: static; max-height: 380px; }
   .two, .grid-2 { grid-template-columns: 1fr; }
   .stats, .stats-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .domains { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -445,3 +444,35 @@ textarea { width: 100%; min-height: 70px; background: var(--panel); color: var(-
   .phase { padding-left: 0; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* AZ-400 course overview */
+.course-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.lab-card { all: unset; box-sizing: border-box; cursor: pointer; display: grid; gap: 6px; padding: 14px 16px; border-radius: var(--r); background: var(--panel); border: 1px solid var(--line); border-top: 4px solid var(--line); }
+.lab-card:hover { border-color: var(--accent); }
+.lab-card .lc-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.lab-card b.lc-title { font-size: 15px; line-height: 1.3; }
+.lab-card .lc-meta { display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; color: var(--muted); }
+.domain-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 6px 0 10px; }
+.domain-head h3 { margin: 0; }
+
+/* task content and quiz */
+.task-block { margin: 8px 0; }
+.task-block > summary { cursor: pointer; font-size: 13px; font-weight: 700; color: var(--accent); }
+.task-block[open] > summary { margin-bottom: 4px; }
+.reveal { margin-top: 8px; border: 1px dashed var(--line); border-radius: 8px; padding: 8px 10px; }
+.reveal > summary { cursor: pointer; font-weight: 700; color: var(--warn); font-size: 13px; }
+.quiz-q { padding: 14px 16px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); margin-bottom: 12px; }
+.quiz-q.right { border-color: var(--ok); }
+.quiz-q.wrong { border-color: var(--bad); }
+.quiz-q h4 { margin: 0 0 8px; font-size: 15px; line-height: 1.45; }
+.quiz-meta { font-size: 11.5px; color: var(--faint); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+.quiz-opt { display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: start; padding: 8px 10px; border-radius: 8px; margin: 4px 0; background: var(--sunk); cursor: pointer; border: 1px solid transparent; }
+.quiz-opt input { margin-top: 3px; accent-color: var(--accent); }
+.quiz-opt.picked { border-color: var(--accent); }
+.quiz-opt.is-correct { background: var(--ok-soft); }
+.quiz-opt.is-wrong { background: var(--bad-soft); }
+.quiz-opt .why { grid-column: 2; font-size: 13px; color: var(--muted); margin-top: 2px; }
+.quiz-explain { margin-top: 8px; font-size: 13.5px; padding: 8px 10px; border-radius: 8px; background: var(--accent-soft); }
+.quiz-bar { position: sticky; top: 8px; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.term-input.pending { color: #fbbf24; }
+.quiz-entry { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 10px; }

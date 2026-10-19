@@ -61,6 +61,18 @@ test('terminal: commands, persistent cwd, prompts, errors and restart', { skip }
 
   assert.throws(() => term.input('a\nb'), /single line/);
 
+  // A multi-line block runs in the current scope: its variables stay defined.
+  term.runBlock("$blk = 'from-block'\nif ($true) {\n  Write-Output \"block=[$blk]\"\n}");
+  await waitIdle(term);
+  assert.match(term.buffer, /block=\[from-block\]/);
+  assert.equal(term.lastOk, true);
+  term.input('Write-Output "after=[$blk]"');
+  await waitIdle(term);
+  assert.match(term.buffer, /after=\[from-block\]/, 'dot-sourced into the session');
+  term.runBlock("Write-Output one\nthrow 'boom'");
+  await waitIdle(term);
+  assert.equal(term.lastOk, false, 'a throwing block is reported as failed');
+
   // cls/clear are handled by the portal (no console to clear in a piped shell).
   let cleared = false;
   term.once('cleared', () => { cleared = true; });

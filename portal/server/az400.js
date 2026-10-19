@@ -34,6 +34,9 @@ export class Az400 extends EventEmitter {
     const file = path.join(this.root, 'curriculum', 'lab-content.yml');
     try {
       const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+      // Full task content (commands, validations, break/fix) is served on demand
+      // by detail(); the state pushed to the browser keeps only the summary.
+      this.raw = new Map((data.labs ?? []).filter((l) => LAB_ID.test(l.id)).map((l) => [l.id, l]));
       this.labs = (data.labs ?? []).filter((l) => LAB_ID.test(l.id)).map((l) => ({
         id: l.id,
         slug: l.slug,
@@ -62,6 +65,65 @@ export class Az400 extends EventEmitter {
     this.repoUrl = remote.code === 0 ? githubBlobUrl(remote.stdout) : null;
     this.scan();
     return this;
+  }
+
+  // Task content of one lab: the five checkpoints' commands and validations,
+  // the break/fix and the challenge.
+  detail(labId) {
+    const l = this.raw?.get(labId);
+    if (!l) return null;
+    const str = (v) => (typeof v === 'string' ? v.replace(/\r\n/g, '\n').replace(/\n+$/, '') : null);
+    return {
+      id: l.id,
+      checkpoints: (l.checkpoints ?? []).map((c) => ({
+        id: c.id, title: c.title, expected: c.expected, fix: c.fix, evidence: c.evidence ?? null,
+        commands: str(c.commands), positive: str(c.positive), negative: str(c.negative),
+      })),
+      breakFix: l.breakFix ? {
+        trigger: str(l.breakFix.trigger), diagnose: str(l.breakFix.diagnose), repair: str(l.breakFix.repair),
+        assert: str(l.breakFix.assert), expectedFailure: l.breakFix.expectedFailure ?? null,
+      } : null,
+      challenge: l.challenge ?? null,
+      solutionNotes: l.solutionNotes ?? null,
+      sources: l.sources ?? [],
+    };
+  }
+
+  // The lab's practice questions (labs 01–25), read from labs/<slug>/questions.yml.
+  questions(labId) {
+    const l = this.raw?.get(labId);
+    if (!l) return null;
+    try {
+      const q = JSON.parse(fs.readFileSync(path.join(this.root, 'labs', l.slug, 'questions.yml'), 'utf8').replace(/^﻿/, ''));
+      const sources = new Map((q.sources ?? []).map((s) => [s.id, s.url]));
+      return (q.questions ?? []).map((x) => ({
+        id: String(x.id),
+        checkpointId: x.checkpointId ?? null,
+        difficulty: x.difficulty ?? null,
+        question: String(x.question),
+        options: (x.options ?? []).map((o) => ({ key: String(o.key), text: String(o.text), rationale: o.rationale ? String(o.rationale) : '' })),
+        correct: (x.correctAnswers ?? []).map(String),
+        explanation: x.explanation ? String(x.explanation) : '',
+        sources: (x.sourceIds ?? []).map((id) => sources.get(id)).filter(Boolean),
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  // Grades a quiz submission on the server: { questionId: ["A", …] } → result.
+  grade(labId, answers) {
+    const qs = this.questions(labId) ?? [];
+    if (!qs.length) return null;
+    let correct = 0;
+    const wrong = [];
+    for (const q of qs) {
+      const given = Array.isArray(answers?.[q.id]) ? [...new Set(answers[q.id].map(String))].sort() : [];
+      const ok = given.length === q.correct.length && [...q.correct].sort().every((k, i) => k === given[i]);
+      if (ok) correct += 1;
+      else wrong.push(q.id);
+    }
+    return { total: qs.length, correct, pct: Math.round((correct / qs.length) * 100), wrong };
   }
 
   // Reads every validation.json; keeps, per lab, the most recent verification.
