@@ -308,6 +308,20 @@ export class ProgressStore {
     this.save();
   }
 
+  // A graded quiz attempt: the latest percentage becomes the lab's score.
+  recordAz400Quiz(labId, result) {
+    if (!/^[0-2][0-9]$/.test(labId)) throw new UserError('Unknown lab.');
+    const a = this.az400();
+    a.quizzes ??= {};
+    const list = a.quizzes[labId] ?? [];
+    list.push({ at: new Date().toISOString(), correct: result.correct, total: result.total, pct: result.pct, wrong: result.wrong });
+    a.quizzes[labId] = list.slice(-20);
+    a.scores[labId] = result.pct;
+    this.bump('quiz');
+    this.save();
+    return a.quizzes[labId];
+  }
+
   setAz400Run(suffix) {
     if (typeof suffix !== 'string' || !/^[a-z0-9-]{1,16}$/.test(suffix)) throw new UserError('Run suffix: 1–16 lowercase letters, digits or hyphens.');
     this.az400().run = suffix;

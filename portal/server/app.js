@@ -28,7 +28,7 @@ const SECURITY_HEADERS = {
   'Cache-Control': 'no-store',
 };
 const ACTIONS = new Set(['start', 'check', 'cancel', 'hint', 'assisted', 'assessment']);
-const MAX_BODY = 4096;
+const MAX_BODY = 32768; // a terminal block (16 KB) or a 50-question quiz fits
 
 const BLOCK_MESSAGES = {
   locked: 'Locked: complete the previous session to unlock it.',
@@ -332,6 +332,27 @@ export function createApp(config) {
         pushState();
         return send(res, 200, { ok: true });
       }
+      const azGet = pathname.match(/^\/api\/az400\/([0-2][0-9])\/(detail|questions)$/);
+      if (req.method === 'GET' && azGet) {
+        const [, labId, what] = azGet;
+        let data = what === 'detail' ? az400.detail(labId) : az400.questions(labId);
+        if (!data) return send(res, 404, { error: 'Unknown lab' });
+        // The answers stay on the server until the learner submits the quiz.
+        if (what === 'questions') {
+          data = data.map(({ correct, explanation, options, ...q }) => ({ ...q, pick: correct.length, options: options.map(({ key, text }) => ({ key, text })) }));
+        }
+        return send(res, 200, data);
+      }
+      const quiz = pathname.match(/^\/api\/az400\/([0-2][0-9])\/quiz$/);
+      if (req.method === 'POST' && quiz) {
+        const body = await readJson(req);
+        if (!body.answers || typeof body.answers !== 'object' || Array.isArray(body.answers)) throw new UserError('"answers" must be an object of question id → keys.');
+        const result = az400.grade(quiz[1], body.answers);
+        if (!result) return send(res, 404, { error: 'This lab has no questions' });
+        const attempts = progress.recordAz400Quiz(quiz[1], result);
+        pushState();
+        return send(res, 200, { ...result, attempts: attempts.length, review: az400.questions(quiz[1]) });
+      }
       if (req.method === 'POST' && pathname === '/api/az400/run') {
         const body = await readJson(req);
         progress.setAz400Run(body.suffix);
@@ -366,13 +387,14 @@ export function createApp(config) {
         pushState();
         return send(res, 200, { ok: true, passes: rec.passes });
       }
-      const t = pathname.match(/^\/api\/terminal\/(input|restart|clear)$/);
+      const t = pathname.match(/^\/api\/terminal\/(input|block|restart|clear)$/);
       if (req.method === 'POST' && t) {
         if (!terminal) return send(res, 404, { error: 'The terminal is disabled. Start the portal with PORTAL_TERMINAL=1 to enable it.' });
         const body = await readJson(req);
-        if (t[1] === 'input') {
+        if (t[1] === 'input' || t[1] === 'block') {
           try {
-            terminal.input(body.line);
+            if (t[1] === 'input') terminal.input(body.line);
+            else terminal.runBlock(body.script);
           } catch (err) {
             throw new UserError(err.message);
           }

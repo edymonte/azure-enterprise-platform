@@ -19,6 +19,10 @@ function courseFixture() {
       { id: '00', slug: '00-safe-bootstrap', title: 'Bootstrap', domain: 'foundation', minutes: 60, cost: 'none', platforms: ['local'], scenario: 's', role: 'r', primer: 'p', checkpoints: [1, 2, 3, 4, 5].map(cp) },
       { id: '09', slug: '09-github-actions-ci', title: 'GitHub Actions CI', domain: 'pipelines', minutes: 120, cost: 'none', platforms: ['local', 'github'], scenario: 's', role: 'r', primer: 'p', checkpoints: [1, 2, 3, 4, 5].map(cp) },
     ] }),
+    'labs/09-github-actions-ci/questions.yml': JSON.stringify({ sources: [{ id: 'S1', url: 'https://docs.github.com/x' }], questions: [
+      { id: 'L09-Q001', checkpointId: 'CP1', difficulty: 'foundational', question: 'One?', options: [{ key: 'A', text: 'a', rationale: 'yes' }, { key: 'B', text: 'b', rationale: 'no' }], correctAnswers: ['A'], explanation: 'because', sourceIds: ['S1'] },
+      { id: 'L09-Q002', question: 'Two?', options: [{ key: 'A', text: 'a' }, { key: 'B', text: 'b' }, { key: 'C', text: 'c' }], correctAnswers: ['A', 'C'] },
+    ] }),
   });
   return root;
 }
@@ -45,6 +49,34 @@ test('az400: reads the course catalog and the latest validation.json per lab', a
   assert.equal(az.evidence['09'].status, 'passed', 'latest run wins; BOM tolerated');
   assert.equal(az.evidence['09'].runId, 'l09-b');
   assert.equal(az.evidence['10'], undefined, 'labId inside the file must match the folder');
+});
+
+test('az400: task detail, questions and server-side grading', async () => {
+  const root = courseFixture();
+  const lc = JSON.parse(fs.readFileSync(path.join(root, 'curriculum/lab-content.yml'), 'utf8'));
+  lc.labs[1].checkpoints[0].commands = 'Write-Output 1\r\nWrite-Output 2\n';
+  lc.labs[1].breakFix = { trigger: 't', diagnose: 'd', repair: 'r', assert: 'a', expectedFailure: 'AZ400-L09-FAULT' };
+  writeFiles(root, { 'curriculum/lab-content.yml': JSON.stringify(lc) });
+  const az = await new Az400({ root }).load();
+  const d = az.detail('09');
+  assert.equal(d.checkpoints[0].commands, 'Write-Output 1\nWrite-Output 2', 'line endings normalised');
+  assert.equal(d.breakFix.expectedFailure, 'AZ400-L09-FAULT');
+  assert.equal(az.detail('42'), null);
+  assert.equal(az.labs[1].breakFix, undefined, 'the pushed state keeps only the summary');
+
+  const qs = az.questions('09');
+  assert.equal(qs.length, 2);
+  assert.deepEqual(qs[0].sources, ['https://docs.github.com/x']);
+  assert.deepEqual(az.questions('00'), [], 'no questions file');
+  assert.deepEqual(az.grade('09', { 'L09-Q001': ['A'], 'L09-Q002': ['C', 'A'] }), { total: 2, correct: 2, pct: 100, wrong: [] });
+  assert.deepEqual(az.grade('09', { 'L09-Q001': ['A', 'B'], 'L09-Q002': ['A'] }), { total: 2, correct: 0, pct: 0, wrong: ['L09-Q001', 'L09-Q002'] }, 'exact set only');
+  assert.equal(az.grade('00', {}), null);
+
+  const p = new ProgressStore({ dataDir: tempDir(), catalog }).load();
+  p.recordAz400Quiz('09', az.grade('09', { 'L09-Q001': ['A'] }));
+  assert.equal(p.az400().scores['09'], 50, 'the quiz sets the score');
+  assert.equal(p.az400().quizzes['09'].length, 1);
+  assert.throws(() => p.recordAz400Quiz('../x', { correct: 0, total: 1, pct: 0, wrong: [] }));
 });
 
 test('az400: a missing course is reported, not fatal', async () => {
@@ -84,8 +116,8 @@ test('schedule: AZ-400 daily plan plus scheduled platform sessions, which are un
   const s = loadSchedule(PORTAL_ROOT, catalog);
   const az = s.items.filter((i) => i.kind === 'az400');
   assert.equal(az[0].id, 'prep', 'preparation first on day one');
-  assert.equal(az.find((i) => i.id === '01').date, '2026-10-19');
-  assert.equal(az.find((i) => i.id === '25').date, '2026-11-12');
+  assert.equal(az.find((i) => i.id === '01').date, '2026-10-20');
+  assert.equal(az.find((i) => i.id === '25').date, '2026-11-13', 'the plan starts on Oct 19, so lab 25 lands the day after the vacation');
   assert.ok(s.scheduledSessions.has('C014'));
   const p = new ProgressStore({ dataDir: tempDir(), catalog, scheduledSessions: s.scheduledSessions }).load();
   assert.equal(p.stateOf('C014').state, 'AVAILABLE', 'scheduled session is unlocked');

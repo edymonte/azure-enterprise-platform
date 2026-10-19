@@ -12,6 +12,7 @@ import { redact } from '../lib/redact.js';
 const MARKER = /\x1b\]9999;portal;([^;\x07]*);(\w*)\x07/g;
 const MAX_BUFFER = 256 * 1024;
 const MAX_LINE = 4000;
+const MAX_BLOCK = 16000;
 
 // Prints a marker after every command so the page knows the shell is idle
 // again, its working directory and whether the command succeeded.
@@ -137,6 +138,22 @@ export class Terminal extends EventEmitter {
     // try/finally keeps the marker even when the command throws; it does not
     // create a new scope, so `cd` and variables persist like in a normal shell.
     this.child.stdin.write(`${BEFORE}; try { ${line} } finally { ${MARK} }\n`);
+  }
+
+  // A multi-line block (e.g. a task's commands). It is shown as typed, then
+  // run in the current scope (dot-sourced), so variables and cd persist.
+  runBlock(script) {
+    if (typeof script !== 'string' || !script.trim() || script.length > MAX_BLOCK || script.includes('\0')) {
+      throw new Error(`A block must be 1–${MAX_BLOCK} characters.`);
+    }
+    this.ensure();
+    if (this.busy) throw new Error('A command is still running. Wait for it (or Restart) before running a block.');
+    const text = script.replace(/\r\n/g, '\n');
+    this.append(text.split('\n').map((l, i) => `${i === 0 ? `PS ${this.cwd}> ` : '>> '}${l}`).join('\n') + '\n');
+    const b64 = Buffer.from(text, 'utf8').toString('base64');
+    this.busy = true;
+    this.emit('status', this.status());
+    this.child.stdin.write(`${BEFORE}; try { . ([scriptblock]::Create([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${b64}')))) } finally { ${MARK} }\n`);
   }
 
   restart() {

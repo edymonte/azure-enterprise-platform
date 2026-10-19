@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import { createApp } from '../server/app.js';
 import { loadConfig } from '../server/config.js';
-import { gitRepo, hasCommand, tempDir } from './helpers.js';
+import { gitRepo, hasCommand, tempDir, writeFiles } from './helpers.js';
 
 function request(port, { method = 'GET', path = '/', headers = {}, body } = {}) {
   return new Promise((resolve, reject) => {
@@ -43,7 +43,7 @@ test('http: loopback only, host/origin/token checks, allow-listed ids, no secret
   assert.equal((await request(port, { method: 'POST', path: '/api/sessions/C999/start', headers: json, body: '{}' })).status, 404, 'unknown session');
   assert.equal((await request(port, { method: 'POST', path: '/api/sessions/..%2Fx/start', headers: json, body: '{}' })).status, 404);
   assert.equal((await request(port, { method: 'POST', path: '/api/sessions/C001/exec', headers: json, body: '{"cmd":"rm -rf /"}' })).status, 404, 'no arbitrary actions');
-  assert.equal((await request(port, { method: 'POST', path: '/api/sessions/C001/start', headers: json, body: 'x'.repeat(5000) })).status, 400, 'body limit');
+  assert.equal((await request(port, { method: 'POST', path: '/api/sessions/C001/start', headers: json, body: 'x'.repeat(40000) })).status, 400, 'body limit');
   assert.equal((await request(port, { path: '/../server/app.js' })).status, 404, 'no static traversal');
   assert.equal((await request(port, { method: 'POST', path: '/api/sessions/C002/start', headers: json, body: '{}' })).status, 400, 'locked');
 
@@ -74,4 +74,32 @@ test('http: opt-in terminal runs a line and keeps the same protections', { skip:
   assert.match(app.terminal.buffer, /portal-ok-2/);
   const state = JSON.parse((await request(port, { path: '/api/state', headers: json })).body);
   assert.equal(state.meta.terminal.enabled, true);
+});
+
+test('http: AZ-400 questions hide the answers until the quiz is submitted', async (t) => {
+  const { root } = gitRepo({ 'README.md': 'x\n' });
+  const course = tempDir('az400-http-');
+  writeFiles(course, {
+    'curriculum/lab-content.yml': JSON.stringify({ labs: [{ id: '09', slug: '09-ci', title: 'CI', domain: 'pipelines', checkpoints: [{ id: 'CP1', title: 'T', commands: 'Write-Output 1' }] }] }),
+    'labs/09-ci/questions.yml': JSON.stringify({ questions: [{ id: 'L09-Q001', question: 'Q?', options: [{ key: 'A', text: 'a', rationale: 'right' }, { key: 'B', text: 'b', rationale: 'wrong' }], correctAnswers: ['A'], explanation: 'secret' }] }),
+  });
+  const port = 20000 + Math.floor(Math.random() * 20000);
+  const app = createApp({ ...loadConfig({ PORTAL_REPO_ROOT: root, PORTAL_DATA_DIR: tempDir(), PORTAL_PORT: String(port), PORTAL_AZ400_ROOT: course }) });
+  await app.start();
+  t.after(() => app.stop());
+  const json = { 'Content-Type': 'application/json', 'X-Portal-Token': app.token };
+
+  assert.equal((await request(port, { path: '/api/az400/09/questions' })).status, 401, 'token required');
+  const qs = await request(port, { path: '/api/az400/09/questions', headers: json });
+  assert.equal(qs.status, 200);
+  assert.doesNotMatch(qs.body, /right|wrong|secret|correct/, 'no answers, rationales or explanation before submission');
+  assert.equal(JSON.parse(qs.body)[0].pick, 1);
+  assert.match((await request(port, { path: '/api/az400/09/detail', headers: json })).body, /Write-Output 1/);
+  assert.equal((await request(port, { path: '/api/az400/42/detail', headers: json })).status, 404);
+
+  assert.equal((await request(port, { method: 'POST', path: '/api/az400/09/quiz', headers: json, body: '{"answers":[]}' })).status, 400);
+  const graded = JSON.parse((await request(port, { method: 'POST', path: '/api/az400/09/quiz', headers: json, body: '{"answers":{"L09-Q001":["A"]}}' })).body);
+  assert.equal(graded.pct, 100);
+  assert.equal(graded.review[0].explanation, 'secret', 'answers come back with the grade');
+  assert.equal(app.progress.az400().scores['09'], 100);
 });
