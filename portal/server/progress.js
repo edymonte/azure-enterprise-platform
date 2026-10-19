@@ -206,6 +206,57 @@ export class ProgressStore {
     return out;
   }
 
+  // Personal course links (e.g. a lesson in a paid training platform). Kept in
+  // their own file in the data dir — never in the repository catalog.
+  get linksFile() {
+    return path.join(this.dataDir, 'links.json');
+  }
+
+  links() {
+    if (this.linksCache) return this.linksCache;
+    try {
+      this.linksCache = JSON.parse(fs.readFileSync(this.linksFile, 'utf8'));
+    } catch {
+      this.linksCache = {};
+    }
+    return this.linksCache;
+  }
+
+  isLinkTarget(target) {
+    return this.catalog.byId.has(target) || this.catalog.studyPlan.itemIds.has(target);
+  }
+
+  addLink(target, label, url) {
+    if (!this.isLinkTarget(target)) throw new UserError('Unknown session or study item.');
+    if (typeof label !== 'string' || !label.trim() || label.length > 80) throw new UserError('"label" must be 1–80 characters.');
+    let parsed;
+    try {
+      parsed = new URL(url);
+    } catch {
+      throw new UserError('"url" must be a valid URL.');
+    }
+    if (parsed.protocol !== 'https:' || url.length > 500) throw new UserError('Only https:// links up to 500 characters are accepted.');
+    const all = this.links();
+    const list = all[target] ?? [];
+    if (list.length >= 10) throw new UserError('At most 10 links per item.');
+    list.push({ label: label.trim(), url: parsed.href, at: new Date().toISOString() });
+    all[target] = list;
+    this.saveLinks();
+  }
+
+  removeLink(target, index) {
+    const list = this.links()[target];
+    if (!list || !Number.isInteger(index) || index < 0 || index >= list.length) throw new UserError('Unknown link.');
+    list.splice(index, 1);
+    this.saveLinks();
+  }
+
+  saveLinks() {
+    const tmp = `${this.linksFile}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(this.links(), null, 2));
+    fs.renameSync(tmp, this.linksFile);
+  }
+
   // Self-tracked: ticked by the learner, never used for unlocking sessions.
   setStudyItem(itemId, done) {
     if (!this.catalog.studyPlan.itemIds.has(itemId)) throw new UserError('Unknown study item.');
