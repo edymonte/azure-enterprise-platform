@@ -61,3 +61,23 @@ Rules enforced by the runner:
 - Evidence is truncated to 4000 characters and passed through redaction.
 
 `checkers/lib/checker.js` implements the contract (`runChecker`, `Result.check/skip`, `az`, `git`, `azureGate`).
+
+## Schedule — `catalog/schedule.json`
+
+```jsonc
+{
+  "title": "…", "subtitle": "…",
+  "start": "2026-10-18", "lastDay": "2026-11-12", "dailyHours": 3,
+  "az400": {
+    "prep": "2026-10-18",                                    // one-time preparation item
+    "labs": { "00": "2026-10-18" },                          // explicit dates
+    "dailyFrom": { "first": "01", "last": "25", "start": "2026-10-19" },  // one lab per day
+    "after": { "26": "2026-11-14", "27": "2026-11-21" }     // after lastDay = "After" in the rail
+  },
+  "platform": [ { "id": "C001", "date": "2026-10-18" } ]    // scheduled sessions are unlocked by the plan
+}
+```
+
+## AZ-400 evidence
+
+The course writes `<PORTAL_AZ400_ROOT>/.state/<labId>/<runId>/validation.json` (schema `2.0.0`: `labId`, `runId`, `status` = `passed` | `partial` | `failed`, five `checkpoints`, `breakFix`, `integration`, `verifiedAt`). The portal keeps the most recent file per lab (by `verifiedAt`), ignores files whose `labId` does not match their folder, and records a completion once when `status` is `passed`.

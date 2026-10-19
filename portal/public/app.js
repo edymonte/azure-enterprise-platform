@@ -46,7 +46,7 @@
   function toast(msg, kind = 'error') {
     const t = $('#toast');
     t.textContent = msg;
-    t.className = `toast ${kind === 'info' ? 'info' : ''}`;
+    t.className = `toast ${kind === 'info' ? '' : 'error'}`;
     clearTimeout(toast.timer);
     toast.timer = setTimeout(() => t.classList.add('hidden'), 5000);
   }
@@ -80,36 +80,374 @@
     return h('span', { class: 'chip info', title: s.validation.notes }, 'Auto-validated · live pass pending');
   }
 
-  // ------------------------------------------------------------ chrome
+  // ------------------------------------------------------------ dates
+  const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const isoToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  const parseIso = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+  const fmtShort = (s) => { const d = parseIso(s); return { wd: WD[d.getDay()], dm: `${String(d.getDate()).padStart(2, '0')} ${MO[d.getMonth()]}` }; };
+  const fmtLong = (s) => { const d = parseIso(s); return `${WD[d.getDay()]}, ${MO[d.getMonth()]} ${d.getDate()}`; };
+
+  // ------------------------------------------------------------ AZ-400 model
+  const DOMAINS = {
+    foundation: { n: 'Foundation', w: 'support' }, process: { n: 'Processes', w: '10–15%' }, source: { n: 'Source control', w: '10–15%' },
+    pipelines: { n: 'Pipelines', w: '50–55%' }, security: { n: 'Security', w: '10–15%' }, instrumentation: { n: 'Monitoring', w: '5–10%' }, capstone: { n: 'Capstones', w: 'practice' },
+  };
+  const PLAT = { local: 'Local', github: 'GitHub', 'azure-devops': 'Azure DevOps', azure: 'Azure' };
+  const PREP = { id: 'prep', slug: '', domain: 'foundation', minutes: 120, title: 'Before anything: prepare the machine and accounts', platforms: ['local'],
+    role: 'Done once, on the first day.', scenario: 'Install the tools, create the disposable accounts and set the context variables every course script reads.',
+    primer: 'Use throw-away accounts and a disposable subscription, never work ones: a mistake in a lab must not touch anything real.', checkpoints: [] };
+
+  const az = () => state.az400;
+  const labById = (id) => (id === 'prep' ? PREP : az().labs.find((l) => l.id === id));
+  const runId = (l) => `l${l.id}-${az().progress.run || 'vacation'}`;
+  function costInfo(l) {
+    const c = (l.cost || '').toLowerCase();
+    if (l.id === 'prep' || c === 'none') return { t: 'No cost', k: 'ok' };
+    if (c.includes('billable') || c.includes('developer store') || c.includes('b1 app service')) return { t: 'Creates billable Azure resources', k: 'warn' };
+    if (c.includes('paid features')) return { t: 'Paid features off', k: 'ok' };
+    if (c.includes('hosted-run')) return { t: 'Uses CI minutes', k: 'ok' };
+    return { t: l.cost, k: '' };
+  }
+
+  // The runbook of a lab (mirrors the course: understand → prepare → 5 tasks → break/fix → validate → questions → clean up).
+  function az400Steps(l) {
+    const root = az().root;
+    if (l.id === 'prep') return [
+      { ph: 'Tools', k: 'req', t: 'Check the prerequisites', d: 'PowerShell 7.4+, .NET 10, Git, GitHub CLI (gh), Azure CLI with the azure-devops extension and Python 3. Install anything missing.', link: ['docs/prerequisites.md', 'Open prerequisites'] },
+      { k: 'init', t: 'Initialise the course environment', d: 'From the course folder. It checks the tools and prepares the git-ignored .state/ folder where your evidence lives.', code: `Set-Location '${root}'\n./tools/Initialize-LabEnvironment.ps1` },
+      { ph: 'Accounts', k: 'acc', t: 'Create the disposable accounts (once)', d: 'A personal GitHub account, a training Azure DevOps organisation and a disposable Azure subscription. Sign in to gh and az.', link: ['docs/account-bootstrap.md', 'Open account setup'], code: 'gh auth login\naz login\naz account show --output table' },
+      { k: 'env', t: 'Set the context variables', d: 'Every script reads these. Replace the values with yours; put them in your PowerShell profile (notepad $PROFILE) to keep them.', code: "$env:AZ400_GITHUB_OWNER = 'your-github-login'\n$env:AZ400_ADO_ORGANIZATION = 'https://dev.azure.com/your-training-org'\n$env:AZ400_SUBSCRIPTION_ID = '<disposable-subscription-guid>'", link: ['docs/configuration.md', 'Open configuration'] },
+      { ph: 'Safety and cost', k: 'cost', t: 'Read the cost and cleanup rules', d: 'Labs 15, 16, 17, 24, 25 and the capstones create paid Azure resources. The rule: every lab you run ends with Cleanup, the same day.', link: ['docs/cost-and-cleanup.md', 'Open cost and cleanup'] },
+    ];
+    const lab = `./labs/${l.slug}/scripts/cli`;
+    const R = runId(l);
+    const isCap = l.domain === 'capstone';
+    const hasQ = Number(l.id) >= 1 && Number(l.id) <= 25;
+    const costly = costInfo(l).k === 'warn';
+    const out = [];
+    out.push({ ph: 'Understand', k: 'read', t: 'Read the scenario and the concept in the README', d: 'Scenario, Architecture and Concept primer, plus the diagram (~15 min). Explain in your own words what will happen before running anything.', link: [`labs/${l.slug}/README.md`, 'Open the lab README'] });
+    out.push({ ph: 'Prepare', k: 'pre', t: 'Run Preflight (read-only)', d: 'From the course folder. Preflight only reads: tools, sign-ins and context. Fix anything it reports before going on.', code: `Set-Location '${root}'\n$lab = '${lab}'\n& "$lab/Preflight.ps1" -RunId '${R}'` });
+    out.push({ k: 'setup', t: 'Preview, then create the sandbox', d: 'First without -Execute: it shows what it would create and changes nothing. Read the preview, then run the second line.', note: costly ? 'This lab creates paid Azure resources. Only run -Execute when you have time to finish and clean up today.' : null, code: `& "$lab/Setup.ps1" -RunId '${R}' -ProvisionOnly\n# after reviewing the preview:\n& "$lab/Setup.ps1" -RunId '${R}' -ProvisionOnly -Execute -AcknowledgeCost -AcknowledgeTenantChange` });
+    out.push({ k: 'ctx', t: 'Load the context into the session', d: 'Creates $WorkRoot, $GhRepo, $ResourceGroup… used by the task commands. Note the leading dot: it loads into the current session. Run it again if you restart the terminal.', code: `. "$lab/Context.ps1" -RunId '${R}'` });
+    l.checkpoints.forEach((c, i) => {
+      out.push({ ph: i === 0 ? 'Practise: 5 tasks' : null, k: `cp${i + 1}`, t: `Task ${i + 1}: ${c.title}`, d: `In the README, go to Task ${i + 1}. Run the main commands, then the positive and negative validations. Tick it only when both pass.`,
+        orig: [['Expected result', c.expected], ['If it goes wrong', c.fix]], link: [`labs/${l.slug}/README.md#task-${i + 1}`, `Go to Task ${i + 1}`] });
+    });
+    if (isCap) out.push({ k: 'int', t: 'Run the capstone integration', d: 'Joins the five tasks and checks the end-to-end delivery. Read the integration section first.', note: 'Creates an App Service B1 and telemetry (paid). Clean up the same day.', code: `& "$lab/Integration.ps1" -RunId '${R}' -Execute -AcknowledgeCost -AcknowledgeTenantChange` });
+    out.push({ ph: 'Break and fix', k: 'bf', t: 'Run the break/fix', d: 'Read only the Fault trigger in the README and guess how the failure will show. The script proves health, injects the fault, requires detection, repairs and proves again.', code: `& "$lab/BreakFix.ps1" -RunId '${R}' -Execute` });
+    out.push({ k: 'val', t: 'Validate the final result', d: 'Independently re-validates the five tasks and the break/fix and writes validation.json — the portal reads it and marks the lab verified when it says passed.', code: `& "$lab/Validate.ps1" -RunId '${R}'` });
+    if (hasQ) out.push({ ph: 'Lock it in for the exam', k: 'q', t: 'Answer the 50 questions', d: 'Answer all of QUESTIONS.md before opening the answers, then read every rationale in ANSWERS.md — including the ones you got right. Record your score.', link: [`labs/${l.slug}/QUESTIONS.md`, 'Open questions'], link2: [`labs/${l.slug}/ANSWERS.md`, 'Open answers'], score: true });
+    out.push({ ph: 'Close', k: 'clean', t: 'Clean up everything the lab created', d: 'First without -Execute and read the list: only items of this Run ID must appear. Then with -Execute. Never skip it — it is what prevents charges.', code: `& "$lab/Cleanup.ps1" -RunId '${R}'\n# after reviewing the list:\n& "$lab/Cleanup.ps1" -RunId '${R}' -Execute` });
+    return out;
+  }
+  const labSteps = (l) => az400Steps(l).map((s) => s.k);
+  const stepDone = (l, k) => Boolean(az().progress.steps[`${l.id}:${k}`]);
+  function labProgress(l) { const ks = labSteps(l); return { d: ks.filter((k) => stepDone(l, k)).length, t: ks.length }; }
+  const labVerified = (l) => (l.id === 'prep' ? labProgress(l).d === labProgress(l).t : Boolean(az().progress.completions[l.id]));
+
+  // ------------------------------------------------------------ plan model
+  function planItems() {
+    return state.schedule.items.filter((it) => (it.kind === 'az400' ? state.az400.available && labById(it.id) : state.sessions.some((s) => s.id === it.id)));
+  }
+  function itemDone(it) {
+    if (it.kind === 'az400') return labVerified(labById(it.id));
+    return state.sessions.find((s) => s.id === it.id).state === 'COMPLETED';
+  }
+  function itemStarted(it) {
+    if (it.kind === 'az400') return labProgress(labById(it.id)).d > 0;
+    return Boolean(state.sessions.find((s) => s.id === it.id).startedAt);
+  }
+  function itemStatus(it) {
+    const today = isoToday();
+    if (itemDone(it)) return ['done', it.kind === 'az400' && it.id !== 'prep' ? 'Verified' : 'Done'];
+    if (it.date > state.schedule.lastDay) return ['extra', 'After'];
+    if (it.date < today) return ['late', 'Late'];
+    if (it.date === today) return ['today', 'Today'];
+    if (itemStarted(it)) return ['doing', 'Doing'];
+    return ['next', ''];
+  }
+  const itemKey = (it) => `${it.kind}:${it.id}`;
+  function itemTitle(it) {
+    if (it.kind === 'az400') return it.id === 'prep' ? 'Preparation' : `${it.id} · ${labById(it.id).title}`;
+    const s = state.sessions.find((x) => x.id === it.id);
+    return `${s.id} · ${s.title}`;
+  }
+
+  // ------------------------------------------------------------ chrome (summary band)
+  function applyTheme() {
+    let t = null;
+    try { t = localStorage.getItem('theme'); } catch { /* storage unavailable */ }
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    else delete document.documentElement.dataset.theme;
+  }
+  applyTheme();
+  $('#theme-btn').addEventListener('click', () => {
+    const dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    try { localStorage.setItem('theme', dark ? 'light' : 'dark'); } catch { /* storage unavailable */ }
+    applyTheme();
+  });
+
   function renderChrome() {
     const t = state.totals;
     $('#rank-title').textContent = t.rank.title;
-    $('#side-rank').textContent = t.rank.title;
     const nextXp = t.nextRank ? t.nextRank.minXp : t.xp;
-    const floor = t.rank.minXp;
-    const pct = t.nextRank ? ((t.xp - floor) / (nextXp - floor)) * 100 : 100;
+    const pct = t.nextRank ? ((t.xp - t.rank.minXp) / (nextXp - t.rank.minXp)) * 100 : 100;
     $('#xp-fill').style.width = `${Math.max(2, Math.min(100, pct))}%`;
-    $('#xp-num').textContent = t.nextRank ? `${t.xp} / ${nextXp} XP → ${t.nextRank.title}` : `${t.xp} XP · max rank`;
+    $('#xp-num').textContent = t.nextRank ? `${t.xp}/${nextXp} XP` : `${t.xp} XP`;
     $('#coins').textContent = t.coins;
     $('#badge-count').textContent = t.badges.length;
     $('#validation-banner').classList.toggle('hidden', !state.meta.validationMode);
+    $('#plan-subtitle').textContent = state.schedule.start ? `${fmtLong(state.schedule.start)} – ${fmtLong(state.schedule.lastDay)} · ${state.schedule.subtitle}` : state.meta.subtitle;
+
+    const labs = state.az400.available ? state.az400.labs : [];
+    const verified = labs.filter(labVerified).length;
+    $('#s-labs').textContent = state.az400.available ? `${verified}/${labs.length}` : 'n/a';
+    $('#s-labs-bar').style.width = `${labs.length ? (verified / labs.length) * 100 : 0}%`;
+    const doneSessions = state.sessions.filter((s) => s.state === 'COMPLETED').length;
+    $('#s-sessions').textContent = `${doneSessions}/${state.sessions.length}`;
+    $('#s-sessions-bar').style.width = `${(doneSessions / state.sessions.length) * 100}%`;
+
+    const today = isoToday();
+    const items = planItems();
+    const due = items.filter((it) => it.date < today && it.date <= state.schedule.lastDay);
+    const late = due.filter((it) => !itemDone(it)).length;
+    const ahead = items.filter((it) => it.date > today && itemDone(it)).length;
+    const pace = $('#s-pace');
+    if (state.schedule.start && today < state.schedule.start) { pace.textContent = `Starts ${fmtShort(state.schedule.start).dm}`; pace.style.color = 'var(--muted)'; }
+    else if (late) { pace.textContent = `${late} item${late > 1 ? 's' : ''} late`; pace.style.color = 'var(--bad)'; }
+    else if (ahead) { pace.textContent = `${ahead} ahead`; pace.style.color = 'var(--ok)'; }
+    else { pace.textContent = 'On track'; pace.style.color = 'var(--ok)'; }
+    const next = items.find((it) => !itemDone(it));
+    if (next) {
+      $('#today-lbl').textContent = `Next · ${next.date === today ? 'today' : fmtLong(next.date)}`;
+      $('#today-txt').textContent = itemTitle(next);
+      $('#today-btn').onclick = () => { selectItem(itemKey(next)); location.hash = '#/schedule'; };
+    } else { $('#today-lbl').textContent = 'All done'; $('#today-txt').textContent = 'Book the exam'; $('#today-btn').onclick = null; }
+
+    const order = ['process', 'source', 'pipelines', 'security', 'instrumentation', 'capstone'];
+    const doms = $('#domains');
+    doms.replaceChildren(...order.map((k) => {
+      const ls = labs.filter((l) => l.domain === k);
+      const dn = ls.filter(labVerified).length;
+      const fill = h('div');
+      fill.style.width = `${ls.length ? (dn / ls.length) * 100 : 0}%`;
+      fill.style.background = `var(--d-${k})`;
+      return h('div', { class: 'dom' }, h('div', { class: 'row' }, h('b', {}, DOMAINS[k].n), h('span', {}, `${dn}/${ls.length} · ${DOMAINS[k].w}`)), h('div', { class: 'bar' }, fill));
+    }), (() => {
+      const fill = h('div');
+      fill.style.width = `${(doneSessions / state.sessions.length) * 100}%`;
+      fill.style.background = 'var(--d-platform)';
+      return h('div', { class: 'dom' }, h('div', { class: 'row' }, h('b', {}, 'Azure platform'), h('span', {}, `${doneSessions}/${state.sessions.length}`)), h('div', { class: 'bar' }, fill));
+    })());
 
     const env = state.environment;
     const pills = $('#env-pills');
-    pills.replaceChildren();
-    const az = env.azure;
-    const azKind = az.status === 'signed_in' ? (az.expectedSubscription === false ? 'bad' : 'ok') : az.status === 'unknown' ? '' : 'bad';
-    const azText = az.status === 'signed_in' ? (az.expectedSubscription === false ? 'Azure: wrong subscription' : 'Azure: signed in') : `Azure: ${az.status.replace('_', ' ')}`;
-    pills.append(h('span', { class: `pill ${azKind}`, title: az.user ?? az.detail ?? '' }, azText));
+    const azs = env.azure;
+    const azKind = azs.status === 'signed_in' ? (azs.expectedSubscription === false ? 'bad' : 'ok') : azs.status === 'unknown' ? '' : 'bad';
+    const azText = azs.status === 'signed_in' ? (azs.expectedSubscription === false ? 'Azure: wrong subscription' : 'Azure') : `Azure: ${azs.status.replace('_', ' ')}`;
     const aks = env.aks;
-    const aksKind = aks.status === 'running' ? 'ok' : aks.status === 'stopped' ? 'warn' : aks.status === 'not_deployed' ? '' : aks.status === 'unknown' ? '' : 'bad';
-    pills.append(h('span', { class: `pill ${aksKind}` }, `AKS: ${aks.status.replace('_', ' ')}`));
-    pills.append(h('span', { class: 'pill', title: abs(env.at) }, `probed ${rel(env.at)}`));
-
-    for (const a of document.querySelectorAll('.nav-item')) a.classList.toggle('active', a.dataset.view === route().view);
+    const aksKind = aks.status === 'running' ? 'ok' : aks.status === 'stopped' ? 'warn' : '';
+    pills.replaceChildren(
+      h('span', { class: `pill-env ${azKind}`, title: azs.user ?? azs.detail ?? '' }, azText),
+      h('span', { class: `pill-env ${aksKind}` }, `AKS: ${aks.status.replace('_', ' ')}`),
+      h('span', { class: `pill-env ${state.az400.available ? 'ok' : 'bad'}`, title: state.az400.error ?? state.az400.root }, state.az400.available ? 'AZ-400 course' : 'AZ-400 course missing'));
+    const v = route().view;
+    for (const a of document.querySelectorAll('.nav-item')) a.classList.toggle('active', a.dataset.view === v || (v === 'session' && a.dataset.view === 'map'));
   }
 
-  // ------------------------------------------------------------ practice
+  // ------------------------------------------------------------ schedule view
+  function selectItem(key) {
+    ui.sel = key;
+    try { localStorage.setItem('plan.sel', key); } catch { /* storage unavailable */ }
+    render(true);
+  }
+  function currentItem(items) {
+    if (!ui.sel) { try { ui.sel = localStorage.getItem('plan.sel'); } catch { /* storage unavailable */ } }
+    return items.find((it) => itemKey(it) === ui.sel) ?? items.find((it) => !itemDone(it)) ?? items[0];
+  }
+
+  function renderSchedule() {
+    const items = planItems();
+    if (!items.length) {
+      view.replaceChildren(h('section', { class: 'card' }, h('h2', {}, 'No plan yet'), h('p', { class: 'muted' }, state.az400.error ?? 'catalog/schedule.json has no items.')));
+      return;
+    }
+    const sel = currentItem(items);
+    const today = isoToday();
+    const rail = h('div', { class: 'rail-list' });
+    let lastWeek = null;
+    for (const it of items) {
+      const wk = it.date > state.schedule.lastDay ? 'After the vacation' : `Week ${Math.floor((parseIso(it.date) - parseIso(state.schedule.start)) / 864e5 / 7) + 1}`;
+      if (wk !== lastWeek) { rail.append(h('div', { class: 'week' }, wk)); lastWeek = wk; }
+      const f = fmtShort(it.date);
+      const [sk, sl] = itemStatus(it);
+      let dom; let sub;
+      if (it.kind === 'az400') {
+        const l = labById(it.id); const p = labProgress(l);
+        dom = `var(--d-${l.domain})`; sub = `${DOMAINS[l.domain].n} · ${p.d}/${p.t}`;
+      } else {
+        const s = state.sessions.find((x) => x.id === it.id);
+        dom = 'var(--d-platform)'; sub = `Azure platform · ${stateText(s)}`;
+      }
+      const dotEl = h('i', { class: 'dot' });
+      dotEl.style.background = dom;
+      rail.append(h('button', { class: `item ${it.date === today ? 'is-today' : ''}`, type: 'button', 'aria-current': String(itemKey(it) === itemKey(sel)), onclick: () => selectItem(itemKey(it)) },
+        h('span', { class: 'date' }, f.wd, h('b', {}, f.dm)),
+        h('span', { class: 't' }, h('b', {}, itemTitle(it)), h('small', {}, dotEl, sub)),
+        sl ? h('span', { class: `pill p-${sk}` }, sl) : h('span')));
+    }
+    const railEl = h('nav', { class: 'rail', 'aria-label': 'Schedule' },
+      h('div', { class: 'rail-head' }, h('h2', {}, 'Schedule'), h('span', { class: 'mono small muted' }, `${items.filter(itemDone).length}/${items.length}`)), rail);
+    const detail = h('main', { class: 'detail' }, ...(sel.kind === 'az400' ? az400Detail(labById(sel.id), sel, items) : platformDetail(state.sessions.find((s) => s.id === sel.id), sel)));
+    const oldRail = view.querySelector('.rail-list');
+    const railScroll = oldRail ? oldRail.scrollTop : null;
+    view.replaceChildren(h('div', { class: 'main-grid' }, railEl, detail));
+    if (railScroll !== null) rail.scrollTop = railScroll;
+    else { const cur = rail.querySelector('[aria-current="true"]'); if (cur) cur.scrollIntoView({ block: 'center' }); }
+  }
+
+  function repoLink(rel, label) {
+    const base = state.az400.repoUrl;
+    return base ? h('a', { href: base + rel, target: '_blank', rel: 'noopener noreferrer' }, label) : h('span', { class: 'muted small' }, `${label}: ${rel}`);
+  }
+  function verdict(v) {
+    if (v === undefined || v === null || Number.isNaN(v)) return ['v-none', 'No score yet'];
+    if (v < 70) return ['v-bad', 'Below 70%: redo the lab'];
+    if (v < 85) return ['v-mid', '70–84%: review the weak spots'];
+    return ['v-ok', '85% or more: move on'];
+  }
+  // The terminal takes one line: paste the first group of commands (up to the
+  // first comment, e.g. before an -Execute line that needs a review first).
+  function firstCommandGroup(code) {
+    const lines = [];
+    for (const line of code.split('\n')) {
+      if (line.trim().startsWith('#')) break;
+      if (line.trim()) lines.push(line.trim());
+    }
+    return lines.join('; ');
+  }
+
+  function codeBlock(code) {
+    return h('div', { class: 'code' }, h('pre', {}, code), h('div', { class: 'code-actions' },
+      state.meta.terminal.enabled ? h('button', { type: 'button', title: 'Paste into the terminal below (you still press Enter)', onclick: () => sendToTerminal(firstCommandGroup(code)) }, '▶ Terminal') : null,
+      h('button', { type: 'button', onclick: (e) => navigator.clipboard.writeText(code).then(() => { e.target.textContent = 'Copied'; setTimeout(() => { e.target.textContent = 'Copy'; }, 1400); }) }, 'Copy')));
+  }
+
+  function az400Detail(l, it, items) {
+    const ci = costInfo(l);
+    const isPrep = l.id === 'prep';
+    const hasQ = !isPrep && Number(l.id) >= 1 && Number(l.id) <= 25;
+    const ev = state.az400.evidence[l.id];
+    const done = state.az400.progress.completions[l.id];
+    const split = h('div', { class: 'daysplit', 'aria-label': 'How to split the day' });
+    const seg = (cls, flex, text) => { const d = h('div', { class: cls }, text); d.style.flex = String(flex); return d; };
+    if (isPrep) split.append(seg('ds-a', 2, 'Preparation · 2 h'), seg('ds-b', 1, 'Lab 00 · 1 h'));
+    else if (l.id === '00') split.append(seg('ds-b', 2, 'Preparation · 2 h'), seg('ds-a', 1, 'Lab 00 · 1 h'));
+    else if (l.domain === 'capstone') split.append(seg('ds-a', 3, 'Lab · 4 h (split over 2 days)'), seg('ds-c', 1, 'Review'));
+    else split.append(seg('ds-c', 0.25, '15 min'), seg('ds-a', 1.75, 'Lab: tasks, break/fix, cleanup · 1 h 45'), seg('ds-b', 1, '50 questions · 1 h'));
+    const domDot = h('i', { class: 'dot' });
+    domDot.style.background = `var(--d-${l.domain})`;
+    const head = h('section', { class: 'card' },
+      h('div', { class: 'lab-top' },
+        h('span', { class: 'tag' }, domDot, `${DOMAINS[l.domain].n} · ${DOMAINS[l.domain].w}`),
+        h('span', { class: 'tag mono' }, `${l.minutes} min`),
+        h('span', { class: `tag ${ci.k ? `cost-${ci.k}` : ''}` }, ci.t),
+        h('span', { class: 'tag' }, (l.platforms || []).map((x) => PLAT[x] || x).join(' · ')),
+        h('span', {}, 'Planned: ', h('b', {}, fmtLong(it.date)), it.date > state.schedule.lastDay ? ' (after the vacation)' : '')),
+      h('h2', { class: 'title' }, isPrep ? null : h('span', { class: 'num' }, l.id), l.title),
+      h('p', { class: 'role' }, isPrep ? l.role : `Your role: ${l.role}`),
+      h('div', { class: 'two' },
+        h('div', { class: 'box' }, h('h3', {}, 'What you will do'), h('p', {}, l.scenario)),
+        h('div', { class: 'box exam' }, h('h3', {}, isPrep ? 'Rule' : 'Concept primer'), h('p', {}, l.primer || l.outcome))),
+      split,
+      isPrep ? null : h('div', { class: 'links' },
+        repoLink(`labs/${l.slug}/README.md`, 'Lab README'), repoLink(`labs/${l.slug}/solution/README.md`, 'Worked solution'),
+        hasQ ? repoLink(`labs/${l.slug}/QUESTIONS.md`, 'Questions') : null, hasQ ? repoLink(`labs/${l.slug}/ANSWERS.md`, 'Answers') : null),
+      linksBlock(`az400-${l.id}`));
+
+    const evCard = isPrep ? null : h('section', { class: `card ${done ? 'status-card COMPLETED' : ''}` },
+      h('div', { class: 'prog-head' }, h('h3', {}, 'Evidence from Validate.ps1'),
+        h('button', { class: 'btn copy', onclick: () => post('/api/az400/rescan').then(() => toast('Evidence re-read.')).catch((e) => toast(e.message)) }, '↻ Re-read')),
+      ev ? h('div', {},
+        h('div', {}, 'Status: ', h('span', { class: `ev-status ${ev.status}` }, ev.status.toUpperCase()), h('span', { class: 'muted small' }, ` · run ${ev.runId} · ${ev.verifiedAt ? abs(ev.verifiedAt) : 'no timestamp'}`)),
+        h('div', { class: 'ev-grid' }, ...ev.checkpoints.map((c) => h('span', { class: `ev-cp ${c.status}`, title: c.reason ?? '' }, `${c.id} ${c.status}`)),
+          h('span', { class: `ev-cp ${ev.breakFix === 'passed' ? 'passed' : ev.breakFix === 'failed' ? 'failed' : ''}` }, `break/fix ${ev.breakFix}`),
+          ev.integration && ev.integration !== 'not-required' ? h('span', { class: `ev-cp ${ev.integration}` }, `integration ${ev.integration}`) : null),
+        done ? h('p', { class: 'small' }, `Verified ${abs(done.at)} · +${done.rewards.xp} XP`) : h('p', { class: 'muted small' }, 'The lab turns green when validation.json says passed (all 5 tasks + break/fix).'))
+        : h('p', { class: 'muted small' }, `No validation.json yet. Run Validate.ps1 (step "Validate the final result"); the portal reads ${state.az400.root}\\.state\\${l.id}\\<run-id>\\validation.json automatically.`));
+
+    const ss = az400Steps(l);
+    const p = labProgress(l);
+    const pbar = h('div');
+    pbar.style.width = `${(p.d / p.t) * 100}%`;
+    pbar.style.background = 'var(--ok)';
+    const stepsCard = h('section', { class: 'card' },
+      h('div', { class: 'prog-head' }, h('h3', {}, 'Step by step'), h('span', { class: 'mono muted' }, `${p.d} of ${p.t} steps`)),
+      h('div', { class: 'bar' }, pbar),
+      isPrep ? null : (() => {
+        const input = h('input', { value: az().progress.run, maxlength: '16', 'aria-label': 'Run ID suffix' });
+        input.addEventListener('change', () => post('/api/az400/run', { suffix: input.value.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 16) }).then(() => toast('Run ID updated in every command.')).catch((e) => toast(e.message)));
+        return h('div', { class: 'runid' }, 'Run ID for this lab:', h('code', {}, runId(l)), '· suffix', input, h('span', { class: 'small' }, 'Change the suffix to redo a lab from scratch.'));
+      })());
+    let list = h('ol', { class: 'steps-list' });
+    stepsCard.append(list);
+    ss.forEach((st, i) => {
+      if (st.ph) { stepsCard.append(h('div', { class: 'phase' }, st.ph)); list = h('ol', { class: 'steps-list' }); stepsCard.append(list); }
+      const on = stepDone(l, st.k);
+      const scoreRow = st.score ? (() => {
+        const v = az().progress.scores[l.id];
+        const [vc, vt] = verdict(v);
+        const vd = h('span', { class: `verdict ${vc}` }, vt);
+        const inp = h('input', { type: 'number', min: '0', max: '100', inputmode: 'numeric', 'aria-label': 'Your score (%)' });
+        inp.value = v ?? '';
+        inp.addEventListener('change', () => post(`/api/az400/${l.id}/score`, { value: inp.value === '' ? null : Number(inp.value) }).catch((e) => toast(e.message)));
+        return h('div', { class: 'score' }, h('label', {}, 'Your score (%)'), inp, vd);
+      })() : null;
+      list.append(h('li', { class: `step ${on ? 'done' : ''}` },
+        h('button', { class: 'chk', type: 'button', role: 'checkbox', 'aria-checked': String(on), 'aria-label': `Done: ${st.t}`,
+          onclick: () => post(`/api/az400/${l.id}/step`, { key: st.k, done: !on }).then(() => { if (!on && labProgress(l).d + 1 === p.t) toast(isPrep ? 'Preparation complete — on to Lab 00.' : 'All steps ticked. Run Validate.ps1 if you have not: the evidence makes it official.'); }).catch((e) => toast(e.message)) },
+          on ? '✓' : String(i + 1)),
+        h('div', { class: 'step-body' }, h('h4', {}, st.t), h('p', {}, st.d),
+          st.note ? h('div', { class: 'note' }, st.note) : null,
+          ...(st.orig ?? []).filter((o) => o[1]).map((o) => h('div', { class: 'orig' }, h('em', {}, `${o[0]} · course text`), o[1])),
+          st.code ? codeBlock(st.code) : null,
+          st.link || st.link2 ? h('div', { class: 'links' }, st.link ? repoLink(st.link[0], st.link[1]) : null, st.link2 ? repoLink(st.link2[0], st.link2[1]) : null) : null,
+          scoreRow)));
+    });
+
+    const termCard = state.meta.terminal.enabled ? h('section', { class: 'card term-card' },
+      h('div', { class: 'ws-head' }, h('span', { class: 'ws-tab on' }, 'Terminal 1'), h('span', { class: 'ws-spacer' }),
+        h('button', { class: 'btn copy', title: 'Paste a cd to the course folder', onclick: () => sendToTerminal(`Set-Location '${state.az400.root}'`) }, 'cd to course'),
+        h('button', { class: 'ws-icon', title: 'Clear the screen', onclick: () => post('/api/terminal/clear').catch((e) => toast(e.message)) }, '⌫'),
+        h('button', { class: 'btn stop-lab', onclick: () => post('/api/terminal/restart').catch((e) => toast(e.message)) }, '■ Restart')),
+      buildTerminal()) : h('section', { class: 'card' }, h('p', { class: 'muted small' }, 'Tip: start the portal with $env:PORTAL_TERMINAL = "1" to run these commands in a terminal right here.'));
+
+    const idx = items.findIndex((x) => itemKey(x) === itemKey(it));
+    const nx = items[idx + 1];
+    const foot = h('section', { class: 'card foot' },
+      h('span', { class: 'muted small' }, isPrep ? 'Finished the preparation? Move on to Lab 00 the same day.' : 'Stuck on a task? Check the README Troubleshooting section and the worked solution — then come back to the method: observation, hypothesis, test, evidence.'),
+      nx ? h('button', { class: 'btn btn-primary', onclick: () => { selectItem(itemKey(nx)); window.scrollTo({ top: 0, behavior: 'smooth' }); } }, 'Next item →') : null);
+    return [head, evCard, stepsCard, termCard, foot];
+  }
+
+  function platformDetail(s, it) {
+    const cyc = cycleOf(s.cycle);
+    const dot = h('i', { class: 'dot' });
+    dot.style.background = 'var(--d-platform)';
+    const head = h('section', { class: 'card' },
+      h('div', { class: 'lab-top' }, h('span', { class: 'tag' }, dot, `Azure platform · cycle ${s.cycle} · ${cyc.title}`), h('span', { class: 'tag mono' }, `${s.timeMinutes} min`), h('span', { class: 'tag' }, s.topic), checkerChip(s),
+        h('span', {}, 'Planned: ', h('b', {}, fmtLong(it.date)))),
+      h('h2', { class: 'title' }, h('span', { class: 'num' }, s.id), s.title),
+      h('p', { class: 'role' }, `Status: ${stateText(s)}`),
+      h('div', { class: 'two' }, h('div', { class: 'box' }, h('h3', {}, 'Scenario'), h('p', {}, s.scenario)), h('div', { class: 'box exam' }, h('h3', {}, 'Mission'), h('p', {}, s.mission))),
+      h('div', { class: 'links' }, sessionButton(s), h('a', { href: `#/session/${s.id}`, class: 'btn' }, 'Open the lab workspace →')));
+    const nextHere = state.next.sessionId === s.id ? nextCard() : null;
+    const crit = h('section', { class: 'card' }, h('h3', {}, 'Success criteria — what to do'), criteriaGuide(s));
+    return [head, nextHere, crit];
+  }
+
+  // ------------------------------------------------------------ platform helpers
   function sessionButton(s) {
     if (isLocked(s)) return h('button', { class: 'btn btn-ghost', disabled: true }, '🔒 Locked');
     if (s.state === 'AVAILABLE') return h('button', { class: 'btn btn-primary', onclick: (e) => { e.stopPropagation(); openLaunch(s.id, 'start'); } }, 'Start');
@@ -133,20 +471,6 @@
       n.sessionId ? h('button', { class: 'btn btn-primary', onclick: () => { location.hash = `#/session/${n.sessionId}`; } }, 'Open session →') : null);
   }
 
-  function howItWorksCard() {
-    try { if (localStorage.getItem('howItWorks:hidden') === '1') return null; } catch { /* storage unavailable */ }
-    const steps = [
-      ['1', 'Start', 'Press Start (or Continue) on the highlighted session.'],
-      ['2', 'Learn', 'Read the Learn tab: concepts from zero and a worked example.'],
-      ['3', 'Do', 'Follow the Task steps. Run commands in Terminal 1 (right panel).'],
-      ['4', 'Verified', 'Save and commit — the portal checks by itself. All green = celebration.'],
-    ];
-    return h('section', { class: 'card how-card' },
-      h('div', { class: 'how-head' }, h('h3', {}, 'How it works'),
-        h('button', { class: 'btn btn-ghost copy', onclick: () => { try { localStorage.setItem('howItWorks:hidden', '1'); } catch { /* storage unavailable */ } render(true); } }, 'Got it, hide')),
-      h('div', { class: 'how-steps' }, steps.map(([n, t, d]) => h('div', { class: 'how-step' }, h('div', { class: 'how-n' }, n), h('div', {}, h('b', {}, t), h('div', { class: 'muted small' }, d))))));
-  }
-
   // Criteria with live status and the concrete action for each one.
   function criteriaGuide(s) {
     const observed = new Map((s.lastObservation?.criteria ?? []).map((c) => [c.id, c.status]));
@@ -159,61 +483,6 @@
         h('div', { class: 'crit-head' }, h('span', { class: 'c-ico' }, { pass: '✓', fail: '✕', skipped: '–', none: '·' }[st]), h('span', {}, c.text), isNext ? h('span', { class: 'chip warn' }, 'do this now') : null),
         c.how ? h('div', { class: 'crit-how' }, c.how) : null);
     }));
-  }
-
-  function renderPractice() {
-    const ss = state.sessions;
-    const done = ss.filter((s) => s.state === 'COMPLETED').length;
-    const pending = ss.filter((s) => ['IN_PROGRESS', 'FAILED', 'CHECKING'].includes(s.state) || (s.state === 'BLOCKED' && s.reason !== 'locked')).length;
-    const unlocked = ss.filter((s) => s.state === 'AVAILABLE').length;
-    const locked = ss.filter(isLocked).length;
-    const nextId = state.next.sessionId;
-
-    const next = nextCard();
-
-    const fill = h('div', { class: 'progress-fill' });
-    const wrap = h('div', { class: 'progress-wrap' }, h('div', { class: 'progress-track' }, fill));
-    let acc = 0;
-    for (const c of state.track.cycles) {
-      acc += ss.filter((s) => s.cycle === c.id).length;
-      const earned = state.totals.badges.some((b) => b.id === `cycle-${c.id}`);
-      const m = h('div', { class: `milestone ${earned ? 'done' : ''}`, title: `${c.badge} — ${c.title}` }, earned ? '✦' : '◇', h('span', { class: 'milestone-label' }, `Session ${acc}`));
-      m.style.left = `${(acc / ss.length) * 100}%`;
-      wrap.append(m);
-    }
-    requestAnimationFrame(() => { fill.style.width = `${(done / ss.length) * 100}%`; });
-
-    const track = h('section', { class: 'card' },
-      h('div', { class: 'track-head' },
-        h('div', { class: 'track-logo' }, h('div', {}, h('b', {}, '30'), 'Sessions', h('br'), h('span', {}, 'AZURE'))),
-        h('div', {}, h('h1', { class: 'track-title' }, state.meta.title), h('div', { class: 'muted' }, state.meta.subtitle))),
-      h('div', { class: 'progress-caption' }, `Progress: ${done}/${ss.length} sessions`),
-      wrap,
-      h('div', { class: 'stats' },
-        h('div', { class: 'stat ok' }, h('b', {}, done), h('span', {}, 'Completed')),
-        h('div', { class: 'stat warn' }, h('b', {}, pending), h('span', {}, 'In progress')),
-        h('div', { class: 'stat info' }, h('b', {}, unlocked), h('span', {}, 'Unlocked')),
-        h('div', { class: 'stat lock' }, h('b', {}, locked), h('span', {}, 'Locked'))));
-
-    const list = h('section', { class: 'card' });
-    for (const c of state.track.cycles) {
-      const earned = state.totals.badges.some((b) => b.id === `cycle-${c.id}`);
-      list.append(h('div', { class: 'cycle-head' }, h('h3', {}, `Cycle ${c.id} · ${c.title}`), h('span', { class: `cycle-badge ${earned ? 'done' : ''}` }, `✦ ${c.badge}`)));
-      for (const s of ss.filter((x) => x.cycle === c.id)) {
-        list.append(h('div', {
-          class: `session-row ${s.id === nextId ? 'current' : ''} ${s.state === 'COMPLETED' ? 'completed' : ''} ${isLocked(s) ? 'locked' : ''}`,
-          onclick: () => { location.hash = `#/session/${s.id}`; },
-        },
-        h('div', { class: 'row-num' }, s.number),
-        h('div', {},
-          h('div', { class: 'row-title' }, `Session ${s.number}: ${s.title}`),
-          h('div', { class: 'row-meta' }, h('span', { class: 'chip' }, s.topic), h('span', { class: 'chip' }, `${s.timeMinutes} min`), h('span', { class: 'chip' }, `+${s.xp} XP`), checkerChip(s))),
-        h('div', { class: 'row-date' }, s.completedAt ? day(s.completedAt) : s.state === 'BLOCKED' && !isLocked(s) ? REASON_LABEL[s.reason] : ''),
-        h('div', { class: `state-dot ${s.state}`, title: stateText(s) }, STATE_ICON[s.state]),
-        sessionButton(s)));
-      }
-    }
-    view.replaceChildren(...(howItWorksCard() ? [howItWorksCard()] : []), next, track, list);
   }
 
   // ------------------------------------------------------------ map
@@ -470,7 +739,7 @@
     else check = h('button', { class: 'btn btn-primary btn-check', onclick: () => act(s.id, 'check') }, s.completedAt ? 'Re-verify' : 'Check');
     return [
       check,
-      h('button', { class: 'btn btn-later', onclick: () => { location.hash = '#/practice'; toast('Session kept in progress — the portal keeps watching your evidence.', 'info'); } }, 'Try later'),
+      h('button', { class: 'btn btn-later', onclick: () => { location.hash = '#/schedule'; toast('Session kept in progress — the portal keeps watching your evidence.', 'info'); } }, 'Try later'),
       h('div', { class: 'ws-note' }, s.startedAt && implemented ? 'Checks also run on their own when you save watched files or commit.' : ''),
     ];
   }
@@ -517,9 +786,9 @@
 
   function renderWorkspace(id) {
     const s = state.sessions.find((x) => x.id === id);
-    if (!s) return renderPractice();
+    if (!s) return renderSchedule();
     if (isLocked(s)) {
-      view.replaceChildren(h('section', { class: 'card' }, h('a', { href: '#/practice', class: 'back' }, '← All sessions'),
+      view.replaceChildren(h('section', { class: 'card' }, h('a', { href: '#/schedule', class: 'back' }, '← All sessions'),
         h('h2', {}, `🔒 Session ${s.number}: ${s.title}`), h('p', { class: 'muted' }, 'Unlocks when the previous session is completed — by verified evidence.'),
         h('blockquote', { class: 'scenario' }, s.scenario)));
       return;
@@ -554,7 +823,7 @@
         right === 'terminal' && termOn ? h('button', { class: 'ws-icon', title: 'Clear the screen', onclick: () => post('/api/terminal/clear').catch((e) => toast(e.message)) }, '⌫') : null,
         right === 'terminal' && termOn ? h('button', { class: 'btn stop-lab', title: 'Kill the running command and start a fresh shell', onclick: () => post('/api/terminal/restart').catch((e) => toast(e.message)) }, '■ Restart') : null,
         h('span', { class: `status-pill ${s.state}`, title: s.reasonMessage ?? '' }, stateText(s)),
-        h('a', { href: '#/practice', class: 'ws-icon', title: 'All sessions' }, '✕')),
+        h('a', { href: '#/schedule', class: 'ws-icon', title: 'All sessions' }, '✕')),
       rightBody);
     const oldTask = view.querySelector('.ws-task .ws-body');
     const sameSession = ui.lastWs === s.id;
@@ -862,21 +1131,22 @@
       h('td', {}, s.completion.mode === 'SOLO' ? 'SOLO' : 'AI-assisted'), h('td', {}, s.completion.hintsUsed),
       h('td', {}, s.assessment ? `${2 + s.assessment.english + s.assessment.autonomy + s.assessment.tradeoffs}/10` : '—')));
     const tl = state.timeline;
-    const actions = (d) => d.checks + d.interview + d.study + d.hints;
+    const actions = (d) => d.checks + d.interview + d.study + d.hints + (d.steps ?? 0) + d.completions;
     const activeDays = tl.filter((d) => actions(d) > 0).length;
     const tableOpen = ui.progressTable === true;
+    const labsVerified = state.az400.available ? state.az400.labs.filter((l) => state.az400.progress.completions[l.id]).length : 0;
     view.replaceChildren(
       h('section', { class: 'card' }, h('h2', {}, 'Progress'),
         h('div', { class: 'stats' },
-          h('div', { class: 'stat ok' }, h('b', {}, done.length), h('span', {}, 'Completed')),
-          h('div', { class: 'stat info' }, h('b', {}, solo), h('span', {}, 'SOLO')),
-          h('div', { class: 'stat warn' }, h('b', {}, done.length - solo), h('span', {}, 'AI-assisted')),
+          h('div', { class: 'stat ok' }, h('b', {}, labsVerified), h('span', {}, 'AZ-400 labs verified')),
+          h('div', { class: 'stat info' }, h('b', {}, done.length), h('span', {}, `Platform sessions (${solo} SOLO)`)),
+          h('div', { class: 'stat warn' }, h('b', {}, Object.keys(state.az400.progress.scores).length), h('span', {}, 'Question sets scored')),
           h('div', { class: 'stat lock' }, h('b', {}, activeDays), h('span', {}, 'Active days (last 30)')))),
       h('div', { class: 'grid-2' },
         chartCard('Cumulative XP', `${state.totals.xp} XP · next rank ${state.totals.nextRank ? `${state.totals.nextRank.title} at ${state.totals.nextRank.minXp}` : 'reached'}`,
           lineChart(tl.map((d) => ({ x: d.date, y: d.xp })), { format: (v) => `${v} XP` })),
-        chartCard('Daily practice', 'Checker runs, interview passes, study items and hints per day',
-          columnChart(tl.map((d) => ({ x: d.date, y: actions(d), detail: [`${d.checks} checks`, `${d.interview} interview passes`, `${d.study} study items`, `${d.hints} hints`, `${d.completions} completions`] }))))),
+        chartCard('Daily practice', 'Lab steps, checker runs, completions, interview passes, study items and hints per day',
+          columnChart(tl.map((d) => ({ x: d.date, y: actions(d), detail: [`${d.steps ?? 0} lab steps`, `${d.checks} checks`, `${d.completions} completions`, `${d.interview} interview passes`, `${d.study} study items`, `${d.hints} hints`] }))))),
       h('section', { class: 'card' }, h('h3', {}, 'Completion by cycle'),
         h('div', { class: 'meters' }, state.track.cycles.map((c) => {
           const list = state.sessions.filter((s) => s.cycle === c.id);
@@ -889,8 +1159,8 @@
       h('section', { class: 'card' },
         h('div', { class: 'how-head' }, h('h3', {}, 'Data table (last 30 days)'),
           h('button', { class: 'btn copy', onclick: () => { ui.progressTable = !tableOpen; render(true); } }, tableOpen ? 'Hide table' : 'Show data table')),
-        tableOpen ? h('table', {}, h('thead', {}, h('tr', {}, ['Date', 'XP (cumulative)', 'Checks', 'Interview', 'Study', 'Hints', 'Completions'].map((t) => h('th', {}, t)))),
-          h('tbody', {}, tl.slice().reverse().map((d) => h('tr', {}, [d.date, d.xp, d.checks, d.interview, d.study, d.hints, d.completions].map((v) => h('td', {}, v)))))) : null),
+        tableOpen ? h('table', {}, h('thead', {}, h('tr', {}, ['Date', 'XP (cumulative)', 'Lab steps', 'Checks', 'Completions', 'Interview', 'Study', 'Hints'].map((t) => h('th', {}, t)))),
+          h('tbody', {}, tl.slice().reverse().map((d) => h('tr', {}, [d.date, d.xp, d.steps ?? 0, d.checks, d.completions, d.interview, d.study, d.hints].map((v) => h('td', {}, v)))))) : null),
       h('section', { class: 'card' }, h('h3', {}, 'Badges'), badges),
       h('section', { class: 'card' }, h('h3', {}, 'Completed sessions'),
         done.length ? h('table', {}, h('thead', {}, h('tr', {}, ['#', 'Session', 'Date', 'Mode', 'Hints', 'Score'].map((t) => h('th', {}, t)))), h('tbody', {}, rows))
@@ -978,7 +1248,7 @@
   function route() {
     const parts = location.hash.replace(/^#\/?/, '').split('/');
     if (parts[0] === 'session' && /^C\d{3}$/.test(parts[1] ?? '')) return { view: 'session', id: parts[1] };
-    return { view: ['practice', 'map', 'progress', 'environment', 'study', 'interview'].includes(parts[0]) ? parts[0] : 'practice' };
+    return { view: ['schedule', 'map', 'progress', 'environment', 'study', 'interview'].includes(parts[0]) ? parts[0] : 'schedule' };
   }
 
   function render(force = false) {
@@ -995,7 +1265,7 @@
     else if (r.view === 'environment') renderEnvironment();
     else if (r.view === 'study') renderStudy();
     else if (r.view === 'interview') renderInterview();
-    else renderPractice();
+    else renderSchedule();
     window.scrollTo(0, y);
   }
 
@@ -1004,14 +1274,14 @@
 
   // ------------------------------------------------------------ celebration
   function celebrate(e) {
-    $('#cele-title').textContent = `Session ${e.number} complete!`;
+    $('#cele-title').textContent = e.kind === 'az400' ? `Lab ${e.number} verified!` : `Session ${e.number} complete!`;
     $('#cele-sub').textContent = e.title;
     $('#cele-rewards').replaceChildren(
       h('span', { class: 'reward xp' }, `+${e.rewards.xp} XP`),
       h('span', { class: 'reward coins' }, `+${e.rewards.coins} ●`),
-      h('span', { class: 'reward mode' }, e.mode === 'SOLO' ? 'SOLO' : 'AI-assisted'));
+      h('span', { class: 'reward mode' }, e.mode === 'VERIFIED' ? 'Validate.ps1 ✓' : e.mode === 'SOLO' ? 'SOLO' : 'AI-assisted'));
     $('#cele-badges').textContent = e.badges.length ? `Badges: ${e.badges.map((b) => b.title).join(' · ')}` : '';
-    $('#cele-next').textContent = e.unlocked ? `Unlocked: Session ${state ? state.sessions.findIndex((s) => s.id === e.unlocked.id) + 1 : ''} — ${e.unlocked.title}` : 'Track complete!';
+    $('#cele-next').textContent = e.kind === 'az400' ? 'Evidence read from the course validation.json.' : e.unlocked ? `Unlocked: Session ${state ? state.sessions.findIndex((s) => s.id === e.unlocked.id) + 1 : ''} — ${e.unlocked.title}` : 'Track complete!';
     $('#celebration').classList.remove('hidden');
     window.Confetti.burst($('#confetti'));
   }

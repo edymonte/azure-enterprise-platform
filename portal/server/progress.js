@@ -23,11 +23,13 @@ function emptyProgress() {
 }
 
 export class ProgressStore {
-  constructor({ dataDir, catalog, unlockAll = false }) {
+  constructor({ dataDir, catalog, unlockAll = false, scheduledSessions = new Set() }) {
     this.file = path.join(dataDir, 'progress.json');
     this.dataDir = dataDir;
     this.catalog = catalog;
     this.unlockAll = unlockAll;
+    // Sessions placed on the dated schedule are unlocked by the plan itself.
+    this.scheduledSessions = scheduledSessions;
     this.data = emptyProgress();
   }
 
@@ -57,7 +59,7 @@ export class ProgressStore {
   }
 
   isUnlocked(id) {
-    if (this.unlockAll) return true;
+    if (this.unlockAll || this.scheduledSessions.has(id)) return true;
     const session = this.catalog.byId.get(id);
     if (session.number === 1) return true;
     const previous = this.catalog.sessions[session.number - 2];
@@ -191,17 +193,17 @@ export class ProgressStore {
     const out = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const completions = this.catalog.sessions
-      .map((s) => this.peek(s.id).completion)
-      .filter(Boolean)
-      .map((c) => ({ t: new Date(c.at).getTime(), xp: c.rewards.xp }));
+    const completions = [
+      ...this.catalog.sessions.map((s) => this.peek(s.id).completion).filter(Boolean),
+      ...Object.values(this.az400().completions),
+    ].map((c) => ({ t: new Date(c.at).getTime(), xp: c.rewards.xp }));
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(today.getDate() - i);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       const end = d.getTime() + 86400000;
       const xp = completions.filter((c) => c.t < end).reduce((a, c) => a + c.xp, 0);
-      out.push({ date: key, xp, ...(this.data.activity?.[key] ?? { checks: 0, completions: 0, hints: 0, interview: 0, study: 0 }) });
+      out.push({ date: key, xp, checks: 0, completions: 0, hints: 0, interview: 0, study: 0, steps: 0, ...(this.data.activity?.[key] ?? {}) });
     }
     return out;
   }
@@ -223,7 +225,7 @@ export class ProgressStore {
   }
 
   isLinkTarget(target) {
-    return this.catalog.byId.has(target) || this.catalog.studyPlan.itemIds.has(target);
+    return this.catalog.byId.has(target) || this.catalog.studyPlan.itemIds.has(target) || /^az400-([0-2][0-9]|prep)$/.test(target);
   }
 
   addLink(target, label, url) {
@@ -278,6 +280,57 @@ export class ProgressStore {
     return rec;
   }
 
+  // ---------------------------------------------------------------- AZ-400
+  // Steps and the question score are self-tracked; a lab is COMPLETED only
+  // when the course's own Validate.ps1 wrote a passing validation.json.
+  az400() {
+    this.data.az400 ??= { steps: {}, scores: {}, run: 'vacation', completions: {} };
+    return this.data.az400;
+  }
+
+  setAz400Step(labId, key, done) {
+    if (!/^([0-2][0-9]|prep)$/.test(labId) || !/^[a-z0-9]{1,12}$/.test(key)) throw new UserError('Unknown lab step.');
+    if (typeof done !== 'boolean') throw new UserError('"done" must be a boolean.');
+    const a = this.az400();
+    if (done) {
+      a.steps[`${labId}:${key}`] = new Date().toISOString();
+      this.bump('steps');
+    } else delete a.steps[`${labId}:${key}`];
+    this.save();
+  }
+
+  setAz400Score(labId, value) {
+    if (!/^[0-2][0-9]$/.test(labId)) throw new UserError('Unknown lab.');
+    if (value !== null && (!Number.isFinite(value) || value < 0 || value > 100)) throw new UserError('Score must be 0–100 or empty.');
+    const a = this.az400();
+    if (value === null) delete a.scores[labId];
+    else a.scores[labId] = Math.round(value);
+    this.save();
+  }
+
+  setAz400Run(suffix) {
+    if (typeof suffix !== 'string' || !/^[a-z0-9-]{1,16}$/.test(suffix)) throw new UserError('Run suffix: 1–16 lowercase letters, digits or hyphens.');
+    this.az400().run = suffix;
+    this.save();
+  }
+
+  // Called when the course evidence changes. Returns newly completed labs.
+  recordAz400Evidence(evidence, labs) {
+    const a = this.az400();
+    const fresh = [];
+    for (const lab of labs) {
+      const ev = evidence[lab.id];
+      if (!ev || ev.status !== 'passed' || a.completions[lab.id]) continue;
+      const capstone = lab.domain === 'capstone';
+      const rewards = { xp: capstone ? 300 : 150, coins: capstone ? 30 : 15 };
+      a.completions[lab.id] = { at: ev.verifiedAt ?? new Date().toISOString(), runId: ev.runId, rewards };
+      this.bump('completions');
+      fresh.push({ lab, rewards });
+    }
+    if (fresh.length) this.save();
+    return fresh;
+  }
+
   totals() {
     let xp = 0;
     let coins = 0;
@@ -289,6 +342,10 @@ export class ProgressStore {
         coins += c.rewards.coins;
         completed += 1;
       }
+    }
+    for (const c of Object.values(this.az400().completions)) {
+      xp += c.rewards.xp;
+      coins += c.rewards.coins;
     }
     const ranks = this.catalog.track.ranks;
     let rank = ranks[0];

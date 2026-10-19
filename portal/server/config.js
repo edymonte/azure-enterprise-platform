@@ -41,5 +41,7 @@ export function loadConfig(env = process.env) {
     // it lets the page run commands on this machine (see README, Security).
     terminal: env.PORTAL_TERMINAL === '1',
     terminalShell: env.PORTAL_TERMINAL_SHELL || 'pwsh',
+    // The AZ-400 course repository (its own repo, never copied into this one).
+    az400Root: path.resolve(env.PORTAL_AZ400_ROOT ?? path.join(repoRoot, '..', 'az400-azure-devops-engineer-labs')),
   };
 }
