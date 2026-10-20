@@ -22,9 +22,10 @@
           "value": "[parameters('tagNames')]",
           "name": "tagName",
           "where": {
-            "field": "[concat('tags[', current('tagName'), ']')]",
-            "exists": "false"
+            "field": "tags",
+            "notContainsKey": "[current('tagName')]"
           }
+
         },
         "greater": 0
       }
