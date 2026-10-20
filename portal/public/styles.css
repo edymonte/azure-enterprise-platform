@@ -476,3 +476,12 @@ textarea { width: 100%; min-height: 70px; background: var(--panel); color: var(-
 .quiz-bar { position: sticky; top: 8px; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .term-input.pending { color: #fbbf24; }
 .quiz-entry { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 10px; }
+
+/* TFTEC course tracker */
+.tftec-order { margin: 4px 0 12px; padding-left: 20px; color: var(--muted); }
+.tftec-labs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 2px 0 10px; }
+.tftec-labs a.chip { text-decoration: none; }
+.tftec-module.current { border-color: var(--accent); }
+.tftec-kind { flex: none; }
+.study-item.next { border-color: var(--warn); }
+.tftec-next { color: var(--warn); font-weight: 700; }

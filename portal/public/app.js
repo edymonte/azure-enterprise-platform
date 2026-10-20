@@ -1234,6 +1234,48 @@
       ...cards);
   }
 
+  // ------------------------------------------------------------ TFTEC course (self-tracked, lesson level)
+  const TFTEC_KIND = { pdf: 'PDF', class: 'Class', 'hands-on': 'Hands-on', exam: 'Exam questions' };
+  function renderTftec() {
+    const course = state.tftec;
+    const all = course.modules.flatMap((m) => m.items);
+    const done = all.filter((i) => i.done).length;
+    const next = all.find((i) => !i.done);
+    const nextMod = next ? course.modules.find((m) => m.items.includes(next)) : null;
+    const fill = h('div', { class: 'progress-fill' });
+    requestAnimationFrame(() => { fill.style.width = `${all.length ? (done / all.length) * 100 : 0}%`; });
+    const labChip = (id) => {
+      const passed = state.az400.evidence[id]?.status === 'passed';
+      return h('a', { class: `chip ${passed ? 'ok' : ''}`, href: '#/course', title: passed ? 'Lab verified by evidence' : 'Lab not verified yet' }, `Lab ${id}${passed ? ' ✓' : ''}`);
+    };
+    const tick = (item) => (e) => post(`/api/study/${item.id}`, { done: e.target.checked })
+      .then(() => { if (e.target.checked) toast(item.kind === 'class' ? 'Class done — reinforcement next, then the lab.' : 'Ticked.', 'info'); })
+      .catch((err) => toast(err.message));
+    const cards = course.modules.map((mod) => {
+      const modDone = mod.items.filter((i) => i.done).length;
+      const complete = modDone === mod.items.length;
+      return h('section', { class: `card tftec-module ${complete ? 'complete' : ''} ${mod === nextMod ? 'current' : ''}` },
+        h('div', { class: 'cycle-head' }, h('h3', {}, `Module ${mod.number} — ${mod.title}`), h('span', { class: `cycle-badge ${complete ? 'done' : ''}` }, `${modDone}/${mod.items.length}`)),
+        h('div', { class: 'tftec-labs' }, h('span', { class: 'muted small' }, mod.labs.length ? 'Reinforces repository labs:' : 'No repository lab — deeper reinforcement'), ...mod.labs.map(labChip)),
+        mod.note ? h('p', { class: 'muted small' }, mod.note) : null,
+        h('ul', { class: 'study-list' }, mod.items.map((item) => {
+          const cb = h('input', { type: 'checkbox', onchange: tick(item) });
+          cb.checked = item.done;
+          return h('li', { class: `study-item ${item.done ? 'done' : ''} ${item === next ? 'next' : ''}` },
+            h('label', {}, cb, h('span', { class: `chip tftec-kind kind-${item.kind}` }, TFTEC_KIND[item.kind]), h('span', { class: 'study-title' }, item.title)),
+            item.detail ? h('div', { class: 'muted small' }, item.detail) : null,
+            item === next ? h('div', { class: 'small tftec-next' }, 'Next up') : null,
+            item.done && item.at ? h('div', { class: 'muted small' }, `Done ${day(item.at)}`) : null);
+        })));
+    });
+    view.replaceChildren(
+      h('section', { class: 'card' }, h('h2', {}, course.title), h('p', { class: 'muted' }, course.intro),
+        course.dailyOrder.length ? h('ol', { class: 'tftec-order' }, course.dailyOrder.map((s) => h('li', {}, s))) : null,
+        h('div', { class: 'progress-caption' }, `${done}/${all.length} items${next ? ` · next: Module ${nextMod.number} — ${next.title}` : ' · course complete'}`),
+        h('div', { class: 'progress-track study-track' }, fill)),
+      ...cards);
+  }
+
   // ------------------------------------------------------------ interview practice
   function renderInterview() {
     const total = state.sessions.length;
@@ -1473,7 +1515,7 @@
     const parts = location.hash.replace(/^#\/?/, '').split('/');
     if (parts[0] === 'session' && /^C\d{3}$/.test(parts[1] ?? '')) return { view: 'session', id: parts[1] };
     if (parts[0] === 'quiz' && /^[0-2][0-9]$/.test(parts[1] ?? '')) return { view: 'quiz', id: parts[1] };
-    return { view: ['schedule', 'course', 'map', 'progress', 'environment', 'study', 'interview'].includes(parts[0]) ? parts[0] : 'schedule' };
+    return { view: ['schedule', 'course', 'tftec', 'map', 'progress', 'environment', 'study', 'interview'].includes(parts[0]) ? parts[0] : 'schedule' };
   }
 
   function render(force = false) {
@@ -1491,6 +1533,7 @@
     else if (r.view === 'progress') renderProgress();
     else if (r.view === 'environment') renderEnvironment();
     else if (r.view === 'study') renderStudy();
+    else if (r.view === 'tftec') renderTftec();
     else if (r.view === 'interview') renderInterview();
     else renderSchedule();
     window.scrollTo(0, y);

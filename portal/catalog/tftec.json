@@ -1,0 +1,140 @@
+{
+  "title": "TFTEC AZ-400 course",
+  "intro": "The video course you watch first every day. Tick each class as you finish it; the reinforcement session and the repository lab follow. Self-tracked — it never marks an AZ-400 lab as done.",
+  "dailyOrder": [
+    "TFTEC class(es) — on your own",
+    "Reinforcement of the class — YAML rebuild, interview questions, portfolio line",
+    "Repository lab of the day — evidence, break/fix, cleanup",
+    "The lab's 50 questions"
+  ],
+  "modules": [
+    {
+      "id": "m10", "number": 10, "title": "Designing a release strategy", "labs": ["13", "14", "15"],
+      "items": [
+        { "id": "tftec-m10-pdf", "kind": "pdf", "title": "Download PDF — Module 10" },
+        { "id": "tftec-m10-a01", "kind": "class", "title": "Class 01 — Introduction to continuous delivery" },
+        { "id": "tftec-m10-a02", "kind": "class", "title": "Class 02 — Release strategy recommendations" },
+        { "id": "tftec-m10-a03", "kind": "class", "title": "Class 03 — Building a high-quality release pipeline" },
+        { "id": "tftec-m10-a04", "kind": "class", "title": "Class 04 — Choosing the right release management tool" },
+        { "id": "tftec-m10-lab-t01", "kind": "hands-on", "title": "Hands-on — Lab 01, Task 01", "detail": "Classic release pipeline: enable classic releases in Organization settings → Pipelines → Settings first." },
+        { "id": "tftec-m10-lab-t03", "kind": "hands-on", "title": "Hands-on — Lab 01, Task 03" },
+        { "id": "tftec-m10-exam", "kind": "exam", "title": "Exam questions — Modules 09 and 10" }
+      ]
+    },
+    {
+      "id": "m11", "number": 11, "title": "Implementing continuous deployment using Azure Pipelines", "labs": ["10", "13", "14", "08"],
+      "items": [
+        { "id": "tftec-m11-pdf", "kind": "pdf", "title": "Download PDF — Module 11" },
+        { "id": "tftec-m11-a01", "kind": "class", "title": "Class 01 — Create a release pipeline" },
+        { "id": "tftec-m11-a02", "kind": "class", "title": "Class 02 — Provision and configure environments" },
+        { "id": "tftec-m11-a03", "kind": "class", "title": "Class 03 — Configure automated integration and functional test automation" },
+        { "id": "tftec-m11-a04", "kind": "class", "title": "Class 04 — Automate inspection of health" },
+        { "id": "tftec-m11-lab-t01", "kind": "hands-on", "title": "Hands-on — Lab 01, Task 01" },
+        { "id": "tftec-m11-lab-t02", "kind": "hands-on", "title": "Hands-on — Lab 01, Task 02" }
+      ]
+    },
+    {
+      "id": "m12", "number": 12, "title": "Implementing an appropriate deployment pattern", "labs": ["15", "16"],
+      "items": [
+        { "id": "tftec-m12-pdf", "kind": "pdf", "title": "Download PDF — Module 12" },
+        { "id": "tftec-m12-a01", "kind": "class", "title": "Class 01 — Introduction to deployment patterns" },
+        { "id": "tftec-m12-a02", "kind": "class", "title": "Class 02 — Implement blue-green deployment" },
+        { "id": "tftec-m12-a03", "kind": "class", "title": "Class 03 — Feature toggles" },
+        { "id": "tftec-m12-a04", "kind": "class", "title": "Class 04 — Canary releases" },
+        { "id": "tftec-m12-a05", "kind": "class", "title": "Class 05 — Dark launching" },
+        { "id": "tftec-m12-a06", "kind": "class", "title": "Class 06 — A/B testing" },
+        { "id": "tftec-m12-a07", "kind": "class", "title": "Class 07 — Progressive exposure deployment" },
+        { "id": "tftec-m12-lab-t01", "kind": "hands-on", "title": "Hands-on — Lab 01, Task 01" },
+        { "id": "tftec-m12-lab-t02", "kind": "hands-on", "title": "Hands-on — Lab 01, Task 02" }
+      ]
+    },
+    {
+      "id": "m13", "number": 13, "title": "Managing infrastructure and configuration using Azure tools", "labs": ["17", "18"],
+      "items": [
+        { "id": "tftec-m13-pdf", "kind": "pdf", "title": "Download PDF — Module 13" },
+        { "id": "tftec-m13-a01", "kind": "class", "title": "Class 01 — Infrastructure as code and configuration management" },
+        { "id": "tftec-m13-a02", "kind": "class", "title": "Class 02 — Create Azure resources using ARM templates" },
+        { "id": "tftec-m13-a03", "kind": "class", "title": "Class 03 — Create Azure resources using Azure CLI" },
+        { "id": "tftec-m13-a04", "kind": "class", "title": "Class 04 — Azure Automation with DevOps" },
+        { "id": "tftec-m13-a05", "kind": "class", "title": "Class 05 — Desired State Configuration (DSC)" },
+        { "id": "tftec-m13-lab-t01", "kind": "hands-on", "title": "Hands-on — Lab 01, Task 01" }
+      ]
+    },
+    {
+      "id": "m14", "number": 14, "title": "Third-party infrastructure as code tools available with Azure", "labs": [],
+      "note": "No repository lab covers Chef, Puppet, Ansible or Terraform: the reinforcement goes deeper here, and Terraform is practised in the platform sessions.",
+      "items": [
+        { "id": "tftec-m14-pdf", "kind": "pdf", "title": "Download PDF — Module 14" },
+        { "id": "tftec-m14-a01", "kind": "class", "title": "Class 01 — Chef" },
+        { "id": "tftec-m14-a02", "kind": "class", "title": "Class 02 — Puppet" },
+        { "id": "tftec-m14-a03", "kind": "class", "title": "Class 03 — Ansible" },
+        { "id": "tftec-m14-a04", "kind": "class", "title": "Class 04 — Terraform" },
+        { "id": "tftec-m14-lab-t01", "kind": "hands-on", "title": "Hands-on — Lab 01, Task 01" }
+      ]
+    },
+    {
+      "id": "m15", "number": 15, "title": "Managing containers using Docker", "labs": ["22"],
+      "items": [
+        { "id": "tftec-m15-pdf", "kind": "pdf", "title": "Download PDF — Module 15" },
+        { "id": "tftec-m15-a01", "kind": "class", "title": "Class 01 — Implementing a container build strategy" },
+        { "id": "tftec-m15-a02", "kind": "class", "title": "Class 02 — Implementing Docker multi-stage builds" },
+        { "id": "tftec-m15-lab-t01", "kind": "hands-on", "title": "Hands-on — Lab 01, Task 01" }
+      ]
+    },
+    {
+      "id": "m16", "number": 16, "title": "Creating and managing Kubernetes service infrastructure", "labs": [],
+      "note": "No repository lab covers AKS: the reinforcement goes deeper here, and AKS is practised in the platform sessions.",
+      "items": [
+        { "id": "tftec-m16-pdf", "kind": "pdf", "title": "Download PDF — Module 16" },
+        { "id": "tftec-m16-a01", "kind": "class", "title": "Class 01 — Azure Kubernetes Service" },
+        { "id": "tftec-m16-a02", "kind": "class", "title": "Class 02 — Kubernetes tooling" },
+        { "id": "tftec-m16-a03", "kind": "class", "title": "Class 03 — Integrating AKS with pipelines" },
+        { "id": "tftec-m16-lab-t01", "kind": "hands-on", "title": "Hands-on — Lab 01, Task 01" },
+        { "id": "tftec-m16-exam", "kind": "exam", "title": "Exam questions — Modules 15 and 16" }
+      ]
+    },
+    {
+      "id": "m17", "number": 17, "title": "Implementing feedback for development teams", "labs": ["02", "24"],
+      "items": [
+        { "id": "tftec-m17-pdf", "kind": "pdf", "title": "Download PDF — Module 17" },
+        { "id": "tftec-m17-a01", "kind": "class", "title": "Class 01 — Implement tools to track system usage, feature usage, and flow" },
+        { "id": "tftec-m17-a02", "kind": "class", "title": "Class 02 — Implement routing for mobile application crash report data" },
+        { "id": "tftec-m17-a03", "kind": "class", "title": "Class 03 — Develop monitoring and status dashboards" },
+        { "id": "tftec-m17-lab-t01", "kind": "hands-on", "title": "Hands-on — Lab 01, Task 01" }
+      ]
+    },
+    {
+      "id": "m18", "number": 18, "title": "Implementing system feedback mechanisms", "labs": ["24", "25", "03"],
+      "items": [
+        { "id": "tftec-m18-pdf", "kind": "pdf", "title": "Download PDF — Module 18" },
+        { "id": "tftec-m18-a01", "kind": "class", "title": "Class 01 — Site reliability engineering: measure end-user satisfaction" },
+        { "id": "tftec-m18-a02", "kind": "class", "title": "Class 02 — Design processes to capture and analyze user feedback" },
+        { "id": "tftec-m18-a03", "kind": "class", "title": "Class 03 — Design processes to automate application analytics" },
+        { "id": "tftec-m18-a04", "kind": "class", "title": "Class 04 — Managing alerts" },
+        { "id": "tftec-m18-a05", "kind": "class", "title": "Class 05 — Blameless retrospectives and a just culture" },
+        { "id": "tftec-m18-lab-t01", "kind": "hands-on", "title": "Hands-on — Lab 01, Task 01" },
+        { "id": "tftec-m18-exam", "kind": "exam", "title": "Exam questions — Modules 17 and 18" }
+      ]
+    },
+    {
+      "id": "m19", "number": 19, "title": "Implementing security in DevOps projects", "labs": ["20", "21", "22", "23"],
+      "items": [
+        { "id": "tftec-m19-pdf", "kind": "pdf", "title": "Download PDF — Module 19" },
+        { "id": "tftec-m19-a01", "kind": "class", "title": "Class 01 — Security in the pipeline" },
+        { "id": "tftec-m19-a02", "kind": "class", "title": "Class 02 — Azure Security Center" },
+        { "id": "tftec-m19-lab-t01", "kind": "hands-on", "title": "Hands-on — Lab 01, Task 01" }
+      ]
+    },
+    {
+      "id": "m20", "number": 20, "title": "Validating code bases for compliance", "labs": ["22", "23"],
+      "items": [
+        { "id": "tftec-m20-pdf", "kind": "pdf", "title": "Download PDF — Module 20" },
+        { "id": "tftec-m20-a01", "kind": "class", "title": "Class 01 — Open-source software" },
+        { "id": "tftec-m20-a02", "kind": "class", "title": "Class 02 — Managing security and compliance policies" },
+        { "id": "tftec-m20-a03", "kind": "class", "title": "Class 03 — Integrating license and vulnerability scans" },
+        { "id": "tftec-m20-lab-t01", "kind": "hands-on", "title": "Hands-on — Lab 01, Task 01" },
+        { "id": "tftec-m20-exam", "kind": "exam", "title": "Exam questions — Modules 19 and 20" }
+      ]
+    }
+  ]
+}

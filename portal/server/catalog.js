@@ -114,7 +114,7 @@ export function loadCatalog(portalRoot) {
   for (const s of sessions) if (!cycleIds.has(s.cycle)) throw new Error(`catalog: ${s.id} refers to unknown cycle ${s.cycle}`);
 
   const byId = new Map(sessions.map((s) => [s.id, s]));
-  return { track, sessions, byId, studyPlan: loadStudyPlan(catalogDir) };
+  return { track, sessions, byId, studyPlan: loadStudyPlan(catalogDir), tftec: loadTftec(catalogDir) };
 }
 
 // Self-tracked study recommendations (not verified by checkers).
@@ -136,4 +136,30 @@ function loadStudyPlan(catalogDir) {
     }
   }
   return { ...plan, itemIds };
+}
+
+// TFTEC video course: lesson-level checklist, self-tracked like the study plan.
+const TFTEC_KINDS = new Set(['pdf', 'class', 'hands-on', 'exam']);
+function loadTftec(catalogDir) {
+  const file = path.join(catalogDir, 'tftec.json');
+  if (!fs.existsSync(file)) return { title: 'TFTEC', intro: '', dailyOrder: [], modules: [], itemIds: new Set() };
+  const course = JSON.parse(fs.readFileSync(file, 'utf8'));
+  requireString(course, 'title', file);
+  requireArray(course, 'modules', file);
+  const itemIds = new Set();
+  for (const mod of course.modules) {
+    requireString(mod, 'id', file);
+    requireString(mod, 'title', file);
+    requireArray(mod, 'items', file);
+    if (!Number.isInteger(mod.number)) fail(file, `module "${mod.id}" needs an integer number`);
+    if (!Array.isArray(mod.labs) || mod.labs.some((l) => !/^[0-2][0-9]$/.test(l))) fail(file, `module "${mod.id}" labs must be two-digit AZ-400 lab ids`);
+    for (const item of mod.items) {
+      if (typeof item.id !== 'string' || !/^tftec-[a-z0-9-]+$/.test(item.id)) fail(file, `TFTEC item id "${item.id}" must be kebab-case and start with "tftec-"`);
+      if (itemIds.has(item.id)) fail(file, `duplicate TFTEC item id "${item.id}"`);
+      requireString(item, 'title', file);
+      if (!TFTEC_KINDS.has(item.kind)) fail(file, `TFTEC item "${item.id}" kind must be one of ${[...TFTEC_KINDS].join(', ')}`);
+      itemIds.add(item.id);
+    }
+  }
+  return { ...course, itemIds };
 }
