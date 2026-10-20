@@ -185,21 +185,34 @@ test('runner: environment blocks skip the checker with the right reason', async 
 test('study plan and interview practice are self-tracked and allow-listed', () => {
   const p = new ProgressStore({ dataDir: tempDir(), catalog }).load();
   assert.ok(catalog.studyPlan.itemIds.size >= 10);
-  p.setStudyItem('az400-m12', true);
-  assert.equal(p.data.study['az400-m12'].done, true);
+  p.setStudyItem('az305-m05', true);
+  assert.equal(p.data.study['az305-m05'].done, true);
   assert.throws(() => p.setStudyItem('../etc', true), UserError);
-  assert.throws(() => p.setStudyItem('az400-m12', 'yes'), UserError);
+  assert.throws(() => p.setStudyItem('az305-m05', 'yes'), UserError);
   assert.equal(p.recordInterviewPractice('C001').passes, 1);
   assert.equal(p.recordInterviewPractice('C001').passes, 2);
   // Self-tracked marks never unlock sessions.
   assert.equal(p.stateOf('C002').state, 'BLOCKED');
 });
 
+test('TFTEC course: lesson-level items are self-tracked, allow-listed and never complete a lab', () => {
+  const p = new ProgressStore({ dataDir: tempDir(), catalog }).load();
+  const ids = [...catalog.tftec.itemIds];
+  assert.ok(ids.length >= 60);
+  assert.ok(ids.every((id) => id.startsWith('tftec-')));
+  for (const mod of catalog.tftec.modules) for (const lab of mod.labs) assert.match(lab, /^[0-2][0-9]$/);
+  p.setStudyItem('tftec-m10-lab-t01', true);
+  assert.equal(p.data.study['tftec-m10-lab-t01'].done, true);
+  assert.throws(() => p.setStudyItem('tftec-m99-a01', true), UserError);
+  assert.ok(p.isLinkTarget('tftec-m10-a01'));
+  assert.deepEqual(p.az400().completions, {});
+});
+
 test('personal course links: https only, catalog targets only, stored outside progress.json', () => {
   const dir = tempDir();
   const p = new ProgressStore({ dataDir: dir, catalog }).load();
   p.addLink('C001', 'AZ-400 › Module 12', 'https://portal.tftecprime.com.br/m/lessons/programa-de-certificacao-az400');
-  p.addLink('az400-m12', 'Module 12', 'https://example.com/lesson');
+  p.addLink('az305-m05', 'Module 05', 'https://example.com/lesson');
   assert.equal(p.links().C001.length, 1);
   assert.throws(() => p.addLink('C001', 'x', 'http://insecure.example'), UserError);
   assert.throws(() => p.addLink('C001', 'x', 'javascript:alert(1)'), UserError);
@@ -210,5 +223,5 @@ test('personal course links: https only, catalog targets only, stored outside pr
   assert.throws(() => p.removeLink('C001', 5), UserError);
   assert.ok(fs.existsSync(path.join(dir, 'links.json')));
   const reloaded = new ProgressStore({ dataDir: dir, catalog }).load();
-  assert.equal(reloaded.links()['az400-m12'][0].label, 'Module 12');
+  assert.equal(reloaded.links()['az305-m05'][0].label, 'Module 05');
 });

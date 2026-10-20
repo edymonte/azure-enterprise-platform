@@ -142,6 +142,15 @@ export function createApp(config) {
           items: sec.items.map((item) => ({ ...item, done: Boolean(progress.data.study?.[item.id]?.done), at: progress.data.study?.[item.id]?.at ?? null })),
         })),
       },
+      tftec: {
+        title: catalog.tftec.title,
+        intro: catalog.tftec.intro,
+        dailyOrder: catalog.tftec.dailyOrder ?? [],
+        modules: catalog.tftec.modules.map((mod) => ({
+          ...mod,
+          items: mod.items.map((item) => ({ ...item, done: Boolean(progress.data.study?.[item.id]?.done), at: progress.data.study?.[item.id]?.at ?? null })),
+        })),
+      },
       timeline: progress.timeline(30),
       links: progress.links(),
       schedule: { title: schedule.title, subtitle: schedule.subtitle, start: schedule.start, lastDay: schedule.lastDay, dailyHours: schedule.dailyHours, items: schedule.items },

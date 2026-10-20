@@ -15,19 +15,6 @@
       ]
     },
     {
-      "id": "az400",
-      "title": "AZ-400 — the modules you still need (TFTEC)",
-      "note": "Modules 01–09 are done. These are the most asked senior DevOps topics.",
-      "items": [
-        { "id": "az400-m10", "title": "Module 10 — Designing a release strategy", "detail": "Approvals, gates, release flow. Links to Phase 2 tickets." },
-        { "id": "az400-m11", "title": "Module 11 — Implementing continuous deployment using Azure Pipelines", "detail": "Multi-stage YAML, environments, checks." },
-        { "id": "az400-m12", "title": "Module 12 — Implementing an appropriate deployment pattern", "detail": "Blue/green, canary, feature flags, ring deployments — classic interview questions." },
-        { "id": "az400-m19", "title": "Module 19 — Implementing security in DevOps projects", "detail": "DevSecOps: scanning, secrets, supply chain." },
-        { "id": "az400-m13", "title": "Module 13 — Managing infrastructure and configuration using Azure tools (optional)", "detail": "ARM/Bicep, Azure Automation — contrast with Terraform." },
-        { "id": "az400-m20", "title": "Module 20 — Validating code bases for compliance (optional)", "detail": "Policy, licensing, compliance in pipelines." }
-      ]
-    },
-    {
       "id": "az305",
       "title": "AZ-305 — refresh for design interviews (TFTEC)",
       "note": "The vocabulary of 'how would you design…?' questions.",

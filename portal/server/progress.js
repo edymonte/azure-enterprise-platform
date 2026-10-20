@@ -225,7 +225,7 @@ export class ProgressStore {
   }
 
   isLinkTarget(target) {
-    return this.catalog.byId.has(target) || this.catalog.studyPlan.itemIds.has(target) || /^az400-([0-2][0-9]|prep)$/.test(target);
+    return this.catalog.byId.has(target) || this.catalog.studyPlan.itemIds.has(target) || this.catalog.tftec?.itemIds.has(target) || /^az400-([0-2][0-9]|prep)$/.test(target);
   }
 
   addLink(target, label, url) {
@@ -261,7 +261,7 @@ export class ProgressStore {
 
   // Self-tracked: ticked by the learner, never used for unlocking sessions.
   setStudyItem(itemId, done) {
-    if (!this.catalog.studyPlan.itemIds.has(itemId)) throw new UserError('Unknown study item.');
+    if (!this.catalog.studyPlan.itemIds.has(itemId) && !this.catalog.tftec?.itemIds.has(itemId)) throw new UserError('Unknown study item.');
     if (typeof done !== 'boolean') throw new UserError('"done" must be a boolean.');
     this.data.study ??= {};
     this.data.study[itemId] = { done, at: new Date().toISOString() };
