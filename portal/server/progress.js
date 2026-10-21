@@ -269,6 +269,15 @@ export class ProgressStore {
     this.save();
   }
 
+  // Self-tracked "review again" flag on a notebook question ("<entry>/<question>").
+  setNotebookReview(key, review) {
+    if (!/^[a-z0-9-]{1,60}\/[a-z0-9-]{1,60}$/.test(key)) throw new UserError('Unknown notebook question.');
+    if (typeof review !== 'boolean') throw new UserError('"review" must be a boolean.');
+    this.data.notebook ??= {};
+    this.data.notebook[key] = { review, at: new Date().toISOString() };
+    this.save();
+  }
+
   recordInterviewPractice(id) {
     this.data.interview ??= {};
     const rec = this.data.interview[id] ?? { passes: 0 };
