@@ -358,7 +358,7 @@ export function createApp(config) {
         if (!data) return send(res, 404, { error: 'Unknown lab' });
         // The answers stay on the server until the learner submits the quiz.
         if (what === 'questions') {
-          data = data.map(({ correct, explanation, options, ...q }) => ({ ...q, pick: correct.length, options: options.map(({ key, text }) => ({ key, text })) }));
+          data = data.map(({ correct, explanation, options, sources, evidence, ...q }) => ({ ...q, pick: correct.length, options: options.map(({ key, text }) => ({ key, text })) }));
         }
         return send(res, 200, data);
       }

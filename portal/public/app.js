@@ -1545,6 +1545,16 @@
         box.append(label);
       }
       if (rv?.explanation) box.append(h('div', { class: 'quiz-explain' }, rv.explanation));
+      if (rv?.evidence) {
+        const ev = rv.evidence;
+        box.append(h('details', { class: 'evidence' },
+          h('summary', {}, '📖 Show documentation evidence'),
+          h('div', { class: 'evidence-body' },
+            h('span', { class: `chip ${ev.support === 'direct' ? 'ok' : ''}`, title: ev.support === 'direct' ? 'The page states this directly' : 'The page states the rule; the answer applies it to the scenario' }, ev.support === 'direct' ? 'Stated directly' : 'Principle applied'),
+            h('p', {}, ev.summary),
+            h('blockquote', { class: 'evidence-quote' }, `“${ev.highlight}”`),
+            h('a', { href: ev.highlightUrl, target: '_blank', rel: 'noopener noreferrer' }, 'Open the official page at this passage ↗'))));
+      }
       if (rv?.sources.length) box.append(h('div', { class: 'links small' }, ...rv.sources.map((u, k) => h('a', { href: u, target: '_blank', rel: 'noopener noreferrer' }, `Source ${k + 1}`))));
       list.push(box);
     });

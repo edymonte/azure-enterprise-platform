@@ -81,7 +81,8 @@ test('http: AZ-400 questions hide the answers until the quiz is submitted', asyn
   const course = tempDir('az400-http-');
   writeFiles(course, {
     'curriculum/lab-content.yml': JSON.stringify({ labs: [{ id: '09', slug: '09-ci', title: 'CI', domain: 'pipelines', checkpoints: [{ id: 'CP1', title: 'T', commands: 'Write-Output 1' }] }] }),
-    'labs/09-ci/questions.yml': JSON.stringify({ questions: [{ id: 'L09-Q001', question: 'Q?', options: [{ key: 'A', text: 'a', rationale: 'right' }, { key: 'B', text: 'b', rationale: 'wrong' }], correctAnswers: ['A'], explanation: 'secret' }] }),
+    'labs/09-ci/questions.yml': JSON.stringify({ sources: [{ id: 'S1', url: 'https://docs.github.com/doc' }], questions: [{ id: 'L09-Q001', question: 'Q?', options: [{ key: 'A', text: 'a', rationale: 'right' }, { key: 'B', text: 'b', rationale: 'wrong' }], correctAnswers: ['A'], explanation: 'secret', sourceIds: ['S1'] }] }),
+    'labs/09-ci/evidence.json': JSON.stringify({ schemaVersion: 1, labId: '09', items: { 'L09-Q001': { sourceId: 'S1', highlight: 'hidden proof phrase', support: 'direct', summary: 'hidden evidence summary' } } }),
   });
   const port = 20000 + Math.floor(Math.random() * 20000);
   const app = createApp({ ...loadConfig({ PORTAL_REPO_ROOT: root, PORTAL_DATA_DIR: tempDir(), PORTAL_PORT: String(port), PORTAL_AZ400_ROOT: course }) });
@@ -93,6 +94,7 @@ test('http: AZ-400 questions hide the answers until the quiz is submitted', asyn
   const qs = await request(port, { path: '/api/az400/09/questions', headers: json });
   assert.equal(qs.status, 200);
   assert.doesNotMatch(qs.body, /right|wrong|secret|correct/, 'no answers, rationales or explanation before submission');
+  assert.doesNotMatch(qs.body, /hidden|docs\.github\.com/, 'no evidence or sources before submission');
   assert.equal(JSON.parse(qs.body)[0].pick, 1);
   assert.match((await request(port, { path: '/api/az400/09/detail', headers: json })).body, /Write-Output 1/);
   assert.equal((await request(port, { path: '/api/az400/42/detail', headers: json })).status, 404);
@@ -101,5 +103,6 @@ test('http: AZ-400 questions hide the answers until the quiz is submitted', asyn
   const graded = JSON.parse((await request(port, { method: 'POST', path: '/api/az400/09/quiz', headers: json, body: '{"answers":{"L09-Q001":["A"]}}' })).body);
   assert.equal(graded.pct, 100);
   assert.equal(graded.review[0].explanation, 'secret', 'answers come back with the grade');
+  assert.equal(graded.review[0].evidence.summary, 'hidden evidence summary', 'evidence comes back with the grade');
   assert.equal(app.progress.az400().scores['09'], 100);
 });

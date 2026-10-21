@@ -96,6 +96,7 @@ export class Az400 extends EventEmitter {
     try {
       const q = JSON.parse(fs.readFileSync(path.join(this.root, 'labs', l.slug, 'questions.yml'), 'utf8').replace(/^﻿/, ''));
       const sources = new Map((q.sources ?? []).map((s) => [s.id, s.url]));
+      const evidence = readEvidence(path.join(this.root, 'labs', l.slug, 'evidence.json'), sources);
       return (q.questions ?? []).map((x) => ({
         id: String(x.id),
         checkpointId: x.checkpointId ?? null,
@@ -105,6 +106,7 @@ export class Az400 extends EventEmitter {
         correct: (x.correctAnswers ?? []).map(String),
         explanation: x.explanation ? String(x.explanation) : '',
         sources: (x.sourceIds ?? []).map((id) => sources.get(id)).filter(Boolean),
+        evidence: evidence.get(String(x.id)) ?? null,
       }));
     } catch {
       return [];
@@ -214,3 +216,33 @@ function safeList(dir) {
 }
 
 export { LAB_ID, RUN_ID };
+
+// Optional per-question documentation evidence (labs/<slug>/evidence.json):
+// the source page, a short verbatim phrase and a URL that opens the page with
+// that phrase highlighted (text fragment). Missing or broken files mean none.
+function readEvidence(file, sources) {
+  const out = new Map();
+  let doc;
+  try {
+    doc = JSON.parse(fs.readFileSync(file, 'utf8').replace(/^﻿/, ''));
+  } catch {
+    return out;
+  }
+  for (const [qid, item] of Object.entries(doc.items ?? {})) {
+    const url = sources.get(item?.sourceId);
+    if (!url || typeof item.highlight !== 'string' || typeof item.summary !== 'string') continue;
+    out.set(qid, {
+      url,
+      highlightUrl: `${url.split('#')[0]}#:~:text=${textFragment(item.highlight)}`,
+      highlight: item.highlight,
+      summary: item.summary,
+      support: item.support === 'direct' ? 'direct' : 'principle',
+    });
+  }
+  return out;
+}
+
+// Text fragments treat "-", "," and "&" as syntax, so they must be escaped too.
+function textFragment(text) {
+  return encodeURIComponent(text).replace(/-/g, '%2D');
+}

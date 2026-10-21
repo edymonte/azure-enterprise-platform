@@ -500,3 +500,10 @@ textarea { width: 100%; min-height: 70px; background: var(--panel); color: var(-
 .nb-block p { margin: 4px 0 0; white-space: pre-line; }
 .nb-model { border-left: 3px solid var(--ok); padding-left: 10px; }
 .chip.bad { background: var(--bad-soft, var(--sunk)); color: var(--bad); }
+
+/* Quiz: documentation evidence, revealed only after grading */
+.evidence { margin-top: 10px; border-radius: 8px; background: var(--sunk); padding: 8px 12px; }
+.evidence summary { cursor: pointer; font-weight: 600; }
+.evidence-body { display: grid; gap: 6px; margin-top: 8px; justify-items: start; }
+.evidence-body p { margin: 0; }
+.evidence-quote { margin: 0; padding-left: 10px; border-left: 3px solid var(--accent); font-style: italic; }
