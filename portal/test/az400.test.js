@@ -68,6 +68,16 @@ test('az400: task detail, questions and server-side grading', async () => {
   assert.equal(qs.length, 2);
   assert.deepEqual(qs[0].sources, ['https://docs.github.com/x']);
   assert.deepEqual(az.questions('00'), [], 'no questions file');
+  assert.equal(qs[0].evidence, null, 'no evidence file');
+  writeFiles(root, { 'labs/09-github-actions-ci/evidence.json': JSON.stringify({ schemaVersion: 1, labId: '09', items: {
+    'L09-Q001': { sourceId: 'S1', highlight: 'pull-request, checks & reviews', support: 'direct', summary: 'The page says so.' },
+    'L09-Q002': { sourceId: 'S9', highlight: 'unknown source is dropped', support: 'direct', summary: 'x' },
+  } }) });
+  const withEv = az.questions('09');
+  assert.equal(withEv[0].evidence.url, 'https://docs.github.com/x');
+  assert.equal(withEv[0].evidence.highlightUrl, 'https://docs.github.com/x#:~:text=pull%2Drequest%2C%20checks%20%26%20reviews', 'text fragment escapes - , &');
+  assert.equal(withEv[0].evidence.support, 'direct');
+  assert.equal(withEv[1].evidence, null, 'evidence must point at a known source');
   assert.deepEqual(az.grade('09', { 'L09-Q001': ['A'], 'L09-Q002': ['C', 'A'] }), { total: 2, correct: 2, pct: 100, wrong: [] });
   assert.deepEqual(az.grade('09', { 'L09-Q001': ['A', 'B'], 'L09-Q002': ['A'] }), { total: 2, correct: 0, pct: 0, wrong: ['L09-Q001', 'L09-Q002'] }, 'exact set only');
   assert.equal(az.grade('00', {}), null);

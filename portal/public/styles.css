@@ -485,3 +485,25 @@ textarea { width: 100%; min-height: 70px; background: var(--panel); color: var(-
 .tftec-kind { flex: none; }
 .study-item.next { border-color: var(--warn); }
 .tftec-next { color: var(--warn); font-weight: 700; }
+
+/* Review notebook */
+.nb-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.nb-error { color: var(--bad); font-weight: 600; }
+.nb-entry h4 { margin: 14px 0 6px; }
+.nb-points { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+.nb-q { background: var(--sunk); border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; border: 1px solid transparent; }
+.nb-q.flagged { border-color: var(--warn); }
+.nb-q summary { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; cursor: pointer; font-weight: 600; }
+.nb-q-text { flex: 1 1 260px; }
+.nb-flag.on { color: var(--warn); }
+.nb-block { margin-top: 10px; }
+.nb-block p { margin: 4px 0 0; white-space: pre-line; }
+.nb-model { border-left: 3px solid var(--ok); padding-left: 10px; }
+.chip.bad { background: var(--bad-soft, var(--sunk)); color: var(--bad); }
+
+/* Quiz: documentation evidence, revealed only after grading */
+.evidence { margin-top: 10px; border-radius: 8px; background: var(--sunk); padding: 8px 12px; }
+.evidence summary { cursor: pointer; font-weight: 600; }
+.evidence-body { display: grid; gap: 6px; margin-top: 8px; justify-items: start; }
+.evidence-body p { margin: 0; }
+.evidence-quote { margin: 0; padding-left: 10px; border-left: 3px solid var(--accent); font-style: italic; }

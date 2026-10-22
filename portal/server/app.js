@@ -12,6 +12,7 @@ import { RepoWatcher } from './watcher.js';
 import { Terminal } from './terminal.js';
 import { Az400, LAB_ID } from './az400.js';
 import { loadSchedule } from './schedule.js';
+import { Notebook } from './notebook.js';
 
 const STATIC_FILES = {
   '/app.js': ['app.js', 'text/javascript; charset=utf-8'],
@@ -43,6 +44,7 @@ export function createApp(config) {
   const schedule = loadSchedule(config.portalRoot, catalog);
   const progress = new ProgressStore({ dataDir: config.dataDir, catalog, unlockAll: config.unlockAll, scheduledSessions: schedule.scheduledSessions }).load();
   const az400 = new Az400({ root: config.az400Root });
+  const notebook = new Notebook({ dataDir: config.dataDir });
   const probe = new EnvironmentProbe({ repoRoot: config.repoRoot, track: catalog.track });
   const runner = new Runner({ config, catalog, probe });
   const watcher = new RepoWatcher({ repoRoot: config.repoRoot, catalog, debounceMs: config.watchDebounceMs });
@@ -151,6 +153,14 @@ export function createApp(config) {
           items: mod.items.map((item) => ({ ...item, done: Boolean(progress.data.study?.[item.id]?.done), at: progress.data.study?.[item.id]?.at ?? null })),
         })),
       },
+      notebook: (() => {
+        const nb = notebook.read();
+        const flags = progress.data.notebook ?? {};
+        return {
+          error: nb.error,
+          entries: nb.entries.map((e) => ({ ...e, questions: e.questions.map((q) => ({ ...q, review: Boolean(flags[`${e.id}/${q.id}`]?.review) })) })),
+        };
+      })(),
       timeline: progress.timeline(30),
       links: progress.links(),
       schedule: { title: schedule.title, subtitle: schedule.subtitle, start: schedule.start, lastDay: schedule.lastDay, dailyHours: schedule.dailyHours, items: schedule.items },
@@ -348,7 +358,7 @@ export function createApp(config) {
         if (!data) return send(res, 404, { error: 'Unknown lab' });
         // The answers stay on the server until the learner submits the quiz.
         if (what === 'questions') {
-          data = data.map(({ correct, explanation, options, ...q }) => ({ ...q, pick: correct.length, options: options.map(({ key, text }) => ({ key, text })) }));
+          data = data.map(({ correct, explanation, options, sources, evidence, ...q }) => ({ ...q, pick: correct.length, options: options.map(({ key, text }) => ({ key, text })) }));
         }
         return send(res, 200, data);
       }
@@ -378,6 +388,14 @@ export function createApp(config) {
         const body = await readJson(req);
         if (link[2]) progress.removeLink(link[1], body.index);
         else progress.addLink(link[1], body.label, body.url);
+        pushState();
+        return send(res, 200, { ok: true });
+      }
+      const nbReview = pathname.match(/^\/api\/notebook\/([a-z0-9-]{1,60})\/([a-z0-9-]{1,60})\/review$/);
+      if (req.method === 'POST' && nbReview) {
+        const body = await readJson(req);
+        if (!notebook.hasQuestion(nbReview[1], nbReview[2])) return send(res, 404, { error: 'Unknown notebook question' });
+        progress.setNotebookReview(`${nbReview[1]}/${nbReview[2]}`, body.review);
         pushState();
         return send(res, 200, { ok: true });
       }
@@ -440,6 +458,7 @@ export function createApp(config) {
     await az400.load();
     onAz400Evidence();
     az400.start();
+    notebook.watch(pushState);
     terminal?.ensure();
     watcher.on('error', (err) => console.error('watcher:', err.message));
     probe.refresh({ tools: true }).then(() => {
@@ -454,11 +473,12 @@ export function createApp(config) {
     clearInterval(envTimer);
     terminal?.stop();
     az400.stop();
+    notebook.stop();
     runner.stop();
     watcher.stop();
     for (const res of clients) res.end();
     await new Promise((resolve) => server.close(resolve));
   }
 
-  return { start, stop, server, token, state, progress, runner, probe, catalog, terminal, az400 };
+  return { start, stop, server, token, state, progress, runner, probe, catalog, terminal, az400, notebook };
 }

@@ -208,6 +208,14 @@ test('TFTEC course: lesson-level items are self-tracked, allow-listed and never 
   assert.deepEqual(p.az400().completions, {});
 });
 
+test('notebook review flags are validated and kept in progress', () => {
+  const p = new ProgressStore({ dataDir: tempDir(), catalog }).load();
+  p.setNotebookReview('lab01/q1', true);
+  assert.equal(p.data.notebook['lab01/q1'].review, true);
+  assert.throws(() => p.setNotebookReview('../x', true), UserError);
+  assert.throws(() => p.setNotebookReview('lab01/q1', 'yes'), UserError);
+});
+
 test('personal course links: https only, catalog targets only, stored outside progress.json', () => {
   const dir = tempDir();
   const p = new ProgressStore({ dataDir: dir, catalog }).load();

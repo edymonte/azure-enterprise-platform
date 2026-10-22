@@ -1276,6 +1276,47 @@
       ...cards);
   }
 
+  // ------------------------------------------------------------ review notebook (personal, git-ignored content)
+  const NB_VERDICT = { correct: ['ok', 'Correct'], partial: ['warn', 'Partial'], wrong: ['bad', 'Review'], unanswered: ['', 'Not answered'] };
+  const NB_KIND = { lab: 'Lab', reinforcement: 'Reinforcement', tftec: 'TFTEC', other: 'Notes' };
+  function renderNotebook() {
+    const nb = state.notebook;
+    const onlyReview = Boolean(ui.nbReviewOnly);
+    const allQ = nb.entries.flatMap((e) => e.questions);
+    const flagged = allQ.filter((q) => q.review).length;
+    const entries = nb.entries.slice().sort((a, b) => b.date.localeCompare(a.date))
+      .map((e) => ({ ...e, questions: onlyReview ? e.questions.filter((q) => q.review) : e.questions }))
+      .filter((e) => !onlyReview || e.questions.length);
+    const head = h('section', { class: 'card' },
+      h('h2', {}, 'Review notebook'),
+      h('p', { class: 'muted' }, 'Key points and corrected interview questions from every lab and reinforcement. Read the question, answer it out loud, then open it to compare. Flag anything you want to see again.'),
+      h('div', { class: 'nb-toolbar' },
+        h('span', { class: 'muted small' }, `${nb.entries.length} entries · ${allQ.length} questions · ${flagged} flagged`),
+        h('button', { class: `btn copy ${onlyReview ? 'active' : ''}`, type: 'button', onclick: () => { ui.nbReviewOnly = !onlyReview; render(true); } }, onlyReview ? 'Show everything' : `Only flagged (${flagged})`)),
+      nb.error ? h('p', { class: 'nb-error' }, nb.error) : null);
+    const cards = entries.map((e) => h('section', { class: 'card nb-entry' },
+      h('div', { class: 'cycle-head' },
+        h('h3', {}, e.title),
+        h('span', { class: 'chip' }, `${NB_KIND[e.kind]} · ${e.date}`)),
+      e.labs.length ? h('div', { class: 'tftec-labs' }, h('span', { class: 'muted small' }, 'Labs:'), ...e.labs.map((id) => h('a', { class: 'chip', href: '#/course' }, `Lab ${id}`))) : null,
+      e.summary ? h('p', {}, e.summary) : null,
+      !onlyReview && e.keyPoints.length ? h('div', {}, h('h4', {}, 'Key points'), h('ul', { class: 'nb-points' }, e.keyPoints.map((p) => h('li', {}, p)))) : null,
+      e.questions.length ? h('div', {}, h('h4', {}, 'Questions'), ...e.questions.map((q) => {
+        const [cls, label] = NB_VERDICT[q.verdict];
+        const flag = h('button', {
+          class: `btn copy nb-flag ${q.review ? 'on' : ''}`, type: 'button',
+          onclick: (ev) => { ev.preventDefault(); post(`/api/notebook/${e.id}/${q.id}/review`, { review: !q.review }).catch((err) => toast(err.message)); },
+        }, q.review ? '★ Flagged' : '☆ Review again');
+        return h('details', { class: `nb-q ${q.review ? 'flagged' : ''}` },
+          h('summary', {}, h('span', { class: 'nb-q-text' }, q.question), h('span', { class: `chip ${cls}` }, label), flag),
+          q.myAnswer ? h('div', { class: 'nb-block' }, h('b', {}, 'My answer'), h('p', {}, q.myAnswer)) : null,
+          q.feedback ? h('div', { class: 'nb-block' }, h('b', {}, 'Feedback'), h('p', {}, q.feedback)) : null,
+          h('div', { class: 'nb-block nb-model' }, h('b', {}, 'Interview-ready answer'), h('p', {}, q.answer)));
+      })) : null));
+    const empty = h('section', { class: 'card' }, h('p', { class: 'muted' }, onlyReview ? 'Nothing flagged. Flag a question with "Review again" to collect it here.' : 'The notebook is empty. Entries are added after each lab and reinforcement.'));
+    view.replaceChildren(head, ...(cards.length ? cards : [empty]));
+  }
+
   // ------------------------------------------------------------ interview practice
   function renderInterview() {
     const total = state.sessions.length;
@@ -1504,6 +1545,16 @@
         box.append(label);
       }
       if (rv?.explanation) box.append(h('div', { class: 'quiz-explain' }, rv.explanation));
+      if (rv?.evidence) {
+        const ev = rv.evidence;
+        box.append(h('details', { class: 'evidence' },
+          h('summary', {}, '📖 Show documentation evidence'),
+          h('div', { class: 'evidence-body' },
+            h('span', { class: `chip ${ev.support === 'direct' ? 'ok' : ''}`, title: ev.support === 'direct' ? 'The page states this directly' : 'The page states the rule; the answer applies it to the scenario' }, ev.support === 'direct' ? 'Stated directly' : 'Principle applied'),
+            h('p', {}, ev.summary),
+            h('blockquote', { class: 'evidence-quote' }, `“${ev.highlight}”`),
+            h('a', { href: ev.highlightUrl, target: '_blank', rel: 'noopener noreferrer' }, 'Open the official page at this passage ↗'))));
+      }
       if (rv?.sources.length) box.append(h('div', { class: 'links small' }, ...rv.sources.map((u, k) => h('a', { href: u, target: '_blank', rel: 'noopener noreferrer' }, `Source ${k + 1}`))));
       list.push(box);
     });
@@ -1515,7 +1566,7 @@
     const parts = location.hash.replace(/^#\/?/, '').split('/');
     if (parts[0] === 'session' && /^C\d{3}$/.test(parts[1] ?? '')) return { view: 'session', id: parts[1] };
     if (parts[0] === 'quiz' && /^[0-2][0-9]$/.test(parts[1] ?? '')) return { view: 'quiz', id: parts[1] };
-    return { view: ['schedule', 'course', 'tftec', 'map', 'progress', 'environment', 'study', 'interview'].includes(parts[0]) ? parts[0] : 'schedule' };
+    return { view: ['schedule', 'course', 'tftec', 'notebook', 'map', 'progress', 'environment', 'study', 'interview'].includes(parts[0]) ? parts[0] : 'schedule' };
   }
 
   function render(force = false) {
@@ -1534,6 +1585,7 @@
     else if (r.view === 'environment') renderEnvironment();
     else if (r.view === 'study') renderStudy();
     else if (r.view === 'tftec') renderTftec();
+    else if (r.view === 'notebook') renderNotebook();
     else if (r.view === 'interview') renderInterview();
     else renderSchedule();
     window.scrollTo(0, y);
