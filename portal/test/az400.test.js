@@ -127,7 +127,7 @@ test('schedule: AZ-400 daily plan plus scheduled platform sessions, which are un
   const az = s.items.filter((i) => i.kind === 'az400');
   assert.equal(az[0].id, 'prep', 'preparation first on day one');
   assert.equal(az.find((i) => i.id === '01').date, '2026-10-20');
-  assert.equal(az.find((i) => i.id === '25').date, '2026-11-13', 'the plan starts on Oct 19, so lab 25 lands the day after the vacation');
+  assert.equal(az.find((i) => i.id === '25').date, '2026-11-14', 'job-ready order: lab 25 is the first lab after the vacation');
   assert.ok(s.scheduledSessions.has('C014'));
   const p = new ProgressStore({ dataDir: tempDir(), catalog, scheduledSessions: s.scheduledSessions }).load();
   assert.equal(p.stateOf('C014').state, 'AVAILABLE', 'scheduled session is unlocked');
