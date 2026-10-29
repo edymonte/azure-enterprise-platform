@@ -1,5 +1,7 @@
 # 7-day personal route — real E2E delivery on Azure (interview edition)
 
+> **Alternative short route.** The current study plan is the dated route of platform sessions in the learning portal (one session a day); use this 7-day route only for a compressed interview sprint.
+
 Built with the **"personal route architect"** prompt:
 
 > My goal is **to pass an English interview for an Azure DevOps Consultant role**: to **have deployed a real platform and shipped features from a feature branch to production through PRs, CI, GitOps and smoke tests — and be able to narrate that E2E flow and its trade-offs in ≤ 2 minutes** within **7 days** — not to learn Azure in general.

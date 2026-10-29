@@ -122,15 +122,17 @@ test('az400: a passing validation completes a lab once, with XP; steps and score
   assert.ok(today.steps >= 1 && today.completions >= 1);
 });
 
-test('schedule: AZ-400 daily plan plus scheduled platform sessions, which are unlocked by the plan', () => {
+test('schedule: platform route with every session dated, done AZ-400 labs kept, scheduled sessions unlocked', () => {
   const s = loadSchedule(PORTAL_ROOT, catalog);
   const az = s.items.filter((i) => i.kind === 'az400');
   assert.equal(az[0].id, 'prep', 'preparation first on day one');
   assert.equal(az.find((i) => i.id === '01').date, '2026-10-20');
-  assert.equal(az.find((i) => i.id === '25').date, '2026-11-14', 'job-ready order: lab 25 is the first lab after the vacation');
-  assert.ok(s.scheduledSessions.has('C014'));
+  assert.ok(!az.some((i) => i.id === '04'), 'AZ-400 labs not started yet are paused, not dated');
+  assert.equal(s.scheduledSessions.size, 30, 'every platform session has a date');
   const p = new ProgressStore({ dataDir: tempDir(), catalog, scheduledSessions: s.scheduledSessions }).load();
   assert.equal(p.stateOf('C014').state, 'AVAILABLE', 'scheduled session is unlocked');
-  assert.equal(p.stateOf('C002').state, 'BLOCKED', 'unscheduled sessions keep the sequential lock');
+  fs.rmSync(tempDir(), { recursive: true, force: true });
+  const unplanned = new ProgressStore({ dataDir: tempDir(), catalog, scheduledSessions: new Set() }).load();
+  assert.equal(unplanned.stateOf('C002').state, 'BLOCKED', 'unscheduled sessions keep the sequential lock');
   fs.rmSync(tempDir(), { recursive: true, force: true });
 });
