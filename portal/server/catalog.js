@@ -114,7 +114,71 @@ export function loadCatalog(portalRoot) {
   for (const s of sessions) if (!cycleIds.has(s.cycle)) throw new Error(`catalog: ${s.id} refers to unknown cycle ${s.cycle}`);
 
   const byId = new Map(sessions.map((s) => [s.id, s]));
-  return { track, sessions, byId, studyPlan: loadStudyPlan(catalogDir), tftec: loadTftec(catalogDir) };
+  return { track, sessions, byId, studyPlan: loadStudyPlan(catalogDir), tftec: loadTftec(catalogDir), sprint: loadSprint(catalogDir, portalRoot, byId) };
+}
+
+// Recovery sprint: dated blocks with recall, exercise, criteria and English.
+// Criteria are verified by the block checker, by the portal (recorded facts)
+// or by an explicit review — never assumed.
+export const SPRINT_BLOCK_ID = /^R\d$/;
+const SPRINT_VERIFY = new Set(['checker', 'portal', 'review']);
+const SPRINT_RULES = new Set(['recall', 'attempts', 'english', 'feedback']);
+const SPRINT_OWNERS = new Set(['learner', 'environment']);
+const SPRINT_LEVELS = new Set(['guided', 'partial', 'solo', 'breakfix']);
+function loadSprint(catalogDir, portalRoot, sessionsById) {
+  const file = path.join(catalogDir, 'sprint.json');
+  if (!fs.existsSync(file)) return null;
+  const sprint = JSON.parse(fs.readFileSync(file, 'utf8'));
+  for (const key of ['id', 'title', 'intro']) requireString(sprint, key, file);
+  requireArray(sprint, 'blocks', file);
+  const byId = new Map();
+  sprint.blocks.forEach((b, i) => {
+    const where = `block ${b.id ?? i + 1}`;
+    if (!SPRINT_BLOCK_ID.test(b.id ?? '')) fail(file, `${where}: id must match ${SPRINT_BLOCK_ID}`);
+    if (byId.has(b.id)) fail(file, `duplicate block id "${b.id}"`);
+    if (b.number !== i + 1) fail(file, `${where}: numbers must be contiguous from 1`);
+    for (const key of ['title', 'objective', 'english']) if (!b[key]) fail(file, `${where}: "${key}" is required`);
+    if (!Number.isInteger(b.minutes) || b.minutes < 15) fail(file, `${where}: "minutes" must be >= 15`);
+    if (!b.prerequisites || !Array.isArray(b.prerequisites.platform)) fail(file, `${where}: "prerequisites.platform" is required`);
+    for (const p of b.prerequisites.platform) if (!PLATFORM_REQUIREMENTS.has(p)) fail(file, `${where}: unknown platform requirement "${p}"`);
+    for (const s of b.reuse?.sessions ?? []) if (!sessionsById.has(s)) fail(file, `${where}: reuse refers to unknown session ${s}`);
+    for (const l of b.reuse?.az400 ?? []) if (!/^[0-2][0-9]$/.test(l)) fail(file, `${where}: reuse AZ-400 lab "${l}" must be a two-digit id`);
+    requireArray(b, 'recall', file);
+    requireArray(b, 'steps', file);
+    for (const list of [b.recall, b.steps]) {
+      const ids = new Set();
+      for (const s of list) {
+        if (typeof s.id !== 'string' || !/^[a-z0-9-]+$/.test(s.id) || ids.has(s.id)) fail(file, `${where}: recall and step ids must be unique kebab-case`);
+        ids.add(s.id);
+      }
+    }
+    for (const q of b.recall) if (typeof q.question !== 'string' || typeof q.answer !== 'string') fail(file, `${where}: recall "${q.id}" needs question and answer`);
+    for (const s of b.steps) {
+      if (!SPRINT_LEVELS.has(s.level)) fail(file, `${where}: step "${s.id}" level must be one of ${[...SPRINT_LEVELS].join(', ')}`);
+      if (typeof s.title !== 'string' || typeof s.detail !== 'string' || typeof s.solution !== 'string') fail(file, `${where}: step "${s.id}" needs title, detail and solution`);
+      if (!Array.isArray(s.hints) || s.hints.length < 2) fail(file, `${where}: step "${s.id}" needs at least 2 hints`);
+    }
+    requireArray(b, 'criteria', file);
+    const cids = new Set();
+    for (const c of b.criteria) {
+      if (typeof c.id !== 'string' || !/^[a-z0-9-]+$/.test(c.id) || cids.has(c.id)) fail(file, `${where}: criterion ids must be unique kebab-case`);
+      cids.add(c.id);
+      if (typeof c.text !== 'string') fail(file, `${where}: criterion "${c.id}" needs text`);
+      if (!SPRINT_VERIFY.has(c.verify)) fail(file, `${where}: criterion "${c.id}" verify must be checker, portal or review`);
+      if (c.verify === 'portal' && !SPRINT_RULES.has(c.rule)) fail(file, `${where}: portal criterion "${c.id}" needs a rule (${[...SPRINT_RULES].join(', ')})`);
+      if (c.verify !== 'portal' && !SPRINT_OWNERS.has(c.owner)) fail(file, `${where}: criterion "${c.id}" owner must be learner or environment`);
+    }
+    const checked = b.criteria.filter((c) => c.verify === 'checker');
+    if (checked.length) {
+      const ch = b.checker;
+      if (!ch || !/^checkers\/[a-z0-9-]+\.js$/.test(ch.script ?? '')) fail(file, `${where}: checker criteria need checker.script in checkers/`);
+      if (!fs.existsSync(path.join(portalRoot, ch.script))) fail(file, `${where}: checker script "${ch.script}" not found`);
+      if (!Number.isInteger(ch.timeoutSeconds) || ch.timeoutSeconds < 5 || ch.timeoutSeconds > 900) fail(file, `${where}: checker.timeoutSeconds must be 5..900`);
+    }
+    if (typeof b.english.question !== 'string' || typeof b.english.modelAnswer !== 'string') fail(file, `${where}: english needs question and modelAnswer`);
+    byId.set(b.id, b);
+  });
+  return { ...sprint, byId };
 }
 
 // Self-tracked study recommendations (not verified by checkers).

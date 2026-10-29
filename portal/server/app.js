@@ -13,6 +13,7 @@ import { Terminal } from './terminal.js';
 import { Az400, LAB_ID } from './az400.js';
 import { loadSchedule } from './schedule.js';
 import { Notebook } from './notebook.js';
+import { SprintTracker } from './sprint.js';
 
 const STATIC_FILES = {
   '/app.js': ['app.js', 'text/javascript; charset=utf-8'],
@@ -29,6 +30,7 @@ const SECURITY_HEADERS = {
   'Cache-Control': 'no-store',
 };
 const ACTIONS = new Set(['start', 'check', 'cancel', 'hint', 'assisted', 'assessment']);
+const SPRINT_ACTIONS = new Set(['start', 'recall', 'attempt', 'hint', 'solution', 'assisted', 'check', 'review', 'english', 'feedback', 'time', 'blocker', 'unblock']);
 const MAX_BODY = 32768; // a terminal block (16 KB) or a 50-question quiz fits
 
 const BLOCK_MESSAGES = {
@@ -47,6 +49,8 @@ export function createApp(config) {
   const notebook = new Notebook({ dataDir: config.dataDir });
   const probe = new EnvironmentProbe({ repoRoot: config.repoRoot, track: catalog.track });
   const runner = new Runner({ config, catalog, probe });
+  const sprint = new SprintTracker({ store: progress, sprint: catalog.sprint });
+  const sprintRunner = new Runner({ config, catalog: sprint.runnerCatalog(), probe });
   const watcher = new RepoWatcher({ repoRoot: config.repoRoot, catalog, debounceMs: config.watchDebounceMs });
   const terminal = config.terminal ? new Terminal({ repoRoot: config.repoRoot, shell: config.terminalShell }) : null;
   const token = crypto.randomBytes(24).toString('hex');
@@ -163,7 +167,17 @@ export function createApp(config) {
       })(),
       timeline: progress.timeline(30),
       links: progress.links(),
-      schedule: { title: schedule.title, subtitle: schedule.subtitle, start: schedule.start, lastDay: schedule.lastDay, dailyHours: schedule.dailyHours, items: schedule.items },
+      schedule: { title: schedule.title, subtitle: schedule.subtitle, start: schedule.start, lastDay: schedule.lastDay, dailyHours: schedule.dailyHours, sprintDays: schedule.sprintDays ?? [], items: schedule.items },
+      sprint: sprint.enabled
+        ? {
+          title: catalog.sprint.title,
+          subtitle: catalog.sprint.subtitle,
+          intro: catalog.sprint.intro,
+          rules: catalog.sprint.rules ?? [],
+          summary: sprint.summary(),
+          blocks: catalog.sprint.blocks.map((b) => sprint.view(b.id, { running: sprintRunner.isRunning(b.id) })),
+        }
+        : null,
       az400: {
         available: az400.available,
         error: az400.error,
@@ -212,6 +226,35 @@ export function createApp(config) {
     }
     pushState();
   });
+  sprintRunner.on('started', () => pushState());
+  sprintRunner.on('finished', ({ id, observation }) => {
+    sprint.recordObservation(id, observation);
+    pushState();
+  });
+
+  async function handleSprintAction(id, action, body) {
+    switch (action) {
+      case 'start': sprint.start(id); return { ok: true };
+      case 'recall': sprint.submitRecall(id, body.answers); return { ok: true };
+      case 'attempt': sprint.saveAttempt(id, body.step, body.text); return { ok: true };
+      case 'hint': return { ok: true, hint: sprint.revealHint(id, body.step) };
+      case 'solution': return { ok: true, solution: sprint.revealSolution(id, body.step) };
+      case 'assisted': sprint.setAssisted(id, body.value); return { ok: true };
+      case 'check': {
+        sprint.started(id);
+        if (!sprintRunner.trigger(id, 'manual')) throw new UserError('This block has no automatic checks.');
+        return { ok: true };
+      }
+      case 'review': sprint.recordReview(id, body.criterion, body); return { ok: true };
+      case 'english': sprint.recordEnglish(id, body); return { ok: true };
+      case 'feedback': sprint.recordFeedback(id, body); return { ok: true };
+      case 'time': sprint.logTime(id, body.minutes); return { ok: true };
+      case 'blocker': sprint.addBlocker(id, body); return { ok: true };
+      case 'unblock': sprint.resolveBlocker(id, body.index); return { ok: true };
+      default: throw new UserError('Unknown action.');
+    }
+  }
+
   let envSignature = null;
   probe.on('change', (snap) => {
     // Only a real transition (signed in/out, AKS started/stopped) re-checks the
@@ -429,6 +472,16 @@ export function createApp(config) {
         else terminal.clear();
         return send(res, 200, { ok: true });
       }
+      const sp = pathname.match(/^\/api\/sprint\/([^/]+)\/([a-z]+)$/);
+      if (req.method === 'POST' && sp) {
+        const [, id, action] = sp;
+        if (!sprint.enabled || !catalog.sprint.byId.has(id)) return send(res, 404, { error: 'Unknown sprint block' });
+        if (!SPRINT_ACTIONS.has(action)) return send(res, 404, { error: 'Unknown action' });
+        const body = await readJson(req);
+        const result = await handleSprintAction(id, action, body);
+        pushState();
+        return send(res, 200, result);
+      }
       const m = pathname.match(/^\/api\/sessions\/([^/]+)\/([a-z]+)$/);
       if (req.method === 'POST' && m) {
         const [, id, action] = m;
@@ -475,10 +528,11 @@ export function createApp(config) {
     az400.stop();
     notebook.stop();
     runner.stop();
+    sprintRunner.stop();
     watcher.stop();
     for (const res of clients) res.end();
     await new Promise((resolve) => server.close(resolve));
   }
 
-  return { start, stop, server, token, state, progress, runner, probe, catalog, terminal, az400, notebook };
+  return { start, stop, server, token, state, progress, runner, sprint, sprintRunner, probe, catalog, terminal, az400, notebook };
 }

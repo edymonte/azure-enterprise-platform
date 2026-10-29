@@ -68,15 +68,31 @@ Rules enforced by the runner:
 {
   "title": "…", "subtitle": "…",
   "start": "2026-10-18", "lastDay": "2026-11-12", "dailyHours": 3,
+  "sprint": { "2026-10-30": ["R1", "R2", "R3"] },          // recovery sprint blocks (catalog/sprint.json); first on their day
   "az400": {
     "prep": "2026-10-18",                                    // one-time preparation item
     "labs": { "00": "2026-10-18" },                          // explicit dates
     "dailyFrom": { "first": "01", "last": "25", "start": "2026-10-19" },  // one lab per day
     "after": { "26": "2026-11-14", "27": "2026-11-21" }     // after lastDay = "After" in the rail
   },
-  "platform": [ { "id": "C001", "date": "2026-10-18" } ]    // scheduled sessions are unlocked by the plan
+  "platform": [ { "id": "C001", "date": "2026-10-18" } ],   // scheduled sessions are unlocked by the plan
+  "replanned": [                                             // history of moves; the last "to" must equal the item's date
+    { "kind": "az400", "id": "04", "from": "2026-10-28", "to": "2026-11-01", "decidedAt": "2026-10-29", "reason": "…" }
+  ]
 }
 ```
+
+## Recovery sprint — `catalog/sprint.json`
+
+Blocks `R1`…`R9`, numbered from 1, each with `day`, `minutes` (≥ 15), `title`, `objective`, `prerequisites.platform`, `files`, `reuse` (`sessions` that must exist, two-digit `az400` lab ids), `recall[]` (`id`, `question`, `answer`), `steps[]` (`id`, `level` = guided | partial | solo | breakfix, `title`, `detail`, `command?`, ≥ 2 `hints`, `solution`), `english` (`question`, `followUps?`, `modelAnswer`) and `criteria[]`:
+
+| `verify` | Passes when | Extra fields |
+|---|---|---|
+| `checker` | the latest run of the block checker reports it `pass` | `owner` = learner \| environment |
+| `portal` | the portal recorded the fact | `rule` = recall \| attempts \| english \| feedback |
+| `review` | a review with ≥ 20 characters of evidence, a reviewer (`instructor` \| `self`) and verdict `pass` | `owner` |
+
+A block with checker criteria declares `checker: { script: "checkers/<name>.js", timeoutSeconds, sealUntilAttempts? }`. The script follows `portal.checker/v1` for the block's checker criteria only; it also receives `PORTAL_DATA_DIR` (drills live in `<data dir>/drills/`). `sealUntilAttempts` hides its evidence until every step has an attempt.
 
 ## AZ-400 evidence
 

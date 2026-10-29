@@ -149,7 +149,7 @@ export class Runner extends EventEmitter {
       const script = path.join(this.config.portalRoot, session.checker.script);
       const child = spawn(process.execPath, [script], {
         cwd: this.config.repoRoot,
-        env: { ...process.env, PORTAL_REPO_ROOT: this.config.repoRoot, PORTAL_SESSION_ID: session.id },
+        env: { ...process.env, PORTAL_REPO_ROOT: this.config.repoRoot, PORTAL_SESSION_ID: session.id, PORTAL_DATA_DIR: this.config.dataDir },
         windowsHide: true,
         detached: process.platform !== 'win32',
       });

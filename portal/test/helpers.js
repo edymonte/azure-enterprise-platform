@@ -45,6 +45,20 @@ process.exit(r.code ?? 0);
   return file;
 }
 
+// Same idea for `gh`: "<args joined by space>" -> { code, stdout, stderr }.
+export function fakeGh(responses) {
+  const dir = tempDir('portal-fakegh-');
+  const file = path.join(dir, 'gh.js');
+  fs.writeFileSync(file, `
+const responses = ${JSON.stringify(responses)};
+const r = responses[process.argv.slice(2).join(' ')] ?? { code: 1, stderr: 'HTTP 404: Not Found (fake gh has no answer)' };
+if (r.stdout) process.stdout.write(typeof r.stdout === 'string' ? r.stdout : JSON.stringify(r.stdout));
+if (r.stderr) process.stderr.write(r.stderr);
+process.exit(r.code ?? 0);
+`);
+  return file;
+}
+
 export function runNode(script, env) {
   try {
     return { code: 0, stdout: execFileSync(process.execPath, [script], { env: { ...process.env, ...env }, stdio: 'pipe' }).toString() };

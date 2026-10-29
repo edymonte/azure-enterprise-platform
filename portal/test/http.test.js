@@ -50,8 +50,20 @@ test('http: loopback only, host/origin/token checks, allow-listed ids, no secret
 
   assert.equal((await request(port, { method: 'POST', path: '/api/terminal/input', headers: json, body: '{"line":"whoami"}' })).status, 404, 'terminal is off by default');
 
+  // Recovery sprint: allow-listed blocks and actions, recall before the steps.
+  const sp = (id, action, body = {}) => request(port, { method: 'POST', path: `/api/sprint/${id}/${action}`, headers: json, body: JSON.stringify(body) });
+  assert.equal((await sp('R9', 'start')).status, 404, 'unknown block');
+  assert.equal((await sp('R1', 'exec')).status, 404, 'unknown sprint action');
+  assert.equal((await sp('R1', 'recall', { answers: {} })).status, 400, 'start first');
+  assert.equal((await sp('R1', 'start')).status, 200);
+  assert.equal((await sp('R1', 'attempt', { step: 'tools', text: 'az ok' })).status, 400, 'steps stay closed until the recall is recorded');
+
   const state = JSON.parse((await request(port, { path: '/api/state', headers: json })).body);
   assert.equal(state.sessions.length, 30);
+  const r1 = state.sprint.blocks.find((b) => b.id === 'R1');
+  assert.equal(r1.steps, null, 'exercise not sent before the recall');
+  assert.ok(r1.recall.every((q) => q.answer === null), 'reference answers not sent before the recall');
+  assert.ok(!JSON.stringify(state.sprint).includes('"solution":"'), 'no solution text in the state');
   assert.ok(state.sessions.every((s) => s.hints === undefined && s.debrief === null), 'hints and debriefs are not sent before they are earned');
   assert.ok(!JSON.stringify(state).includes(app.token), 'token not echoed in state');
 });
