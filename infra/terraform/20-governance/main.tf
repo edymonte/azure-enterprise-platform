@@ -127,6 +127,7 @@ resource "azurerm_security_center_subscription_pricing" "plans" {
   for_each      = var.enable_defender ? toset(var.defender_plans) : toset([])
   tier          = "Standard"
   resource_type = each.value
+  subplan       = each.value == "KeyVaults" ? "PerKeyVault" : null
 }
 
 resource "azurerm_security_center_contact" "platform" {
