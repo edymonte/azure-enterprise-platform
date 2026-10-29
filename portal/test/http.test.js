@@ -45,7 +45,8 @@ test('http: loopback only, host/origin/token checks, allow-listed ids, no secret
   assert.equal((await request(port, { method: 'POST', path: '/api/sessions/C001/exec', headers: json, body: '{"cmd":"rm -rf /"}' })).status, 404, 'no arbitrary actions');
   assert.equal((await request(port, { method: 'POST', path: '/api/sessions/C001/start', headers: json, body: 'x'.repeat(40000) })).status, 400, 'body limit');
   assert.equal((await request(port, { path: '/../server/app.js' })).status, 404, 'no static traversal');
-  assert.equal((await request(port, { method: 'POST', path: '/api/sessions/C002/start', headers: json, body: '{}' })).status, 400, 'locked');
+  // Every session is dated in the current plan, so the sequential lock is covered in az400.test.js; here a dated session must start.
+  assert.equal((await request(port, { method: 'POST', path: '/api/sessions/C002/start', headers: json, body: '{}' })).status, 200, 'scheduled session starts');
 
   assert.equal((await request(port, { method: 'POST', path: '/api/terminal/input', headers: json, body: '{"line":"whoami"}' })).status, 404, 'terminal is off by default');
 
