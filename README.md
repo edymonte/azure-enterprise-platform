@@ -6,7 +6,23 @@ A **simulated but real** production platform for the fictional company **Monteir
 
 > Start with **[docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md)** — the whole environment explained layer by layer.
 >
-> Study day to day with the **[local learning portal](portal/README.md)**: `npm --prefix portal start` → <http://127.0.0.1:4317/> — a dated schedule (AZ-400 course labs + 30 platform sessions) where progress comes from verified evidence.
+> Study day to day with the **[local learning portal](portal/README.md)**: `npm --prefix portal start` → <http://127.0.0.1:4317/> — a dated schedule of 30 platform sessions where progress comes from verified evidence.
+
+## Status
+
+This is a personal lab I am building and operating step by step, one session a day. The code for every layer is in the repository; the table shows what is actually deployed and practised so far.
+
+| Area | Layers / sessions | Status |
+|---|---|---|
+| Remote state, identity without secrets (OIDC) | `00-bootstrap`, `05-identity` | Deployed |
+| Hub & spoke network, private DNS zones, Log Analytics | `10-foundation` | Deployed |
+| Governance: Azure Policy as code | `20-governance` · session C001 | Deployed and practised |
+| Foundation sessions: state, OIDC pipelines, drift, network review, private SQL and Key Vault, DNS | `30-data` · sessions C002–C008 | In progress |
+| AKS, workload identity, GitOps with Argo CD, Helm, NetworkPolicy | `40-aks` · sessions C009–C016 | Planned |
+| Delivery with GitHub Actions and Azure DevOps: PR gates, promotion, approvals | sessions C017–C024 | Planned |
+| Front Door + WAF, Managed Prometheus/Grafana, Datadog, incidents | `50-edge`, `60-observability`, `70-datadog` · sessions C025–C030 | Planned |
+
+Last updated: October 29, 2026.
 
 ## How the lab works
 
