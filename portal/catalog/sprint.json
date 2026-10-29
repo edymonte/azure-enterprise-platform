@@ -1,0 +1,1121 @@
+{
+  "id": "recovery",
+  "title": "Recovery sprint",
+  "subtitle": "8 hours to bring back what you already used at work: Azure, Terraform, GitHub Actions and Azure DevOps, then explain it in English",
+  "intro": "Two days of four hours, six blocks in order. Every block starts with recall questions answered without notes, then a practical exercise that moves from guided to solo, real evidence and a 60–90 second answer in English. Solutions stay sealed until you record your own attempt. Logged hours show effort, not approval: a block is complete only when every criterion has evidence.",
+  "rules": [
+    "Answer the recall questions before reading the instructions. \"I don't remember\" is a valid answer and is exactly what the sprint is for.",
+    "Record your attempt before opening a solution. Every hint or solution opened before completion makes the block AI-assisted.",
+    "Automatic checks only read Azure, GitHub and local files. Nothing in the sprint deploys, destroys or changes permissions; steps that take a lease or need an OK say so.",
+    "When the environment or a tool blocks you, report it as a blocker. It is not counted as a technical mistake.",
+    "Completing the sprint does not complete a platform session or an AZ-400 lab: those keep their own checkers and Validate.ps1."
+  ],
+  "blocks": [
+    {
+      "id": "R1",
+      "number": 1,
+      "day": 1,
+      "minutes": 60,
+      "title": "Diagnosis and current state",
+      "focus": "Active recall, environment inventory, gap list",
+      "objective": "Find out, without notes, what you still remember about this platform; inventory what is really deployed; and write the gap list that steers the next five blocks.",
+      "interviewAngle": "Clients open with \"walk me through the platform you operate\". You need the layers, what is deployed and why, in your own words.",
+      "prerequisites": {
+        "platform": [
+          "azure",
+          "github"
+        ],
+        "tools": [
+          "az",
+          "terraform",
+          "gh",
+          "git"
+        ],
+        "notes": "Signed in with az login on the lab subscription and gh auth login. No layer needs to be applied for this block."
+      },
+      "files": [
+        "README.md",
+        "docs/HOW-IT-WORKS.md",
+        "scripts/azp.ps1",
+        "infra/terraform/"
+      ],
+      "reuse": {
+        "sessions": [
+          "C001"
+        ],
+        "az400": [
+          "00"
+        ],
+        "note": "Lab 00 (sandbox bootstrap) and session C001 are already verified; their evidence shows the tools and the subscription worked then. This block checks they still work today."
+      },
+      "recall": [
+        {
+          "id": "layers",
+          "question": "Without opening the repository: which Terraform layers does the platform have (00 → 70), what does each one own, and which are deployed today?",
+          "answer": "00-bootstrap (state storage), 05-identity (OIDC app registrations, RBAC), 10-foundation (hub & spoke, NSG, private DNS zones, Log Analytics, Managed Prometheus), 20-governance (Azure Policy, Defender), 30-data (SQL, Key Vault, private endpoints), 40-aks, 50-edge (Front Door, WAF, DNS, Traffic Manager), 60-observability, 70-datadog. Deployed: 00, 05, 10, 20."
+        },
+        {
+          "id": "state-auth",
+          "question": "Where does each layer keep its Terraform state, and how does a pipeline sign in to Azure without a stored secret?",
+          "answer": "One blob per layer (<layer>.tfstate) in the tfstate container of a storage account in rg-mfs-tfstate, accessed with Entra ID (shared keys disabled). Pipelines use OIDC / workload identity federation: the CI platform issues a short-lived token and Entra exchanges it because a federated credential trusts that exact issuer + subject."
+        },
+        {
+          "id": "ci-terms",
+          "question": "In GitHub Actions and in Azure Pipelines: what is the difference between a job, a stage and an environment?",
+          "answer": "A job is a set of steps on one runner/agent. Azure Pipelines groups jobs into stages (GitHub has no stages; jobs are chained with needs). An environment is a deployment target with protection: approvals/required reviewers, branch rules, checks — and in GitHub it also changes the OIDC subject."
+        },
+        {
+          "id": "first-checks",
+          "question": "A terraform plan fails in CI. Name the first three things you check.",
+          "answer": "1) The failing step and its exact error (auth, backend/state, provider, code). 2) Identity: which principal, which subject/service connection, does it have RBAC on the subscription and on the state storage. 3) What changed: the commit, variables, provider versions, a lock left behind or drift."
+        }
+      ],
+      "steps": [
+        {
+          "id": "tools",
+          "level": "guided",
+          "title": "Check tools and sign-ins",
+          "detail": "Before trusting any evidence, prove the tools and identities you will use today. Read each line of output and say which account and subscription you are on.",
+          "command": "az version --query '\"azure-cli\"'; terraform version; gh auth status; git --version\naz account show --query \"{subscription:name, id:id, user:user.name}\" -o table",
+          "hints": [
+            "Which line tells you the Azure subscription, and is it the lab one?",
+            "gh auth status shows the account and the token scopes; you need repo access to edymonte/azure-enterprise-platform."
+          ],
+          "solution": "Expected: Azure CLI 2.x, Terraform 1.12.x, gh signed in as edymonte, subscription \"Azure subscription 1\" (26e19954-…). If az account show fails: az login; if the subscription is wrong: az account set --subscription <id>. A wrong subscription is an environment blocker, not a technical mistake."
+        },
+        {
+          "id": "inventory",
+          "level": "guided",
+          "title": "Inventory the deployed layers",
+          "detail": "azp.ps1 status reads each layer's state and tells you what exists. Predict the result before you run it.",
+          "command": "./scripts/azp.ps1 status",
+          "hints": [
+            "Which layers would you expect to see with resources, given the sessions you have done?",
+            "A layer with no state blob was never applied."
+          ],
+          "solution": "Expected: 00-bootstrap, 05-identity, 10-foundation and 20-governance have resources; 30-data, 40-aks, 50-edge, 60-observability and 70-datadog do not. This is the baseline for every interview answer: say what is deployed and what is only code."
+        },
+        {
+          "id": "map",
+          "level": "partial",
+          "title": "Map resource groups to layers",
+          "detail": "List the platform resource groups yourself (they all start with rg-mfs) and write, for each one, which layer created it and what lives there. Only the start of the command is given.",
+          "command": "az group list --query \"[?starts_with(name, 'rg-mfs')]...\"",
+          "hints": [
+            "A JMESPath projection like .{rg:name, location:location} gives you a readable table.",
+            "rg-mfs-tfstate is 00-bootstrap; the other three come from 10-foundation and 50-edge (DNS zone)."
+          ],
+          "solution": "az group list --query \"[?starts_with(name, 'rg-mfs')].{rg:name, location:location}\" -o table → rg-mfs-tfstate (00-bootstrap: state storage), rg-mfs-hub-lab (10-foundation: hub VNet, private DNS zones, Log Analytics, Azure Monitor workspace), rg-mfs-portal-lab (10-foundation: spoke VNet, AKS subnet, NSG; later SQL/AKS), rg-mfs-dns (public zone edymonte.com.br)."
+        },
+        {
+          "id": "gaps",
+          "level": "solo",
+          "title": "Write your gap list",
+          "detail": "Rate yourself 0 (can't do it), 1 (with notes) or 2 (could explain it to a client) on: VNet peering, NSG, private DNS, RBAC data vs control plane, Terraform state, locking, drift, GitHub Actions YAML, OIDC, environments/approvals, Azure DevOps templates, service connections. Write the list in your attempt.",
+          "hints": [
+            "Be strict: 2 means you could answer the interview question without notes today.",
+            "Topics rated 0 become the first thing you do in their block."
+          ],
+          "solution": "There is no model answer: the list is yours. Review it with the instructor; topics at 0 or 1 get an extra exercise inside their block, and the gap list goes into the block feedback."
+        }
+      ],
+      "criteria": [
+        {
+          "id": "tools-ready",
+          "text": "az, terraform, gh and git are installed and gh is signed in",
+          "verify": "checker",
+          "owner": "environment",
+          "how": "Install the missing tool or run gh auth login, then run the automatic checks."
+        },
+        {
+          "id": "azure-lab-context",
+          "text": "Azure CLI is signed in on a subscription that holds the platform state (rg-mfs-tfstate)",
+          "verify": "checker",
+          "owner": "environment",
+          "how": "az login, then az account set --subscription <lab subscription>."
+        },
+        {
+          "id": "deployed-layers",
+          "text": "The state of 05-identity, 10-foundation and 20-governance is readable and their resource groups exist",
+          "verify": "checker",
+          "owner": "environment",
+          "how": "Needs the Storage Blob Data Contributor role on the state account (assigned by 00-bootstrap)."
+        },
+        {
+          "id": "recall-recorded",
+          "text": "Recall answers recorded before the instructions",
+          "verify": "portal",
+          "rule": "recall"
+        },
+        {
+          "id": "attempts-recorded",
+          "text": "An attempt recorded for every exercise step",
+          "verify": "portal",
+          "rule": "attempts"
+        },
+        {
+          "id": "gap-list-reviewed",
+          "text": "Gap list reviewed: every topic rated, the 0/1 topics turned into actions in blocks R2–R6",
+          "verify": "review",
+          "owner": "learner",
+          "how": "Paste the rated list as evidence and record the review."
+        },
+        {
+          "id": "english-answer",
+          "text": "English answer recorded (60–90 seconds)",
+          "verify": "portal",
+          "rule": "english"
+        },
+        {
+          "id": "feedback-recorded",
+          "text": "Feedback recorded: technical, autonomy and English scores, gaps and next step",
+          "verify": "portal",
+          "rule": "feedback"
+        }
+      ],
+      "checker": {
+        "script": "checkers/sprint-r1-inventory.js",
+        "timeoutSeconds": 180
+      },
+      "english": {
+        "question": "Walk me through the platform you operate: what is deployed today, how is it organised and what would you improve first?",
+        "followUps": [
+          "Why one state per layer?",
+          "What is only code and not deployed yet, and why?"
+        ],
+        "modelAnswer": "It's an Azure platform built with layered Terraform, one state file per layer so a change to identity can't break the network plan. Today the bootstrap, identity, foundation and governance layers are deployed: remote state with Entra-only access, OIDC identities for GitHub and Azure DevOps, a hub-and-spoke network with private DNS zones, and Azure Policy as code. Data, AKS, edge and observability are written but not deployed yet, to control cost. The first thing I'd improve is the CI login, which is failing on pull requests — that's my next fix."
+      },
+      "next": "Start R2 with the topics you rated 0 or 1 in networking and RBAC."
+    },
+    {
+      "id": "R2",
+      "number": 2,
+      "day": 1,
+      "minutes": 90,
+      "title": "Azure: network, NSG, DNS, identity and RBAC",
+      "focus": "Hub & spoke, NSG order, private DNS, control vs data plane",
+      "objective": "Read the deployed hub & spoke like a reviewer: prove the peering, explain the NSG order and the private DNS links, and say who can read the Terraform state and why.",
+      "interviewAngle": "\"How does traffic reach your workload and how do you restrict it?\" and \"Owner can't read the blob — why?\" are classic platform questions.",
+      "prerequisites": {
+        "platform": [
+          "azure"
+        ],
+        "tools": [
+          "az"
+        ],
+        "notes": "Layer 10-foundation deployed (it is). Read-only: no command in this block changes Azure."
+      },
+      "files": [
+        "infra/terraform/10-foundation/main.tf",
+        "infra/terraform/05-identity/main.tf",
+        "infra/terraform/00-bootstrap/main.tf"
+      ],
+      "reuse": {
+        "sessions": [
+          "C005"
+        ],
+        "az400": [
+          "20"
+        ],
+        "note": "Same evidence as session C005 (peering, NSG, DNS links). C005 stays open until its own checker exists; the evidence you collect here is shown on it. Lab 20 (identities and permissions) needs its own sandbox and Validate.ps1."
+      },
+      "recall": [
+        {
+          "id": "transitive",
+          "question": "Is VNet peering transitive? If spoke A and spoke B both peer with the hub, can A reach B? What would you need?",
+          "answer": "No. Each peering is a pair of resources (one per side) and traffic does not hop through the hub. Spoke-to-spoke needs a direct peering or a router/firewall (Azure Firewall/NVA) in the hub with UDRs, or Virtual WAN."
+        },
+        {
+          "id": "nsg",
+          "question": "How does an NSG evaluate rules, and what is a service tag?",
+          "answer": "Lowest priority number first, first match wins, then the default rules (65000+). A service tag (AzureFrontDoor.Backend, Internet, VirtualNetwork) is a Microsoft-managed group of IP prefixes, so you don't maintain the list."
+        },
+        {
+          "id": "private-dns",
+          "question": "How does a workload in the spoke resolve a private endpoint name such as myvault.vault.azure.net?",
+          "answer": "The public name has a CNAME to privatelink.vaultcore.azure.net. The private DNS zone privatelink.vaultcore.azure.net holds the A record with the private IP, and it must be linked to the VNet that asks (hub and spoke), otherwise the public IP is returned."
+        },
+        {
+          "id": "planes",
+          "question": "Owner, Contributor and Storage Blob Data Contributor: which ones can read a blob when shared keys are disabled, and why?",
+          "answer": "Only a data-plane role (Storage Blob Data Reader/Contributor/Owner). Owner and Contributor are control plane (ARM): they manage the account and could list keys, but with shared keys disabled there is no key path, so they cannot read data without a data role."
+        }
+      ],
+      "steps": [
+        {
+          "id": "peering",
+          "level": "guided",
+          "title": "Prove the peering in both directions",
+          "detail": "A peering is two resources. Check both and say what Connected means.",
+          "command": "az network vnet peering list -g rg-mfs-hub-lab --vnet-name vnet-mfs-hub-lab --query \"[].{name:name, state:peeringState, remote:remoteVirtualNetwork.id}\" -o table\naz network vnet peering list -g rg-mfs-portal-lab --vnet-name vnet-mfs-portal-lab --query \"[].{name:name, state:peeringState}\" -o table",
+          "hints": [
+            "What would you see if only one side existed?",
+            "Initiated means the other side is missing."
+          ],
+          "solution": "peer-hub-to-portal and peer-portal-to-hub, both Connected. If one side is deleted the other shows Disconnected (or Initiated while being created) and no traffic flows."
+        },
+        {
+          "id": "nsg",
+          "level": "guided",
+          "title": "Read the NSG in evaluation order",
+          "detail": "Sort the AKS NSG rules by priority and decide which rule handles (a) a request from Front Door to port 443, (b) a request from your home IP to port 80, (c) a request from any other Internet IP to port 443.",
+          "command": "az network nsg rule list -g rg-mfs-portal-lab --nsg-name nsg-mfs-aks-lab --query \"sort_by([], &priority)[].{p:priority, name:name, access:access, src:sourceAddressPrefix, srcs:join(',', sourceAddressPrefixes), ports:join(',', destinationPortRanges)}\" -o table",
+          "hints": [
+            "First match wins, from the lowest number.",
+            "The operator rule uses sourceAddressPrefixes (a list), so sourceAddressPrefix is empty."
+          ],
+          "solution": "(a) 100 Allow-FrontDoor-Http (service tag AzureFrontDoor.Backend, 80/443). (b) 110 Allow-Operator-Http (your /32 from OPERATOR_IP_RANGES). (c) 4000 Deny-Internet-Http. Anything else falls to the default rules (65000 AllowVnetInBound, 65500 DenyAllInBound)."
+        },
+        {
+          "id": "dns",
+          "level": "partial",
+          "title": "Check the private DNS links",
+          "detail": "There are two private zones in the hub resource group. List them, then list the VNet links of each one yourself. The first command is given; write the second.",
+          "command": "az network private-dns zone list -g rg-mfs-hub-lab --query \"[].name\" -o tsv",
+          "hints": [
+            "The command group is az network private-dns link vnet list.",
+            "It needs -g and -z (zone name)."
+          ],
+          "solution": "az network private-dns link vnet list -g rg-mfs-hub-lab -z privatelink.database.windows.net -o table (and the same for privatelink.vaultcore.azure.net). Each zone has link-hub and link-portal, state Completed. Without link-portal, a pod in the spoke would resolve the public IP and the private endpoint would be bypassed (or blocked by the firewall)."
+        },
+        {
+          "id": "rbac",
+          "level": "partial",
+          "title": "Who can read the Terraform state?",
+          "detail": "Get the id of the state storage account and list the role assignments on it. Identify each principal: you, the GitHub identity, the Azure DevOps identity.",
+          "command": "$saId = az storage account list -g rg-mfs-tfstate --query \"[0].id\" -o tsv\naz role assignment list --scope $saId ...",
+          "hints": [
+            "Add a --query that projects principalName, principalType and roleDefinitionName.",
+            "Service principals show their app id or display name; compare with app-mfs-github-actions and app-mfs-azure-devops."
+          ],
+          "solution": "az role assignment list --scope $saId --query \"[].{who:principalName, type:principalType, role:roleDefinitionName}\" -o table → Storage Blob Data Contributor for your user (00-bootstrap state_operator) and for the GitHub and Azure DevOps service principals (05-identity pipelines_state). Your Owner role on the subscription is inherited and is control plane only."
+        },
+        {
+          "id": "pipeline-identity",
+          "level": "solo",
+          "title": "Describe the pipeline identities",
+          "detail": "No command given. Find the two app registrations created by 05-identity, their roles at subscription scope and the federated credentials of the GitHub one. Write what each identity may do.",
+          "hints": [
+            "Display names start with app-mfs-.",
+            "az ad app list --display-name …, az role assignment list --assignee <appId> --all, az ad app federated-credential list --id <appId>."
+          ],
+          "solution": "app-mfs-github-actions and app-mfs-azure-devops. Each has subscription-scope roles from local.pipeline_role_pairs (see 05-identity) plus Storage Blob Data Contributor on the state account. The GitHub app has three federated credentials (pull_request, ref:refs/heads/main, environment:lab); the Azure DevOps app has one for the service connection. No client secret exists on either."
+        },
+        {
+          "id": "review-question",
+          "level": "breakfix",
+          "title": "Design-review trap (analysis, no change)",
+          "detail": "A teammate peers a second spoke (vnet-mfs-reporting) with the hub and says it can now call the portal API in your spoke on port 443. Using only the evidence you collected, prove or disprove it and say what you would add if the requirement is real.",
+          "hints": [
+            "Is peering transitive?",
+            "Even with a route, which NSG rule would the traffic meet?"
+          ],
+          "solution": "Disproved: peering is not transitive, so the reporting spoke has no path to the portal spoke through the hub. Watch the second trap: with a direct peering the reporting range becomes part of the VirtualNetwork service tag, the 4000 rule (source Internet) does not match and the default 65000 AllowVnetInBound lets it in — so restrict it with an explicit rule if that is not wanted. For a real requirement: direct peering or a hub firewall with UDRs, plus an explicit NSG rule for exactly that source and port."
+        }
+      ],
+      "criteria": [
+        {
+          "id": "peering-connected",
+          "text": "Hub↔spoke peering is Connected in both directions",
+          "verify": "checker",
+          "owner": "environment"
+        },
+        {
+          "id": "nsg-rules",
+          "text": "The AKS NSG has Front Door (100), operator IP (110) and deny Internet (4000) rules",
+          "verify": "checker",
+          "owner": "environment"
+        },
+        {
+          "id": "dns-links",
+          "text": "Both private DNS zones are linked to the hub and spoke VNets",
+          "verify": "checker",
+          "owner": "environment"
+        },
+        {
+          "id": "state-data-role",
+          "text": "Your signed-in user has a Storage Blob Data role on the state account",
+          "verify": "checker",
+          "owner": "environment",
+          "how": "Assigned by 00-bootstrap (state_operator)."
+        },
+        {
+          "id": "recall-recorded",
+          "text": "Recall answers recorded before the instructions",
+          "verify": "portal",
+          "rule": "recall"
+        },
+        {
+          "id": "attempts-recorded",
+          "text": "An attempt recorded for every exercise step",
+          "verify": "portal",
+          "rule": "attempts"
+        },
+        {
+          "id": "network-explained",
+          "text": "Explained, with your own outputs: NSG decision for the three requests, why both DNS links are needed, and control vs data plane",
+          "verify": "review",
+          "owner": "learner"
+        },
+        {
+          "id": "english-answer",
+          "text": "English answer recorded (60–90 seconds)",
+          "verify": "portal",
+          "rule": "english"
+        },
+        {
+          "id": "feedback-recorded",
+          "text": "Feedback recorded: technical, autonomy and English scores, gaps and next step",
+          "verify": "portal",
+          "rule": "feedback"
+        }
+      ],
+      "checker": {
+        "script": "checkers/sprint-r2-network.js",
+        "timeoutSeconds": 240
+      },
+      "english": {
+        "question": "A security reviewer asks how traffic reaches your AKS subnet and how private DNS works in your hub-and-spoke network. Answer in 60 to 90 seconds.",
+        "followUps": [
+          "Is peering transitive?",
+          "Why can't an Owner read your state blob?"
+        ],
+        "modelAnswer": "The AKS subnet lives in a spoke VNet peered with the hub in both directions. Its NSG allows HTTP and HTTPS only from the Front Door service tag at priority 100 and from our operator IP at 110, and denies the Internet at 4000, so the only public entry is through Front Door and its WAF. Private endpoints resolve through private DNS zones in the hub — privatelink.database and privatelink.vaultcore — linked to both VNets, so the spoke gets the private IP. For access, we separate control plane and data plane: even an Owner can't read the state blob because shared keys are disabled; only identities with a Storage Blob Data role can."
+      },
+      "next": "Continue with R3: the same state account, now from Terraform's point of view."
+    },
+    {
+      "id": "R3",
+      "number": 3,
+      "day": 1,
+      "minutes": 90,
+      "title": "Terraform: remote state, access, locking, plan and drift",
+      "focus": "Backend, data-plane access, lease lock, plan reading, drift, recovery",
+      "objective": "Show that the state is protected and recoverable, watch a lock happen, read a plan for drift and write a recovery runbook without executing it.",
+      "interviewAngle": "\"Where is your state, who can read it, how is it locked and how do you recover it?\" — asked in almost every Terraform interview.",
+      "prerequisites": {
+        "platform": [
+          "azure"
+        ],
+        "tools": [
+          "az",
+          "terraform"
+        ],
+        "notes": "Layers 00, 05, 10 and 20 deployed. Plans take a lease on the state blob (lock) but change no resource. The optional stale-lock exercise needs your explicit OK."
+      },
+      "files": [
+        "infra/terraform/00-bootstrap/main.tf",
+        "scripts/azp.ps1",
+        "docs/labs/01-bootstrap-state.md"
+      ],
+      "reuse": {
+        "sessions": [
+          "C002",
+          "C004"
+        ],
+        "az400": [],
+        "note": "Same criteria as session C002 (state you can trust) plus a first look at drift (C004). Those sessions keep their own completion rules; the evidence collected here is shown on them."
+      },
+      "recall": [
+        {
+          "id": "state",
+          "question": "What is inside a Terraform state file and why is it sensitive?",
+          "answer": "The mapping from every resource address to the real object id, all attributes Terraform read (IPs, names, sometimes connection strings or keys), outputs and the serial/lineage. It can contain secrets in plain text, so access must be restricted and audited."
+        },
+        {
+          "id": "lock",
+          "question": "How does the azurerm backend lock state, and what happens to a second apply at the same time?",
+          "answer": "It takes a lease on the state blob (infinite duration while running) and writes the lock info in the blob metadata. A second run fails with \"Error acquiring the state lock\" and shows the lock ID and who holds it."
+        },
+        {
+          "id": "drift",
+          "question": "What is drift and how do you detect it without changing anything?",
+          "answer": "A difference between the real infrastructure and the code/state, usually from a manual change. Detect with terraform plan (refresh + compare) — in CI with -detailed-exitcode (0 = no changes, 2 = changes) on a schedule — never with apply."
+        },
+        {
+          "id": "recover",
+          "question": "The state of one layer is corrupted. How do you recover it?",
+          "answer": "Back up the current blob (terraform state pull), find the last good version (blob versioning), promote it (copy that version over the current blob), run plan and confirm there is no unexpected change. Never hand-edit the JSON."
+        }
+      ],
+      "steps": [
+        {
+          "id": "account",
+          "level": "guided",
+          "title": "Inspect the state account",
+          "detail": "Save the account name in $sa, then read the three settings that protect the state and the versioning setting of the blob service.",
+          "command": "$sa = az storage account list -g rg-mfs-tfstate --query \"[0].name\" -o tsv\naz storage account show -n $sa -g rg-mfs-tfstate --query \"{sharedKey:allowSharedKeyAccess, publicBlob:allowBlobPublicAccess, tls:minimumTlsVersion}\"\naz storage account blob-service-properties show -n $sa -g rg-mfs-tfstate --query \"{versioning:isVersioningEnabled, softDeleteDays:deleteRetentionPolicy.days}\"",
+          "hints": [
+            "Why does this read work even without a data-plane role?",
+            "Versioning is a property of the blob service, not of the container."
+          ],
+          "solution": "sharedKey false, publicBlob false, tls TLS1_2, versioning true, soft delete 7 days. These reads go through ARM (control plane), which is why your Owner role is enough for them."
+        },
+        {
+          "id": "versions",
+          "level": "guided",
+          "title": "List state blobs and their versions",
+          "detail": "Now the data plane: list the blobs with Entra ID and include versions. Which layers have a blob and which one has the most versions?",
+          "command": "az storage blob list --account-name $sa -c tfstate --auth-mode login --include v --query \"[].{name:name, version:versionId, current:isCurrentVersion}\" -o table",
+          "hints": [
+            "--auth-mode login forces Entra ID. A 403 means a missing data role, not a broken account.",
+            "Why is there no 00-bootstrap.tfstate?"
+          ],
+          "solution": "05-identity, 10-foundation and 20-governance blobs, several versions each (every apply writes one). No 00-bootstrap blob: it creates the storage, so it keeps local state (chicken and egg); it could be migrated later with terraform init -migrate-state."
+        },
+        {
+          "id": "lock",
+          "level": "partial",
+          "title": "Watch the lock happen",
+          "detail": "Open a second terminal. In terminal B start the loop first, then in terminal A run a plan of 10-foundation. Watch the lease change and stop the loop with Ctrl+C. The plan only takes and releases a lease; it changes nothing.",
+          "command": "# terminal B (start first)\nwhile ($true) { az storage blob show --account-name $sa -c tfstate -n 10-foundation.tfstate --auth-mode login --query \"{lease:properties.lease.state, duration:properties.lease.duration}\" -o tsv; Start-Sleep 2 }\n# terminal A\n./scripts/azp.ps1 plan 10-foundation",
+          "hints": [
+            "Which state does the lease show while the plan refreshes?",
+            "Where is the lock ID stored?"
+          ],
+          "solution": "available → leased / infinite during the plan → available again. The lock ID and owner are written to the blob metadata (terraformlockid). A concurrent apply would fail with \"Error acquiring the state lock\"."
+        },
+        {
+          "id": "drift",
+          "level": "partial",
+          "title": "Read a plan for drift",
+          "detail": "Run the plan of 20-governance and read only the summary line. Decide: is there drift? If there is, which resource and is it expected? Paste the summary line in your attempt.",
+          "command": "./scripts/azp.ps1 plan 20-governance",
+          "hints": [
+            "\"No changes. Your infrastructure matches the configuration.\" means no drift.",
+            "A change you did not code is drift; a change you did code and did not apply is pending work, not drift."
+          ],
+          "solution": "Expected after C001 and PR #14: no changes, or only the change you know is pending. In CI the same check is terraform plan -detailed-exitcode on a schedule (exit 2 = drift) — that is session C004."
+        },
+        {
+          "id": "runbook",
+          "level": "solo",
+          "title": "Write the recovery runbook (do not execute)",
+          "detail": "20-governance.tfstate was overwritten with a broken file. Write the exact steps and commands to recover it, including how you prove the recovery worked.",
+          "hints": [
+            "Start with a backup of what is there now.",
+            "The version list from the second step gives you the version id; az storage blob copy start accepts a source URI with ?versionid=."
+          ],
+          "solution": "1) terraform -chdir=infra/terraform/20-governance state pull > backup.tfstate (after azp.ps1 init). 2) Find the last good versionId with the list from step 2. 3) az storage blob copy start --account-name $sa -c tfstate -b 20-governance.tfstate --auth-mode login --source-uri \"https://$sa.blob.core.windows.net/tfstate/20-governance.tfstate?versionid=<id>\". 4) ./scripts/azp.ps1 plan 20-governance → expect no unexpected changes. Never edit the JSON by hand; terraform state push of an older serial is rejected unless forced."
+        },
+        {
+          "id": "key-auth",
+          "level": "breakfix",
+          "title": "Break/fix: the key that no longer works (read-only)",
+          "detail": "Run the listing with key authentication. Predict the result first, then explain the error and the right fix. This command only fails; it changes nothing. Optional, only with an explicit OK: close terminal A in the middle of a plan (close the window, not Ctrl+C) to leave a stale lock, then release it safely.",
+          "command": "az storage blob list --account-name $sa -c tfstate --auth-mode key -o table",
+          "hints": [
+            "Which property did you read in the first step?",
+            "The account only accepts Entra ID."
+          ],
+          "solution": "\"Key based authentication is not permitted on this storage account\": allowSharedKeyAccess is false. The fix is --auth-mode login with a data role — never re-enabling shared keys. Stale lock: confirm nothing is running, then terraform -chdir=infra/terraform/10-foundation force-unlock <LockID> (or az storage blob lease break)."
+        }
+      ],
+      "criteria": [
+        {
+          "id": "shared-key-disabled",
+          "text": "Shared key access is disabled on the state storage account",
+          "verify": "checker",
+          "owner": "environment"
+        },
+        {
+          "id": "versioning-enabled",
+          "text": "Blob versioning is enabled",
+          "verify": "checker",
+          "owner": "environment"
+        },
+        {
+          "id": "layer-blobs",
+          "text": "State blobs exist for 05-identity, 10-foundation and 20-governance",
+          "verify": "checker",
+          "owner": "environment"
+        },
+        {
+          "id": "multiple-versions",
+          "text": "At least one state blob has two or more versions",
+          "verify": "checker",
+          "owner": "environment"
+        },
+        {
+          "id": "no-stale-lock",
+          "text": "No state blob is left leased (no stale lock) at the end of the block",
+          "verify": "checker",
+          "owner": "learner",
+          "how": "If a plan was interrupted, confirm nothing runs and release the lock with force-unlock."
+        },
+        {
+          "id": "recall-recorded",
+          "text": "Recall answers recorded before the instructions",
+          "verify": "portal",
+          "rule": "recall"
+        },
+        {
+          "id": "attempts-recorded",
+          "text": "An attempt recorded for every exercise step",
+          "verify": "portal",
+          "rule": "attempts"
+        },
+        {
+          "id": "plan-and-runbook-reviewed",
+          "text": "Plan summary interpreted (drift or not, and why) and recovery runbook reviewed",
+          "verify": "review",
+          "owner": "learner"
+        },
+        {
+          "id": "english-answer",
+          "text": "English answer recorded (60–90 seconds)",
+          "verify": "portal",
+          "rule": "english"
+        },
+        {
+          "id": "feedback-recorded",
+          "text": "Feedback recorded: technical, autonomy and English scores, gaps and next step",
+          "verify": "portal",
+          "rule": "feedback"
+        }
+      ],
+      "checker": {
+        "script": "checkers/sprint-r3-state.js",
+        "timeoutSeconds": 180
+      },
+      "english": {
+        "question": "Where does your Terraform state live, who can read it, how is it locked and how would you recover it?",
+        "followUps": [
+          "Why is the bootstrap layer on local state?",
+          "How do you detect drift?"
+        ],
+        "modelAnswer": "Each layer has its own state blob in an Azure Storage account with shared keys and public access disabled, so the only way in is Entra ID with a Storage Blob Data role — that's me and the two pipeline identities, and every read is audited. During plan and apply Terraform takes a lease on the blob, so a second run fails to get the lock instead of corrupting the state. Versioning and soft delete are on: if a state gets corrupted I back up the current one, promote the last good version and run a plan to confirm nothing unexpected changes. Drift is caught by a scheduled plan with detailed exit codes."
+      },
+      "next": "Day 1 done. Day 2 starts with R4: the same plan, now run by GitHub Actions."
+    },
+    {
+      "id": "R4",
+      "number": 4,
+      "day": 2,
+      "minutes": 90,
+      "title": "GitHub Actions: YAML, triggers, jobs, OIDC, environments and approvals",
+      "focus": "Read the real workflow, then write one from a blank file",
+      "objective": "Read the platform's infra workflow line by line, connect each job to the OIDC subject it presents, and write a plan/apply workflow from a blank file that passes the structural checks.",
+      "interviewAngle": "\"How do you deploy to Azure from GitHub Actions without secrets, and how do you stop an unreviewed apply?\"",
+      "prerequisites": {
+        "platform": [
+          "github"
+        ],
+        "tools": [
+          "gh"
+        ],
+        "notes": "gh signed in. The drill file is local and git-ignored (portal/.data/drills/), so nothing is pushed to the protected main."
+      },
+      "files": [
+        ".github/workflows/infra.yml",
+        ".github/workflows/ci.yml",
+        "portal/.data/drills/r4-infra-plan.yml"
+      ],
+      "reuse": {
+        "sessions": [
+          "C003",
+          "C020"
+        ],
+        "az400": [
+          "09",
+          "13",
+          "21",
+          "04"
+        ],
+        "note": "Labs 09 (GitHub Actions build), 13 (environments and approvals), 21 (federated identity) and 04 (branch protection) cover the same ideas in their own sandbox: they are completed only by their Validate.ps1. Sessions C003 and C020 apply it to this platform."
+      },
+      "recall": [
+        {
+          "id": "triggers",
+          "question": "Which events trigger a workflow, and how do you restrict a pull_request trigger to changes under infra/?",
+          "answer": "on: push, pull_request, workflow_dispatch, schedule, workflow_call, etc. Restrict with paths: ['infra/**'] (and branches:) under the event."
+        },
+        {
+          "id": "id-token",
+          "question": "What does permissions: id-token: write do, and what does Entra check in that token?",
+          "answer": "It lets the job request an OIDC token from GitHub. Entra checks issuer (token.actions.githubusercontent.com), audience (api://AzureADTokenExchange) and subject (repo:<owner>/<repo>:<context>) against a federated credential of the app registration."
+        },
+        {
+          "id": "environments",
+          "question": "What does an environment give you that a plain job does not?",
+          "answer": "Protection rules (required reviewers, wait timer, branch restrictions), environment secrets/variables, deployment history, and a different OIDC subject (repo:…:environment:<name>), so Azure can trust only gated jobs to apply."
+        },
+        {
+          "id": "jobs",
+          "question": "jobs, steps, needs and matrix: what does each do?",
+          "answer": "A job runs on its own runner; steps run in order inside it; needs makes a job wait for (and read outputs of) another; matrix fans one job out over values (e.g. one plan per layer)."
+        }
+      ],
+      "steps": [
+        {
+          "id": "read",
+          "level": "guided",
+          "title": "Read the real workflow",
+          "detail": "Open infra.yml and answer in your attempt: (1) which job runs on a pull request and which on a manual run; (2) where the approval happens; (3) which OIDC subject each job presents to Azure; (4) why the run job has a concurrency group. Then confirm the environment protection on GitHub.",
+          "command": "Get-Content .github/workflows/infra.yml\ngh api repos/edymonte/azure-enterprise-platform/environments --jq \".environments[] | {name, rules: [.protection_rules[].type]}\"",
+          "hints": [
+            "Look at the if: of each job and at environment:.",
+            "A job without environment presents the event context; a job with environment: lab presents environment:lab."
+          ],
+          "solution": "(1) plan runs on pull_request (matrix over four layers, read-only, -lock=false); run runs on workflow_dispatch. (2) environment: lab with required reviewers — the job waits for approval before any step runs. (3) plan presents repo:<repo>:pull_request; run presents repo:<repo>:environment:lab. (4) concurrency: tfstate-<layer> queues runs on the same layer instead of fighting for the state lock."
+        },
+        {
+          "id": "subjects",
+          "level": "partial",
+          "title": "Match subjects to federated credentials",
+          "detail": "List the federated credentials of the GitHub app registration and match each subject to the job that uses it. The client id is a repository variable; the second command is yours.",
+          "command": "$clientId = gh variable get AZURE_CLIENT_ID -R edymonte/azure-enterprise-platform",
+          "hints": [
+            "az ad app federated-credential list --id $clientId",
+            "Project only the subject: --query \"[].subject\"."
+          ],
+          "solution": "az ad app federated-credential list --id $clientId --query \"[].subject\" -o tsv → …:pull_request (plan job), …:ref:refs/heads/main (push to main), …:environment:lab (run job). Keep this list: block R6 starts from it."
+        },
+        {
+          "id": "drill",
+          "level": "solo",
+          "title": "Write a plan/apply workflow from a blank file",
+          "detail": "Create portal/.data/drills/r4-infra-plan.yml without copying infra.yml. Requirements: plan on pull requests that touch infra/, manual run with a layer input, OIDC (no client secret, no creds JSON), an apply job that needs the plan job, runs only on the manual event and uses environment: lab. Save the file and run the automatic checks; then ask the instructor for the revisor-yaml review.",
+          "command": "New-Item -ItemType Directory -Force portal/.data/drills | Out-Null\ncode portal/.data/drills/r4-infra-plan.yml",
+          "hints": [
+            "Top level: name, on, permissions, env, jobs.",
+            "azure/login@v2 with client-id, tenant-id and subscription-id from vars — or ARM_USE_OIDC: true plus ARM_* variables for Terraform.",
+            "apply: needs: plan, if: github.event_name == 'workflow_dispatch', environment: lab."
+          ],
+          "solution": "name: infra-drill\non:\n  pull_request:\n    paths: ['infra/**']\n  workflow_dispatch:\n    inputs:\n      layer: { type: string, default: 10-foundation }\npermissions:\n  id-token: write\n  contents: read\nenv:\n  ARM_USE_OIDC: 'true'\n  ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}\n  ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}\n  ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}\njobs:\n  plan:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: hashicorp/setup-terraform@v3\n      - run: terraform -chdir=infra/terraform/10-foundation init -input=false && terraform -chdir=infra/terraform/10-foundation plan -input=false\n  apply:\n    needs: plan\n    if: github.event_name == 'workflow_dispatch'\n    runs-on: ubuntu-latest\n    environment: lab\n    steps:\n      - uses: actions/checkout@v4\n      - uses: hashicorp/setup-terraform@v3\n      - run: terraform -chdir=infra/terraform/${{ inputs.layer }} init -input=false && terraform -chdir=infra/terraform/${{ inputs.layer }} apply -input=false -auto-approve"
+        },
+        {
+          "id": "no-token",
+          "level": "breakfix",
+          "title": "Break/fix: the missing token permission (local)",
+          "detail": "In your drill file, remove the id-token: write line and save: the automatic check turns red. Write which error a real run would print and at which step, then restore the line. Nothing is pushed.",
+          "hints": [
+            "Which step asks GitHub for the OIDC token?",
+            "Without the permission the runner does not get the token request URL."
+          ],
+          "solution": "The login step (azure/login or the azurerm provider with ARM_USE_OIDC) fails with \"Unable to get ACTIONS_ID_TOKEN_REQUEST_URL env variable\" / \"Failed to get an OIDC token\". Explicit permissions also drop every unlisted scope to none, so contents: read must stay for checkout."
+        }
+      ],
+      "criteria": [
+        {
+          "id": "drill-triggers",
+          "text": "Drill: pull_request limited to infra/** and a workflow_dispatch trigger",
+          "verify": "checker",
+          "owner": "learner",
+          "how": "Edit portal/.data/drills/r4-infra-plan.yml."
+        },
+        {
+          "id": "drill-oidc",
+          "text": "Drill: id-token: write and no client secret or credentials JSON",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "drill-gated-apply",
+          "text": "Drill: an apply job that needs the plan job, runs only on the manual event and uses an environment",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "lab-environment-protected",
+          "text": "The repository's lab environment has required reviewers",
+          "verify": "checker",
+          "owner": "environment",
+          "how": "Settings → Environments → lab → Required reviewers (a repository change: only with your OK)."
+        },
+        {
+          "id": "recall-recorded",
+          "text": "Recall answers recorded before the instructions",
+          "verify": "portal",
+          "rule": "recall"
+        },
+        {
+          "id": "attempts-recorded",
+          "text": "An attempt recorded for every exercise step",
+          "verify": "portal",
+          "rule": "attempts"
+        },
+        {
+          "id": "yaml-reviewed",
+          "text": "Drill reviewed (revisor-yaml findings addressed or explained)",
+          "verify": "review",
+          "owner": "learner"
+        },
+        {
+          "id": "english-answer",
+          "text": "English answer recorded (60–90 seconds)",
+          "verify": "portal",
+          "rule": "english"
+        },
+        {
+          "id": "feedback-recorded",
+          "text": "Feedback recorded: technical, autonomy and English scores, gaps and next step",
+          "verify": "portal",
+          "rule": "feedback"
+        }
+      ],
+      "checker": {
+        "script": "checkers/sprint-r4-github.js",
+        "timeoutSeconds": 120
+      },
+      "english": {
+        "question": "How do you deploy to Azure from GitHub Actions without storing a secret, and how do you stop an unreviewed apply?",
+        "followUps": [
+          "What exactly does Azure compare in the token?",
+          "What happens to a plan running at the same time as an apply?"
+        ],
+        "modelAnswer": "We use OIDC. The workflow asks GitHub for a short-lived token with id-token: write, and Entra exchanges it for an Azure token because the app registration has a federated credential that trusts that issuer, audience and subject — for example pull requests for plan, and the lab environment for apply. There's no secret to leak or rotate. Pull requests only run a read-only plan; apply runs on a manual dispatch in a job bound to the lab environment, which has required reviewers, so nobody applies without an approval, and a concurrency group per layer queues runs on the same state."
+      },
+      "next": "Continue with R5: the same pipeline, the Azure DevOps way."
+    },
+    {
+      "id": "R5",
+      "number": 5,
+      "day": 2,
+      "minutes": 90,
+      "title": "Azure DevOps: stages, templates, variables, service connections, plan/apply",
+      "focus": "Read the real pipeline and template, then write one from a blank file",
+      "objective": "Explain the platform's Azure Pipelines flow (Validate → Plan → Apply with approval), the template and the three kinds of variable syntax, and write a pipeline from a blank file that passes the structural checks.",
+      "interviewAngle": "Azure DevOps shops ask about templates, variable groups, service connections with workload identity federation and approvals on environments.",
+      "prerequisites": {
+        "platform": [
+          "offline"
+        ],
+        "tools": [
+          "az (optional, azure-devops extension)"
+        ],
+        "notes": "The drill is local. Reading the live organization (az400edilsonmontry) is optional and read-only; if it has no project for this platform yet, record that as an environment blocker, not as a mistake."
+      },
+      "files": [
+        "pipelines/azure-devops/infra.yml",
+        "pipelines/azure-devops/templates/terraform-layer.yml",
+        "portal/.data/drills/r5-infra-pipeline.yml"
+      ],
+      "reuse": {
+        "sessions": [
+          "C022"
+        ],
+        "az400": [
+          "10",
+          "11",
+          "12",
+          "13"
+        ],
+        "note": "Labs 10 (Azure Pipelines build), 11 (templates and variables), 12 (agents) and 13 (approvals and checks) run in their own sandbox and are completed only by their Validate.ps1. Session C022 runs this pipeline for real."
+      },
+      "recall": [
+        {
+          "id": "stages",
+          "question": "Stage, job and deployment job: what does each add in Azure Pipelines?",
+          "answer": "A stage groups jobs and is the unit of approvals/conditions/dependsOn. A job runs steps on one agent. A deployment job targets an environment: it records deployments and honours the environment's approvals and checks, with strategies (runOnce, rolling, canary)."
+        },
+        {
+          "id": "syntax",
+          "question": "${{ }}, $( ) and $[ ]: when is each evaluated?",
+          "answer": "${{ }} template expression, at compile time (parameters, template logic). $( ) macro, at runtime just before a task runs. $[ ] runtime expression, for variables and conditions evaluated at runtime (e.g. outputs of other jobs)."
+        },
+        {
+          "id": "service-connection",
+          "question": "What is a service connection with workload identity federation, and who authorizes a pipeline to use it?",
+          "answer": "An Azure Resource Manager connection whose service principal trusts the Azure DevOps issuer and a subject tied to that connection, so no secret is stored. A project admin creates it; each pipeline must be authorized (or the connection opened to all pipelines), and approvals/checks can be added on the connection itself."
+        },
+        {
+          "id": "approvals",
+          "question": "Where do approvals live in Azure DevOps?",
+          "answer": "On resources, not in YAML: environments, service connections, agent pools, variable groups, repos → Approvals and checks. A deployment job targeting the environment waits for them."
+        }
+      ],
+      "steps": [
+        {
+          "id": "read",
+          "level": "guided",
+          "title": "Read the pipeline and the template",
+          "detail": "Read both files and answer in your attempt: (1) the stage order and what each stage does; (2) where approval happens; (3) why serviceConnection is passed as ${{ variables.serviceConnection }} and not $(serviceConnection); (4) how the template hands the federated token to Terraform.",
+          "command": "Get-Content pipelines/azure-devops/infra.yml\nGet-Content pipelines/azure-devops/templates/terraform-layer.yml",
+          "hints": [
+            "Look at dependsOn and condition of the Apply stage.",
+            "Service connection authorization is resolved when the pipeline is compiled."
+          ],
+          "solution": "(1) Validate (fmt + validate, no credentials) → Plan (template, action plan) → Apply (deployment job, only when action ≠ plan and not a PR). (2) The mfs-lab environment's Approvals and checks. (3) The azureSubscription input must be known at compile time so Azure DevOps can check the pipeline is authorized to use the connection; a macro is only resolved at runtime. (4) AzureCLI@2 with addSpnToEnvironment exposes $idToken, $servicePrincipalId and $tenantId; the script exports ARM_USE_OIDC, ARM_OIDC_TOKEN, ARM_CLIENT_ID and ARM_TENANT_ID."
+        },
+        {
+          "id": "compare",
+          "level": "partial",
+          "title": "GitHub Actions ↔ Azure DevOps equivalences",
+          "detail": "Write a five-row table: trigger on PR, approval, identity without secret, reuse, and avoiding two runs on the same state. One column per platform, using what you saw in both repositories.",
+          "hints": [
+            "Reuse: reusable workflows/composite actions vs templates.",
+            "Concurrency: concurrency group vs exclusive lock check on the environment."
+          ],
+          "solution": "PR trigger: on.pull_request.paths ↔ pr.paths.include. Approval: environment required reviewers ↔ environment Approvals and checks. Identity: federated credential with subject …:environment:lab ↔ WIF service connection. Reuse: reusable workflow/composite action ↔ steps/jobs/stages templates. Same state: concurrency group ↔ Exclusive lock check (plus the Terraform lease in both)."
+        },
+        {
+          "id": "drill",
+          "level": "solo",
+          "title": "Write a plan/apply pipeline from a blank file",
+          "detail": "Create portal/.data/drills/r5-infra-pipeline.yml without copying infra.yml. Requirements: a Plan stage and an Apply stage that depends on it; variables with a variable group; steps reused through a template with parameters; a service connection referenced by name or compile-time variable, never a secret; Apply as a deployment job on an environment. Save and run the automatic checks; then ask the instructor for the revisor-yaml review.",
+          "command": "code portal/.data/drills/r5-infra-pipeline.yml",
+          "hints": [
+            "stages: - stage: Plan … - stage: Apply with dependsOn: Plan.",
+            "variables: - group: mfs-lab-common - name: serviceConnection value: sc-mfs-lab-wif",
+            "- deployment: apply / environment: mfs-lab / strategy: runOnce: deploy: steps: - template: templates/terraform-layer.yml"
+          ],
+          "solution": "trigger: none\npr:\n  paths:\n    include: [infra/*]\nvariables:\n  - group: mfs-lab-common\n  - name: serviceConnection\n    value: sc-mfs-lab-wif\npool:\n  vmImage: ubuntu-latest\nstages:\n  - stage: Plan\n    jobs:\n      - job: plan\n        steps:\n          - template: templates/terraform-layer.yml\n            parameters:\n              layer: 10-foundation\n              action: plan\n              serviceConnection: ${{ variables.serviceConnection }}\n  - stage: Apply\n    dependsOn: Plan\n    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))\n    jobs:\n      - deployment: apply\n        environment: mfs-lab\n        strategy:\n          runOnce:\n            deploy:\n              steps:\n                - checkout: self\n                - template: templates/terraform-layer.yml\n                  parameters:\n                    layer: 10-foundation\n                    action: apply\n                    serviceConnection: ${{ variables.serviceConnection }}"
+        },
+        {
+          "id": "live",
+          "level": "partial",
+          "title": "Optional: read the live organization",
+          "detail": "If the organization has a project for this platform, list its service connections and environments (read-only). If it does not, record an environment blocker and write what you would have checked.",
+          "command": "az devops project list --org https://dev.azure.com/az400edilsonmontry --query \"value[].name\" -o tsv",
+          "hints": [
+            "az devops service-endpoint list --org … -p <project> --query \"[].{name:name, scheme:authorization.scheme}\" -o table",
+            "WorkloadIdentityFederation is the scheme you want to see; ServicePrincipal means a secret."
+          ],
+          "solution": "With a project: the service connection should show scheme WorkloadIdentityFederation and the environment mfs-lab should have an Approval check. Without one: \"blocked by environment — no project yet (session C022 creates it)\"."
+        },
+        {
+          "id": "depends",
+          "level": "breakfix",
+          "title": "Break/fix: the apply that ran too early (local)",
+          "detail": "In your drill, change the Apply stage to dependsOn: [] and remove its condition. Predict what happens on the next PR, write it, check the automatic result and restore the file.",
+          "hints": [
+            "Without dependsOn, stages depend on the previous one; with dependsOn: [] they don't.",
+            "Which reason would a PR build have?"
+          ],
+          "solution": "Apply now starts in parallel with Plan and also on PR builds; it would only stop at the environment approval. dependsOn: Plan restores the order and the condition ne(variables['Build.Reason'], 'PullRequest') keeps PRs read-only. The approval is the last line of defence, not the only one."
+        }
+      ],
+      "criteria": [
+        {
+          "id": "drill-stages",
+          "text": "Drill: Plan and Apply stages, Apply depends on Plan",
+          "verify": "checker",
+          "owner": "learner",
+          "how": "Edit portal/.data/drills/r5-infra-pipeline.yml."
+        },
+        {
+          "id": "drill-template",
+          "text": "Drill: steps reused through a template with parameters",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "drill-variables",
+          "text": "Drill: variables declared with a variable group and used with template or macro syntax",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "drill-service-connection",
+          "text": "Drill: Azure access through a service connection; no secret or password anywhere",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "drill-approval-gate",
+          "text": "Drill: Apply is a deployment job targeting an environment",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "recall-recorded",
+          "text": "Recall answers recorded before the instructions",
+          "verify": "portal",
+          "rule": "recall"
+        },
+        {
+          "id": "attempts-recorded",
+          "text": "An attempt recorded for every exercise step",
+          "verify": "portal",
+          "rule": "attempts"
+        },
+        {
+          "id": "yaml-reviewed",
+          "text": "Drill reviewed (revisor-yaml findings addressed or explained) and the equivalence table checked",
+          "verify": "review",
+          "owner": "learner"
+        },
+        {
+          "id": "english-answer",
+          "text": "English answer recorded (60–90 seconds)",
+          "verify": "portal",
+          "rule": "english"
+        },
+        {
+          "id": "feedback-recorded",
+          "text": "Feedback recorded: technical, autonomy and English scores, gaps and next step",
+          "verify": "portal",
+          "rule": "feedback"
+        }
+      ],
+      "checker": {
+        "script": "checkers/sprint-r5-ado.js",
+        "timeoutSeconds": 60
+      },
+      "english": {
+        "question": "Walk me through an Azure DevOps pipeline that plans on pull requests and applies with an approval. How does it authenticate, and how do you reuse it across layers?",
+        "followUps": [
+          "Why must the service connection name be known at compile time?",
+          "Where do you configure the approval?"
+        ],
+        "modelAnswer": "The pipeline has three stages. Validate runs fmt and validate with no credentials. Plan runs a steps template with the layer as a parameter, so every layer reuses the same code. Apply is a deployment job on the mfs-lab environment, and it only runs on a manual run, never on a PR. The approval is configured on the environment under Approvals and checks, not in YAML. Authentication uses a service connection with workload identity federation, so there's no secret; AzureCLI hands the federated token to Terraform. The connection name is a compile-time value because Azure DevOps authorizes the pipeline to use it before the run starts."
+      },
+      "next": "Finish with R6: a real incident on this platform's pipelines."
+    },
+    {
+      "id": "R6",
+      "number": 6,
+      "day": 2,
+      "minutes": 60,
+      "title": "Integrated troubleshooting: the plan that cannot log in",
+      "focus": "A real incident: Observation → Hypothesis → Test → Evidence, then explain it in English",
+      "objective": "Diagnose why the terraform plan jobs of this repository fail on pull requests, with evidence from GitHub and Entra ID, and propose the fix with trade-offs. The fix itself changes the tenant, so it is applied later in session C003 with your OK.",
+      "interviewAngle": "\"Tell me about a pipeline that suddenly could not authenticate\" — and this time the story is real and recent.",
+      "prerequisites": {
+        "platform": [
+          "azure",
+          "github"
+        ],
+        "tools": [
+          "gh",
+          "az"
+        ],
+        "notes": "Read-only. The automatic evidence of this block stays sealed until you record your attempts, so the checker does not give the answer away."
+      },
+      "files": [
+        ".github/workflows/infra.yml",
+        "infra/terraform/05-identity/main.tf"
+      ],
+      "reuse": {
+        "sessions": [
+          "C003",
+          "C023"
+        ],
+        "az400": [
+          "21"
+        ],
+        "note": "The fix belongs to session C003 (pipelines without secrets) and the drill to C023 (the pipeline cannot log in). Lab 21 practises federation in its own sandbox."
+      },
+      "recall": [
+        {
+          "id": "method",
+          "question": "Describe your incident method in four steps.",
+          "answer": "Observation (what exactly fails, since when, exact error), Hypothesis (the most likely causes, ranked), Test (the cheapest read-only check that confirms or kills each hypothesis), Evidence (what proves the root cause and later the fix)."
+        },
+        {
+          "id": "oidc-parts",
+          "question": "List what must match for a GitHub OIDC login to Azure to succeed.",
+          "answer": "Issuer, audience and subject of the token vs the federated credential of the app registration; the client id/tenant id used by the job; the app's RBAC on the target scope; and permissions: id-token: write in the workflow."
+        }
+      ],
+      "steps": [
+        {
+          "id": "observe",
+          "level": "guided",
+          "title": "Observation: what fails and with which error",
+          "detail": "Find the failed infra runs and read only the failing lines. Write in your attempt the exact error code and the full subject that GitHub presented.",
+          "command": "gh run list -R edymonte/azure-enterprise-platform --workflow infra.yml --status failure -L 5\ngh run view <run-id> -R edymonte/azure-enterprise-platform --log-failed | Select-String AADSTS",
+          "hints": [
+            "The run id is the number in the list.",
+            "AADSTS codes are Entra errors: look the code up."
+          ],
+          "solution": "AADSTS700213: No matching federated identity record found for presented assertion subject 'repo:edymonte@51175821/azure-enterprise-platform@1415933453:pull_request'."
+        },
+        {
+          "id": "hypothesis",
+          "level": "partial",
+          "title": "Hypothesis: what does Azure expect?",
+          "detail": "List the subjects Azure trusts for this app and compare them with the presented subject. Write your hypothesis.",
+          "command": "$clientId = gh variable get AZURE_CLIENT_ID -R edymonte/azure-enterprise-platform",
+          "hints": [
+            "az ad app federated-credential list --id $clientId --query \"[].subject\" -o tsv",
+            "Compare character by character: owner and repository parts."
+          ],
+          "solution": "Azure trusts repo:edymonte/azure-enterprise-platform:pull_request (and :ref:refs/heads/main, :environment:lab). GitHub presents the owner and repository with immutable ids (edymonte@51175821/…@1415933453). Hypothesis: the repository's OIDC subject format changed; the credentials in 05-identity still use the name-only format."
+        },
+        {
+          "id": "test",
+          "level": "partial",
+          "title": "Test: confirm the subject format",
+          "detail": "Read the repository's OIDC subject customization (read-only) and confirm or reject the hypothesis.",
+          "command": "gh api repos/edymonte/azure-enterprise-platform/actions/oidc/customization/sub",
+          "hints": [
+            "Look for use_immutable_subject and sub_claim_prefix.",
+            "This is a repository setting, not something in the workflow file."
+          ],
+          "solution": "use_immutable_subject: true with sub_claim_prefix repo:edymonte@51175821/azure-enterprise-platform@1415933453 → confirmed: every job presents the immutable format, so none of the three credentials match."
+        },
+        {
+          "id": "evidence",
+          "level": "solo",
+          "title": "Evidence and fix plan (do not apply)",
+          "detail": "Write the root cause in one sentence, two ways to fix it with their trade-offs, the one you choose, how you would prove the fix, and how you would prevent it next time.",
+          "hints": [
+            "Option A changes the repository setting; option B changes the Terraform in 05-identity.",
+            "Which option survives a repository rename or transfer?"
+          ],
+          "solution": "Root cause: the repository presents immutable OIDC subjects but the federated credentials expect the name-based subject. A) turn immutable subjects off on the repository: quick, but loses rename protection and is a manual setting outside Terraform. B) change github_subjects in 05-identity to the immutable prefix and apply 05-identity (tenant change, with OK): code-reviewed and survives renames — preferred. Proof: re-run the PR plan jobs → green, and a plan comment on the PR. Prevention: plan checks required before merge (PR #14 was merged with them red), and an alert on infra workflow failures."
+        }
+      ],
+      "criteria": [
+        {
+          "id": "failure-evidence",
+          "text": "A failed infra run with an AADSTS error was found in the repository",
+          "verify": "checker",
+          "owner": "environment"
+        },
+        {
+          "id": "subject-comparison",
+          "text": "Presented subject format and federated credential subjects were read and compared",
+          "verify": "checker",
+          "owner": "environment"
+        },
+        {
+          "id": "recall-recorded",
+          "text": "Recall answers recorded before the instructions",
+          "verify": "portal",
+          "rule": "recall"
+        },
+        {
+          "id": "attempts-recorded",
+          "text": "An attempt recorded for every exercise step",
+          "verify": "portal",
+          "rule": "attempts"
+        },
+        {
+          "id": "root-cause-reviewed",
+          "text": "Root cause, fix options with trade-offs, proof and prevention reviewed",
+          "verify": "review",
+          "owner": "learner"
+        },
+        {
+          "id": "english-answer",
+          "text": "English answer recorded (60–90 seconds), in STAR form",
+          "verify": "portal",
+          "rule": "english"
+        },
+        {
+          "id": "feedback-recorded",
+          "text": "Feedback recorded: technical, autonomy and English scores, gaps and next step",
+          "verify": "portal",
+          "rule": "feedback"
+        }
+      ],
+      "checker": {
+        "script": "checkers/sprint-r6-incident.js",
+        "timeoutSeconds": 120,
+        "sealUntilAttempts": true
+      },
+      "english": {
+        "question": "Tell me about a time a pipeline suddenly could not authenticate to Azure. How did you diagnose it and what did you change?",
+        "followUps": [
+          "Why not just turn the setting off?",
+          "How do you make sure it doesn't happen again?"
+        ],
+        "modelAnswer": "On my platform the Terraform plan jobs started failing on every pull request with AADSTS700213, no matching federated identity record. I read the failing log and saw the subject GitHub presented used immutable owner and repository IDs, while the federated credentials in our identity layer trusted the name-based subject. I confirmed it in the repository's OIDC customization settings. Instead of turning the setting off, I updated the subjects in Terraform, so the fix is reviewed and survives a repository rename, re-ran the plans and they went green. I also made the plan checks required before merge, because one PR had been merged with them red."
+      },
+      "next": "Sprint done. Continue the full route from the Schedule: the first item after the sprint is session C002, then C003 applies the fix you just designed."
+    }
+  ]
+}

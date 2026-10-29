@@ -68,6 +68,7 @@
     return data;
   }
   const act = (id, action, body) => post(`/api/sessions/${id}/${action}`, body).catch((e) => toast(e.message));
+  const spAct = (id, action, body, ok) => post(`/api/sprint/${id}/${action}`, body).then((r) => { if (ok) toast(ok, 'info'); return r; }).catch((e) => { toast(e.message); throw e; });
 
   const STATE_LABEL = {
     AVAILABLE: 'Available', IN_PROGRESS: 'In progress', CHECKING: 'Checking…', BLOCKED: 'Blocked', FAILED: 'Not yet', COMPLETED: 'Completed',
@@ -93,6 +94,14 @@
   const parseIso = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
   const fmtShort = (s) => { const d = parseIso(s); return { wd: WD[d.getDay()], dm: `${String(d.getDate()).padStart(2, '0')} ${MO[d.getMonth()]}` }; };
   const fmtLong = (s) => { const d = parseIso(s); return `${WD[d.getDay()]}, ${MO[d.getMonth()]} ${d.getDate()}`; };
+  const fmtHours = (min) => (min % 60 ? `${Math.floor(min / 60)} h ${min % 60}` : `${min / 60} h`);
+  // "Moved from Wed, Oct 28 (overdue) — reason", oldest move first.
+  function replanNote(it) {
+    if (!it.replans) return null;
+    const first = it.replans[0];
+    return h('div', { class: 'replan' }, h('b', {}, '↻ Replanned'), ` · originally ${fmtLong(first.from)}`,
+      ...it.replans.map((r) => h('div', { class: 'small' }, `${fmtLong(r.from)} → ${fmtLong(r.to)}${r.decidedAt ? ` (decided ${fmtLong(r.decidedAt)})` : ''}: ${r.reason}`)));
+  }
 
   // ------------------------------------------------------------ AZ-400 model
   const DOMAINS = {
@@ -153,14 +162,17 @@
   const labVerified = (l) => (l.id === 'prep' ? labProgress(l).d === labProgress(l).t : Boolean(az().progress.completions[l.id]));
 
   // ------------------------------------------------------------ plan model
+  const blockById = (id) => state.sprint?.blocks.find((b) => b.id === id);
   function planItems() {
-    return state.schedule.items.filter((it) => (it.kind === 'az400' ? state.az400.available && labById(it.id) : state.sessions.some((s) => s.id === it.id)));
+    return state.schedule.items.filter((it) => (it.kind === 'sprint' ? Boolean(blockById(it.id)) : it.kind === 'az400' ? state.az400.available && labById(it.id) : state.sessions.some((s) => s.id === it.id)));
   }
   function itemDone(it) {
+    if (it.kind === 'sprint') return blockById(it.id).state === 'COMPLETED';
     if (it.kind === 'az400') return labVerified(labById(it.id));
     return state.sessions.find((s) => s.id === it.id).state === 'COMPLETED';
   }
   function itemStarted(it) {
+    if (it.kind === 'sprint') return Boolean(blockById(it.id).startedAt);
     if (it.kind === 'az400') return labProgress(labById(it.id)).d > 0;
     return Boolean(state.sessions.find((s) => s.id === it.id).startedAt);
   }
@@ -175,6 +187,7 @@
   }
   const itemKey = (it) => `${it.kind}:${it.id}`;
   function itemTitle(it) {
+    if (it.kind === 'sprint') return `${it.id} · ${blockById(it.id).title}`;
     if (it.kind === 'az400') return it.id === 'prep' ? 'Preparation' : `${it.id} · ${labById(it.id).title}`;
     const s = state.sessions.find((x) => x.id === it.id);
     return `${s.id} · ${s.title}`;
@@ -213,17 +226,28 @@
     const doneSessions = state.sessions.filter((s) => s.state === 'COMPLETED').length;
     $('#s-sessions').textContent = `${doneSessions}/${state.sessions.length}`;
     $('#s-sessions-bar').style.width = `${(doneSessions / state.sessions.length) * 100}%`;
+    const sum = state.sprint?.summary;
+    $('#s-sprint-stat').classList.toggle('hidden', !sum);
+    if (sum) {
+      $('#s-sprint').textContent = `${sum.done}/${sum.total}`;
+      $('#s-sprint-bar').style.width = `${(sum.done / sum.total) * 100}%`;
+      $('#s-sprint-stat').title = `Blocks completed by evidence. Time logged: ${fmtHours(sum.loggedMinutes)} of ${fmtHours(sum.estimatedMinutes)} estimated — time alone completes nothing.`;
+    }
 
     const today = isoToday();
     const items = planItems();
+    // Late is measured against the current plan; moved items keep their history.
     const due = items.filter((it) => it.date < today && it.date <= state.schedule.lastDay);
     const late = due.filter((it) => !itemDone(it)).length;
     const ahead = items.filter((it) => it.date > today && itemDone(it)).length;
+    const moved = items.filter((it) => it.replans && !itemDone(it)).length;
     const pace = $('#s-pace');
     if (state.schedule.start && today < state.schedule.start) { pace.textContent = `Starts ${fmtShort(state.schedule.start).dm}`; pace.style.color = 'var(--muted)'; }
     else if (late) { pace.textContent = `${late} item${late > 1 ? 's' : ''} late`; pace.style.color = 'var(--bad)'; }
     else if (ahead) { pace.textContent = `${ahead} ahead`; pace.style.color = 'var(--ok)'; }
     else { pace.textContent = 'On track'; pace.style.color = 'var(--ok)'; }
+    $('#s-pace-note').textContent = moved ? `↻ ${moved} replanned` : '';
+    $('#s-pace-note').title = moved ? 'Items moved to a new date. Each one keeps its original date and the reason (open it in the Schedule).' : '';
     const next = items.find((it) => !itemDone(it));
     if (next) {
       $('#today-lbl').textContent = `Next · ${next.date === today ? 'today' : fmtLong(next.date)}`;
@@ -246,6 +270,12 @@
       fill.style.background = 'var(--d-platform)';
       return h('div', { class: 'dom' }, h('div', { class: 'row' }, h('b', {}, 'Azure platform'), h('span', {}, `${doneSessions}/${state.sessions.length}`)), h('div', { class: 'bar' }, fill));
     })());
+    if (sum) {
+      const fill = h('div');
+      fill.style.width = `${(sum.done / sum.total) * 100}%`;
+      fill.style.background = 'var(--d-sprint)';
+      doms.prepend(h('div', { class: 'dom' }, h('div', { class: 'row' }, h('b', {}, 'Recovery sprint'), h('span', {}, `${sum.done}/${sum.total} · first`)), h('div', { class: 'bar' }, fill)));
+    }
 
     const env = state.environment;
     const pills = $('#env-pills');
@@ -284,12 +314,16 @@
     const rail = h('div', { class: 'rail-list' });
     let lastWeek = null;
     for (const it of items) {
-      const wk = it.date > state.schedule.lastDay ? 'After the vacation' : `Week ${Math.max(1, Math.floor((parseIso(it.date) - parseIso(state.schedule.start)) / 864e5 / 7) + 1)}`;
+      const sprintDay = (state.schedule.sprintDays ?? []).indexOf(it.date);
+      const wk = sprintDay >= 0 ? 'Recovery sprint — first' : it.date > state.schedule.lastDay ? 'After the vacation' : `Week ${Math.max(1, Math.floor((parseIso(it.date) - parseIso(state.schedule.start)) / 864e5 / 7) + 1)}`;
       if (wk !== lastWeek) { rail.append(h('div', { class: 'week' }, wk)); lastWeek = wk; }
       const f = fmtShort(it.date);
       const [sk, sl] = itemStatus(it);
       let dom; let sub;
-      if (it.kind === 'az400') {
+      if (it.kind === 'sprint') {
+        const b = blockById(it.id);
+        dom = 'var(--d-sprint)'; sub = `Sprint day ${b.day} · ${b.minutes} min · ${SPRINT_STATE[b.state]}`;
+      } else if (it.kind === 'az400') {
         const l = labById(it.id); const p = labProgress(l);
         dom = `var(--d-${l.domain})`; sub = `${DOMAINS[l.domain].n} · ${p.d}/${p.t}`;
       } else {
@@ -300,12 +334,12 @@
       dotEl.style.background = dom;
       rail.append(h('button', { class: `item ${it.date === today ? 'is-today' : ''}`, type: 'button', 'aria-current': String(itemKey(it) === itemKey(sel)), onclick: () => selectItem(itemKey(it)) },
         h('span', { class: 'date' }, f.wd, h('b', {}, f.dm)),
-        h('span', { class: 't' }, h('b', {}, itemTitle(it)), h('small', {}, dotEl, sub)),
+        h('span', { class: 't' }, h('b', {}, itemTitle(it)), h('small', {}, dotEl, sub, it.replans && !itemDone(it) ? h('span', { class: 'moved', title: `Originally ${fmtLong(it.replans[0].from)}` }, ` · ↻ from ${fmtShort(it.replans[0].from).dm}`) : null)),
         sl ? h('span', { class: `pill p-${sk}` }, sl) : h('span')));
     }
     const railEl = h('nav', { class: 'rail', 'aria-label': 'Schedule' },
       h('div', { class: 'rail-head' }, h('h2', {}, 'Schedule'), h('span', { class: 'mono small muted' }, `${items.filter(itemDone).length}/${items.length}`)), rail);
-    const detail = h('main', { class: 'detail' }, ...(sel.kind === 'az400' ? az400Detail(labById(sel.id), sel, items) : platformDetail(state.sessions.find((s) => s.id === sel.id), sel)));
+    const detail = h('main', { class: 'detail' }, ...(sel.kind === 'sprint' ? sprintDetail(blockById(sel.id), sel, items) : sel.kind === 'az400' ? az400Detail(labById(sel.id), sel, items) : platformDetail(state.sessions.find((s) => s.id === sel.id), sel)));
     const oldRail = view.querySelector('.rail-list');
     const railScroll = oldRail ? oldRail.scrollTop : null;
     view.replaceChildren(h('div', { class: 'main-grid' }, railEl, detail));
@@ -362,6 +396,8 @@
         h('span', { class: `tag ${ci.k ? `cost-${ci.k}` : ''}` }, ci.t),
         h('span', { class: 'tag' }, (l.platforms || []).map((x) => PLAT[x] || x).join(' · ')),
         h('span', {}, 'Planned: ', h('b', {}, fmtLong(it.date)), it.date > state.schedule.lastDay ? ' (after the vacation)' : '')),
+      replanNote(it),
+      sprintPractice('az400', l.id),
       h('h2', { class: 'title' }, isPrep ? null : h('span', { class: 'num' }, l.id), l.title),
       h('p', { class: 'role' }, isPrep ? l.role : `Your role: ${l.role}`),
       h('div', { class: 'two' },
@@ -448,13 +484,226 @@
     const head = h('section', { class: 'card' },
       h('div', { class: 'lab-top' }, h('span', { class: 'tag' }, dot, `Azure platform · cycle ${s.cycle} · ${cyc.title}`), h('span', { class: 'tag mono' }, `${s.timeMinutes} min`), h('span', { class: 'tag' }, s.topic), checkerChip(s),
         h('span', {}, 'Planned: ', h('b', {}, fmtLong(it.date)))),
+      replanNote(it),
       h('h2', { class: 'title' }, h('span', { class: 'num' }, s.id), s.title),
       h('p', { class: 'role' }, `Status: ${stateText(s)}`),
       h('div', { class: 'two' }, h('div', { class: 'box' }, h('h3', {}, 'Scenario'), h('p', {}, s.scenario)), h('div', { class: 'box exam' }, h('h3', {}, 'Mission'), h('p', {}, s.mission))),
       h('div', { class: 'links' }, sessionButton(s), h('a', { href: `#/session/${s.id}`, class: 'btn' }, 'Open the lab workspace →')));
     const nextHere = state.next.sessionId === s.id ? nextCard() : null;
     const crit = h('section', { class: 'card' }, h('h3', {}, 'Success criteria — what to do'), criteriaGuide(s));
-    return [head, nextHere, crit];
+    return [head, nextHere, sprintEvidenceFor(s), crit];
+  }
+
+  // ------------------------------------------------------------ recovery sprint
+  const SPRINT_STATE = { NOT_STARTED: 'Not started', IN_PROGRESS: 'In progress', CHECKING: 'Checking…', BLOCKED: 'Blocked', COMPLETED: 'Completed' };
+  const LEVEL = { guided: ['Guided', 'ok'], partial: ['Partial', 'info'], solo: ['Solo', 'warn'], breakfix: ['Break/fix', 'bad'] };
+  const VERIFY = { checker: ['Automatic check', 'ok'], portal: ['Recorded in the portal', 'info'], review: ['Manual review', 'warn'] };
+  const BLOCK_REASON = { environment: 'Environment', tool: 'Tool', access: 'Access', auth_error: 'Authentication', missing_prerequisite: 'Missing prerequisite', platform_stopped: 'Platform stopped' };
+  const drafts = {};
+  // A textarea that keeps what you typed across re-renders until it is saved.
+  function draftArea(key, saved, attrs = {}) {
+    const ta = h('textarea', { rows: '3', ...attrs });
+    ta.value = drafts[key] ?? saved ?? '';
+    ta.addEventListener('input', () => { drafts[key] = ta.value; });
+    return ta;
+  }
+  const clearDraft = (...keys) => { for (const k of keys) delete drafts[k]; };
+
+  // On a platform session or AZ-400 lab: which sprint block practised it (evidence is shown, never transferred).
+  function sprintPractice(kind, id) {
+    const blocks = (state.sprint?.blocks ?? []).filter((b) => (kind === 'az400' ? b.reuse?.az400 : b.reuse?.sessions)?.includes(id));
+    if (!blocks.length) return null;
+    return h('div', { class: 'replan sprint-ref' }, h('b', {}, 'Recovery sprint'), ` · practised in ${blocks.map((b) => `${b.id} (${SPRINT_STATE[b.state].toLowerCase()})`).join(', ')}. `,
+      kind === 'az400' ? 'This lab still needs its own sandbox and a passing Validate.ps1 to be verified.' : 'This session still completes only through its own criteria.');
+  }
+  function sprintEvidenceFor(s) {
+    const blocks = (state.sprint?.blocks ?? []).filter((b) => b.reuse?.sessions?.includes(s.id));
+    if (!blocks.length) return null;
+    const ids = new Set(s.criteria.map((c) => c.id));
+    return h('section', { class: 'card' }, h('h3', {}, 'Evidence from the recovery sprint'),
+      h('p', { class: 'muted small' }, `Reused as reference: ${s.checker.status === 'implemented' ? 'this session runs its own checker.' : 'this session\'s checker is planned, so it is not completed by the sprint.'}`),
+      ...blocks.map((b) => {
+        const shared = b.criteria.filter((c) => ids.has(c.id));
+        return h('div', { class: 'box' }, h('b', {}, `${b.id} · ${b.title}`), h('span', { class: 'muted small' }, ` — ${SPRINT_STATE[b.state]}`),
+          shared.length ? h('ul', { class: 'crit-list' }, shared.map((c) => h('li', {}, h('span', { class: `pill p-${c.status === 'pass' ? 'done' : c.status === 'fail' ? 'late' : 'next'}` }, c.status), ` ${c.text}`, c.at ? h('span', { class: 'muted small' }, ` · ${abs(c.at)}`) : null)))
+            : h('p', { class: 'muted small' }, 'Same topic, different criteria: use your attempts and notes from the block.'),
+          h('button', { class: 'btn copy', onclick: () => { selectItem(`sprint:${b.id}`); location.hash = '#/schedule'; } }, 'Open the block'));
+      }));
+  }
+
+  function sprintDetail(b, it, items) {
+    const started = Boolean(b.startedAt);
+    const done = b.state === 'COMPLETED';
+    const reuseLinks = [
+      ...(b.reuse?.sessions ?? []).map((id) => h('button', { class: 'btn copy', onclick: () => selectItem(`platform:${id}`) }, `Session ${id}`)),
+      ...(b.reuse?.az400 ?? []).map((id) => h('button', { class: 'btn copy', onclick: () => selectItem(`az400:${id}`) }, `AZ-400 lab ${id}`)),
+    ];
+    const timeInput = h('input', { type: 'number', min: '-240', max: '240', step: '5', 'aria-label': 'Minutes to log', placeholder: 'min' });
+    const logTime = (m) => spAct(b.id, 'time', { minutes: m }).catch(() => {});
+    const head = h('section', { class: `card ${done ? 'status-card COMPLETED' : ''}` },
+      h('div', { class: 'lab-top' },
+        h('span', { class: 'tag' }, (() => { const d = h('i', { class: 'dot' }); d.style.background = 'var(--d-sprint)'; return d; })(), `Recovery sprint · day ${b.day} of 2 · block ${b.number}/6`),
+        h('span', { class: 'tag mono' }, `${b.minutes} min estimated`),
+        h('span', { class: 'tag' }, b.focus),
+        h('span', { class: `chip ${b.mode === 'SOLO' ? 'ok' : 'warn'}`, title: 'SOLO = no hint or solution opened before completion and no outside AI help declared.' }, b.mode === 'SOLO' ? 'SOLO' : 'AI-assisted'),
+        h('span', {}, 'Planned: ', h('b', {}, fmtLong(it.date)))),
+      h('h2', { class: 'title' }, h('span', { class: 'num' }, b.id), b.title),
+      h('p', { class: 'role' }, `Status: ${SPRINT_STATE[b.state]}${b.reason ? ` · ${BLOCK_REASON[b.reason] ?? b.reason}` : ''}${done ? ` · completed ${abs(b.completedAt)}` : ''}`),
+      h('div', { class: 'two' }, h('div', { class: 'box' }, h('h3', {}, 'Objective'), h('p', {}, b.objective)), h('div', { class: 'box exam' }, h('h3', {}, 'Why it matters in an interview'), h('p', {}, b.interviewAngle))),
+      h('div', { class: 'two' },
+        h('div', { class: 'box' }, h('h3', {}, 'Prerequisites'), h('p', {}, `${b.prerequisites.platform.map((p) => PLAT[p] ?? (p === 'offline' ? 'Offline' : p)).join(' · ')} · tools: ${(b.prerequisites.tools ?? []).join(', ')}`), h('p', { class: 'muted small' }, b.prerequisites.notes)),
+        h('div', { class: 'box' }, h('h3', {}, 'Files'), h('ul', { class: 'file-list' }, b.files.map((f) => h('li', {}, h('code', {}, f)))))),
+      h('div', { class: 'box' }, h('h3', {}, 'Reuses'), h('p', { class: 'muted small' }, b.reuse?.note ?? ''), reuseLinks.length ? h('div', { class: 'links' }, ...reuseLinks) : null),
+      h('div', { class: 'time-row' },
+        h('span', {}, 'Time: ', h('b', {}, fmtHours(b.minutes)), ' estimated · ', h('b', {}, fmtHours(b.minutesLogged)), ' logged'),
+        started ? h('span', { class: 'time-btns' }, h('button', { class: 'btn copy', onclick: () => logTime(15) }, '+15 min'), h('button', { class: 'btn copy', onclick: () => logTime(30) }, '+30 min'), timeInput,
+          h('button', { class: 'btn copy', onclick: () => { const v = Number(timeInput.value); if (v) logTime(v); } }, 'Log')) : null,
+        h('span', { class: 'muted small' }, 'Logged time shows effort; only evidence completes the block.')),
+      keptDetails('sprint-rules', false, 'box', 'How the sprint works', h('p', {}, state.sprint.intro), h('ul', {}, state.sprint.rules.map((r) => h('li', {}, r)))),
+      h('div', { class: 'links' },
+        started ? null : h('button', { class: 'btn btn-primary', onclick: () => spAct(b.id, 'start', {}, 'Block started. Answer the recall questions first — no notes.') }, 'Start the block'),
+        started && !done ? h('span', { class: 'muted small' }, `Started ${abs(b.startedAt)}`) : null));
+    const cards = [head];
+    if (!started) {
+      cards.push(h('section', { class: 'card' }, h('h3', {}, `1 · Recall (${b.recall.length} questions, no notes)`), h('ul', {}, b.recall.map((q) => h('li', {}, q.question))),
+        h('p', { class: 'muted small' }, `Then ${b.stepsCount} exercise steps, the evidence, an English answer and your feedback. Start the block to record answers.`)));
+      return cards;
+    }
+    cards.push(recallCard(b), exerciseCard(b), evidenceCard(b), englishCard(b), feedbackCard(b), blockersCard(b));
+    const idx = items.findIndex((x) => itemKey(x) === itemKey(it));
+    const nx = items[idx + 1];
+    cards.push(h('section', { class: 'card foot' },
+      h('span', { class: 'muted small' }, done ? `Completed (${b.completion.mode === 'SOLO' ? 'SOLO' : 'AI-assisted'}). Next: ${b.next}` : b.next),
+      nx ? h('button', { class: 'btn btn-primary', onclick: () => { selectItem(itemKey(nx)); window.scrollTo({ top: 0, behavior: 'smooth' }); } }, 'Next item →') : null));
+    return cards;
+  }
+
+  function recallCard(b) {
+    const card = h('section', { class: 'card' }, h('h3', {}, '1 · Recall — before any instruction'));
+    if (b.recallSubmittedAt) {
+      card.append(h('p', { class: 'muted small' }, `Recorded ${abs(b.recallSubmittedAt)}. Compare with the reference and note the gaps in your feedback.`),
+        ...b.recall.map((q) => h('div', { class: 'recall' }, h('h4', {}, q.question), h('div', { class: 'mine' }, h('em', {}, 'Your answer'), q.mine),
+          keptDetails(`recall-${b.id}-${q.id}`, false, 'ref', 'Reference answer', h('p', {}, q.answer)))));
+      return card;
+    }
+    const areas = b.recall.map((q) => ({ q, ta: draftArea(`${b.id}:recall:${q.id}`, '', { placeholder: 'Your answer from memory. "I don\'t remember" is fine.' }) }));
+    card.append(h('p', { class: 'muted small' }, 'No notes, no search. The exercise steps open after you record these answers, and they cannot be edited afterwards.'),
+      ...areas.map(({ q, ta }) => h('div', { class: 'recall' }, h('h4', {}, q.question), ta)),
+      h('button', { class: 'btn btn-primary', onclick: () => spAct(b.id, 'recall', { answers: Object.fromEntries(areas.map(({ q, ta }) => [q.id, ta.value])) }, 'Recall recorded — the exercise is open.').then(() => clearDraft(...areas.map(({ q }) => `${b.id}:recall:${q.id}`))).catch(() => {}) }, 'Record answers and open the exercise'));
+    return card;
+  }
+
+  function exerciseCard(b) {
+    const card = h('section', { class: 'card' }, h('h3', {}, '2 · Exercise — from guided to solo'));
+    if (!b.steps) { card.append(h('p', { class: 'muted' }, `${b.stepsCount} steps open after the recall answers.`)); return card; }
+    card.append(h('p', { class: 'muted small' }, 'Run the commands yourself and write what you saw or concluded. Hints and solutions open on request; any opened before completion make the block AI-assisted. A solution opens only after your attempt is saved.'));
+    const list = h('ol', { class: 'steps-list' });
+    for (const s of b.steps) {
+      const [lv, lk] = LEVEL[s.level];
+      const key = `${b.id}:attempt:${s.id}`;
+      const ta = draftArea(key, s.attempt, { rows: '4', placeholder: s.level === 'guided' ? 'Paste the key lines of the output and what they mean.' : 'Your command, output and conclusion.' });
+      list.append(h('li', { class: `step sprint-step ${s.attempt ? 'done' : ''}` },
+        h('span', { class: 'chk', 'aria-hidden': 'true' }, s.attempt ? '✓' : String(b.steps.indexOf(s) + 1)),
+        h('div', { class: 'step-body' },
+          h('h4', {}, h('span', { class: `chip ${lk}` }, lv), ' ', s.title),
+          h('p', {}, s.detail),
+          s.command ? codeBlock(s.command) : null,
+          ta,
+          h('div', { class: 'links' },
+            h('button', { class: 'btn copy', onclick: () => spAct(b.id, 'attempt', { step: s.id, text: ta.value }, 'Attempt saved.').then(() => clearDraft(key)).catch(() => {}) }, s.attempt ? 'Update attempt' : 'Save attempt'),
+            s.hints.length < s.hintsTotal ? h('button', { class: 'btn copy', title: 'Before completion this marks the block AI-assisted.', onclick: () => spAct(b.id, 'hint', { step: s.id }).catch(() => {}) }, `Hint ${s.hints.length + 1}/${s.hintsTotal}`) : null,
+            s.solution ? null : h('button', { class: 'btn copy', disabled: !s.attempt, title: s.attempt ? 'Before completion this marks the block AI-assisted.' : 'Save your attempt first.', onclick: () => spAct(b.id, 'solution', { step: s.id }).catch(() => {}) }, 'Show solution')),
+          ...s.hints.map((t, i) => h('div', { class: 'note' }, h('b', {}, `Hint ${i + 1}: `), t)),
+          s.solution ? h('div', { class: 'orig' }, h('em', {}, 'Solution'), h('pre', { class: 'sol' }, s.solution)) : null)));
+    }
+    card.append(list);
+    return card;
+  }
+
+  function evidenceCard(b) {
+    const card = h('section', { class: 'card' },
+      h('div', { class: 'prog-head' }, h('h3', {}, '3 · Evidence and completion criteria'),
+        b.hasChecker ? h('button', { class: 'btn btn-primary', disabled: b.state === 'CHECKING', onclick: () => spAct(b.id, 'check', {}, 'Automatic checks started (read-only).').catch(() => {}) }, b.state === 'CHECKING' ? 'Checking…' : '↻ Run automatic checks') : null),
+      h('p', { class: 'muted small' }, `All ${b.criteria.length} must pass. Automatic checks only read Azure, GitHub and local files. Environment issues are shown apart from your technical errors.`),
+      b.lastObservation ? h('p', { class: 'small' }, `Last check ${rel(b.lastObservation.at)}: ${b.lastObservation.outcome}${b.lastObservation.blockedReason ? ` (${BLOCK_REASON[b.lastObservation.blockedReason] ?? b.lastObservation.blockedReason})` : ''} — ${b.lastObservation.summary}`) : null,
+      b.sealed ? h('p', { class: 'note' }, 'Automatic evidence for this block is sealed until you record an attempt for every step, so the checker does not give the diagnosis away.') : null);
+    const list = h('ul', { class: 'crit-list sprint-crit' });
+    for (const c of b.criteria) {
+      const [vt, vk] = VERIFY[c.verify];
+      const pill = { pass: ['done', 'Pass'], fail: ['late', c.owner === 'environment' ? 'Environment' : 'Not yet'], blocked: ['extra', 'Blocked'], pending: ['next', 'Pending'] }[c.status];
+      const li = h('li', {},
+        h('div', { class: 'crit-row' }, h('span', { class: `pill p-${pill[0]}` }, pill[1]), h('b', {}, c.text),
+          h('span', { class: `chip ${vk}` }, vt), c.verify !== 'portal' ? h('span', { class: 'chip' }, c.owner === 'environment' ? 'environment' : 'yours') : null,
+          c.reviewer ? h('span', { class: 'muted small' }, ` · reviewed by ${c.reviewer === 'instructor' ? 'the instructor' : 'yourself'}`) : null),
+        c.evidence && c.verify !== 'review' ? h('pre', { class: 'ev-text' }, c.evidence) : null,
+        c.reason ? h('div', { class: 'muted small' }, c.reason) : null,
+        c.status !== 'pass' && c.how ? h('div', { class: 'next-how small' }, h('b', {}, 'How: '), c.how) : null);
+      if (c.verify === 'review') li.append(reviewForm(b, c));
+      list.append(li);
+    }
+    card.append(list);
+    return card;
+  }
+
+  function reviewForm(b, c) {
+    const key = `${b.id}:review:${c.id}`;
+    const ta = draftArea(key, c.evidence, { rows: '4', placeholder: 'Paste the evidence (outputs, your written answer) the review is based on — at least 20 characters.' });
+    const who = h('select', { 'aria-label': 'Reviewer' }, h('option', { value: 'instructor' }, 'Instructor review (Claude)'), h('option', { value: 'self' }, 'Self-review'));
+    if (c.reviewer) who.value = c.reviewer;
+    const note = h('input', { placeholder: 'What was missing or what convinced the reviewer (optional)', maxlength: '1000' });
+    const send = (verdict) => spAct(b.id, 'review', { criterion: c.id, verdict, reviewer: who.value, evidence: ta.value, note: note.value }, verdict === 'pass' ? 'Review recorded: pass.' : 'Review recorded: not yet — see what was missing.').then(() => clearDraft(key)).catch(() => {});
+    return keptDetails(`review-${b.id}-${c.id}`, c.status !== 'pass', 'review-form', c.status === 'pass' ? 'Review recorded — update it' : 'Record the review',
+      ta, h('div', { class: 'links' }, who, note, h('button', { class: 'btn copy', onclick: () => send('pass') }, '✓ Meets the criterion'), h('button', { class: 'btn copy', onclick: () => send('fail') }, '✕ Not yet')));
+  }
+
+  function englishCard(b) {
+    const e = b.english;
+    const key = `${b.id}:english`;
+    const ta = draftArea(key, e.mine?.answer, { rows: '6', placeholder: 'Say it aloud first (60–90 s), then write what you said, as you said it — at least 40 words.' });
+    const secs = h('input', { type: 'number', min: '10', max: '600', placeholder: 'seconds', 'aria-label': 'Seconds you spoke' });
+    if (e.mine?.seconds) secs.value = e.mine.seconds;
+    const spoken = h('input', { type: 'checkbox' });
+    spoken.checked = Boolean(e.mine?.spoken);
+    return h('section', { class: 'card' }, h('h3', {}, '4 · Explain it in English (60–90 seconds)'),
+      h('p', { class: 'english-q' }, e.question),
+      e.followUps.length ? h('p', { class: 'muted small' }, `Follow-ups: ${e.followUps.join(' · ')}`) : null,
+      ta,
+      h('div', { class: 'links' }, h('label', { class: 'small' }, spoken, ' I said it aloud'), secs,
+        h('button', { class: 'btn copy', onclick: () => spAct(b.id, 'english', { answer: ta.value, spoken: spoken.checked, seconds: secs.value === '' ? null : Number(secs.value) }, 'English answer recorded — compare with the reference.').then(() => clearDraft(key)).catch(() => {}) }, e.mine ? 'Update answer' : 'Record answer')),
+      e.modelAnswer ? keptDetails(`english-${b.id}`, false, 'ref', 'Reference answer (compare structure, content and English)', h('p', {}, e.modelAnswer)) : h('p', { class: 'muted small' }, 'The reference answer opens after you record yours.'));
+  }
+
+  function feedbackCard(b) {
+    const f = b.feedback ?? {};
+    const pick = (name, label, help) => {
+      const sel = h('select', { 'aria-label': label }, h('option', { value: '' }, '—'), ...[0, 1, 2].map((v) => h('option', { value: String(v) }, `${v} · ${['not yet', 'with help', 'on my own'][v]}`)));
+      if (Number.isInteger(f[name])) sel.value = String(f[name]);
+      return { name, sel, row: h('label', { class: 'score-row' }, h('b', {}, label), sel, h('span', { class: 'muted small' }, help)) };
+    };
+    const scores = [pick('technical', 'Technical', 'Did the work and the explanation hold up?'), pick('autonomy', 'Autonomy', 'How much help did you need?'), pick('english', 'English', 'Clear, structured, on time?')];
+    const gaps = draftArea(`${b.id}:gaps`, f.gaps, { rows: '3', placeholder: 'Gaps found (what was missing) and how you will close them.' });
+    const next = draftArea(`${b.id}:next`, f.next, { rows: '2', placeholder: 'Next step.' });
+    const assisted = h('input', { type: 'checkbox', disabled: b.state === 'COMPLETED' });
+    assisted.checked = b.aiAssisted;
+    assisted.addEventListener('change', () => spAct(b.id, 'assisted', { value: assisted.checked }).catch(() => {}));
+    return h('section', { class: 'card' }, h('h3', {}, '5 · Feedback — recorded separately'),
+      h('p', { class: 'muted small' }, `Mode: ${b.mode === 'SOLO' ? 'SOLO' : 'AI-assisted'} · hints opened: ${b.counts.hints} · solutions opened: ${b.counts.solutions} · technical errors (yours): ${b.counts.technicalErrors} · environment/tool issues: ${b.counts.environmentIssues}`),
+      h('label', { class: 'small' }, assisted, ' I used AI help outside the portal for this block (marks it AI-assisted)'),
+      ...scores.map((s) => s.row), gaps, next,
+      h('button', { class: 'btn copy', onclick: () => {
+        const body = Object.fromEntries(scores.map((s) => [s.name, s.sel.value === '' ? null : Number(s.sel.value)]));
+        spAct(b.id, 'feedback', { ...body, gaps: gaps.value, next: next.value }, 'Feedback recorded.').then(() => clearDraft(`${b.id}:gaps`, `${b.id}:next`)).catch(() => {});
+      } }, b.feedback ? 'Update feedback' : 'Record feedback'));
+  }
+
+  function blockersCard(b) {
+    const kind = h('select', { 'aria-label': 'Blocker kind' }, h('option', { value: 'environment' }, 'Environment (Azure, GitHub, Azure DevOps)'), h('option', { value: 'tool' }, 'Tool (CLI, extension, machine)'), h('option', { value: 'access' }, 'Access (permission, sign-in)'));
+    const note = draftArea(`${b.id}:blocker`, '', { rows: '2', placeholder: 'What blocks you, and what you already tried.' });
+    return h('section', { class: 'card' }, h('h3', {}, 'Blockers — not your mistakes'),
+      h('p', { class: 'muted small' }, 'When the environment or a tool stops you, record it here: it pauses the block without counting as a technical error. Mistakes in your own work show up as failed criteria instead.'),
+      b.blockers.length ? h('ul', { class: 'crit-list' }, b.blockers.map((x, i) => h('li', {}, h('span', { class: `pill p-${x.resolvedAt ? 'done' : 'late'}` }, x.resolvedAt ? 'Resolved' : 'Open'), ` ${BLOCK_REASON[x.kind]} · ${x.note} `, h('span', { class: 'muted small' }, abs(x.at)),
+        x.resolvedAt ? null : h('button', { class: 'btn copy', onclick: () => spAct(b.id, 'unblock', { index: i }, 'Blocker resolved.').catch(() => {}) }, 'Resolved')))) : null,
+      kind, note, h('button', { class: 'btn copy', onclick: () => spAct(b.id, 'blocker', { kind: kind.value, note: note.value }, 'Blocker recorded.').then(() => clearDraft(`${b.id}:blocker`)).catch(() => {}) }, 'Record blocker'));
   }
 
   // ------------------------------------------------------------ platform helpers
@@ -1229,9 +1478,31 @@
         })));
     });
     view.replaceChildren(
+      priorityCard(),
       h('section', { class: 'card' }, h('h2', {}, plan.title), h('p', { class: 'muted' }, plan.intro),
         h('div', { class: 'progress-caption' }, `${done}/${all.length} items`), h('div', { class: 'progress-track study-track' }, fill)),
       ...cards);
+  }
+
+  // The same order as the Schedule: the sprint first, then the full route.
+  function priorityCard() {
+    const items = planItems();
+    const sum = state.sprint?.summary;
+    const open = (it) => h('button', { class: 'btn copy', onclick: () => { selectItem(itemKey(it)); location.hash = '#/schedule'; } }, 'Open');
+    const row = (it) => h('li', {}, h('b', {}, fmtLong(it.date)), ` · ${it.kind === 'sprint' ? 'Sprint' : it.kind === 'az400' ? 'AZ-400 lab' : 'Platform'} ${itemTitle(it)} `,
+      itemDone(it) ? h('span', { class: 'pill p-done' }, 'Done') : null, it.replans ? h('span', { class: 'moved small' }, ` ↻ from ${fmtShort(it.replans[0].from).dm}`) : null, ' ', open(it));
+    const sprintItems = items.filter((it) => it.kind === 'sprint');
+    const after = items.filter((it) => it.kind !== 'sprint' && !itemDone(it)).slice(0, 6);
+    const moved = items.filter((it) => it.replans);
+    return h('section', { class: 'card priority' }, h('h2', {}, 'Priority and dates'),
+      h('p', { class: 'muted' }, state.schedule.subtitle),
+      sum ? h('div', {}, h('h3', {}, `1 · ${state.sprint.title} — ${sum.done}/${sum.total} blocks by evidence`),
+        h('p', { class: 'muted small' }, `${fmtHours(sum.estimatedMinutes)} estimated · ${fmtHours(sum.loggedMinutes)} logged. Logged time is effort, not approval.`),
+        h('ol', {}, sprintItems.map(row))) : null,
+      h('h3', {}, `${sum ? '2' : '1'} · Then the full route (next items)`),
+      h('ol', {}, after.map(row)),
+      moved.length ? keptDetails('priority-moved', false, 'box', `Replanned items (${moved.length}) — original dates kept`,
+        h('ul', {}, moved.map((it) => h('li', { class: 'small' }, `${itemTitle(it)}: ${fmtLong(it.replans[0].from)} → ${fmtLong(it.date)} — ${it.replans.at(-1).reason}`)))) : null);
   }
 
   // ------------------------------------------------------------ TFTEC course (self-tracked, lesson level)
@@ -1573,7 +1844,8 @@
     if (!state) return;
     // Do not rebuild the page under the learner's cursor while they type.
     const active = document.activeElement;
-    if (!force && active && (active.tagName === 'TEXTAREA' || active.closest?.('.link-form'))) return;
+    const typing = active && (active.tagName === 'TEXTAREA' || (active.tagName === 'INPUT' && ['text', 'number', 'search'].includes(active.type)) || active.closest?.('.link-form'));
+    if (!force && typing) return;
     const y = window.scrollY;
     renderChrome();
     const r = route();

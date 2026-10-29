@@ -88,6 +88,37 @@ export async function az(args, { timeoutMs = 60000 } = {}) {
   };
 }
 
+// GitHub CLI, read-only calls only. PORTAL_FAKE_GH points tests at a fake CLI.
+export async function gh(args, { timeoutMs = 60000 } = {}) {
+  const fake = process.env.PORTAL_FAKE_GH;
+  const r = fake
+    ? await runCommand(process.execPath, [fake, ...args], { cwd: repoRoot(), timeoutMs })
+    : await runCommand('gh', args, { cwd: repoRoot(), timeoutMs });
+  const stderr = r.stderr ?? '';
+  return {
+    ok: r.code === 0 && !r.timedOut,
+    stdout: r.stdout ?? '',
+    notInstalled: r.error === 'not_installed',
+    timedOut: r.timedOut,
+    authError: /gh auth login|not logged in|authentication required|Bad credentials|HTTP 401/i.test(stderr),
+    notFound: /Not Found|HTTP 404/i.test(stderr),
+    stderr: stderr.trim().split(/\r?\n/).slice(-2).join(' ').slice(0, 300),
+  };
+}
+
+// owner/name of the origin remote (github.com), or null.
+export async function repoSlug() {
+  const r = await git(['remote', 'get-url', 'origin']);
+  const m = r.code === 0 ? r.stdout.trim().match(/github\.com[:/]([^/]+\/[^/]+?)(\.git)?$/) : null;
+  return m ? m[1] : null;
+}
+
+// Learner drill files live in the portal data dir (git-ignored), never in the repository.
+export function drillFile(name) {
+  const dataDir = process.env.PORTAL_DATA_DIR ?? path.join(repoRoot(), 'portal', '.data');
+  return path.join(dataDir, 'drills', name);
+}
+
 // Common gate for Azure criteria: signed in, and on the lab subscription.
 export async function azureGate() {
   const account = await az(['account', 'show']);
