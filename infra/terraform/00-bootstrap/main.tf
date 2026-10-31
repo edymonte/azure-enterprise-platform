@@ -95,9 +95,14 @@ resource "azurerm_dns_zone" "public" {
 # ---------------------------------------------------------------------------
 # Cost guardrail — the first control a real platform team puts in place.
 # ---------------------------------------------------------------------------
+locals {
+  # A budget only alerts; it never stops spending. Send it to every inbox that is read.
+  budget_emails = length(var.budget_contact_emails) > 0 ? var.budget_contact_emails : [var.alert_email]
+}
+
 resource "azurerm_consumption_budget_subscription" "lab" {
   count           = var.enable_budget ? 1 : 0
-  name            = "budget-${var.org}-azure-lab"
+  name            = "budget-${var.org}-platform-lab-monthly"
   subscription_id = "/subscriptions/${var.subscription_id}"
   amount          = var.monthly_budget_amount
   time_grain      = "Monthly"
@@ -111,7 +116,7 @@ resource "azurerm_consumption_budget_subscription" "lab" {
     threshold      = 50
     operator       = "GreaterThan"
     threshold_type = "Actual"
-    contact_emails = [var.alert_email]
+    contact_emails = local.budget_emails
   }
 
   notification {
@@ -119,15 +124,24 @@ resource "azurerm_consumption_budget_subscription" "lab" {
     threshold      = 80
     operator       = "GreaterThan"
     threshold_type = "Actual"
-    contact_emails = [var.alert_email]
+    contact_emails = local.budget_emails
   }
 
   notification {
     enabled        = true
     threshold      = 100
     operator       = "GreaterThan"
+    threshold_type = "Actual"
+    contact_emails = local.budget_emails
+  }
+
+  # Cost data lags by hours; the forecast warns before the money is spent.
+  notification {
+    enabled        = true
+    threshold      = 100
+    operator       = "GreaterThan"
     threshold_type = "Forecasted"
-    contact_emails = [var.alert_email]
+    contact_emails = local.budget_emails
   }
 
   lifecycle {

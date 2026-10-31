@@ -38,7 +38,13 @@ variable "enable_budget" {
 variable "monthly_budget_amount" {
   description = "Budget amount in the subscription BILLING currency (check if it is USD or BRL)."
   type        = number
-  default     = 150
+  default     = 120
+}
+
+variable "budget_contact_emails" {
+  description = "Inboxes that receive the budget alerts. Empty list falls back to alert_email."
+  type        = list(string)
+  default     = []
 }
 
 variable "budget_start_date" {
