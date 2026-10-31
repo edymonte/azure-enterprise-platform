@@ -24,9 +24,10 @@ function text(value, name, { min = 1, max = TEXT_MAX } = {}) {
 const words = (s) => (s ?? '').trim().split(/\s+/).filter(Boolean).length;
 
 export class SprintTracker {
-  constructor({ store, sprint }) {
+  constructor({ store, sprint, key = 'sprint' }) {
     this.store = store;
     this.sprint = sprint;
+    this.key = key; // progress.json section: "sprint" or "gitflow"
   }
 
   get enabled() {
@@ -40,13 +41,13 @@ export class SprintTracker {
   }
 
   peek(id) {
-    return this.store.data.sprint?.blocks?.[id] ?? {};
+    return this.store.data[this.key]?.blocks?.[id] ?? {};
   }
 
   rec(id) {
-    this.store.data.sprint ??= { blocks: {} };
-    this.store.data.sprint.blocks[id] ??= {};
-    return this.store.data.sprint.blocks[id];
+    this.store.data[this.key] ??= { blocks: {} };
+    this.store.data[this.key].blocks[id] ??= {};
+    return this.store.data[this.key].blocks[id];
   }
 
   started(id) {
@@ -246,8 +247,10 @@ export class SprintTracker {
       case 'recall':
         return r.recall?.submittedAt ? `Recorded ${r.recall.submittedAt} (${b.recall.length} answers)` : null;
       case 'attempts': {
-        const done = b.steps.filter((s) => r.steps?.[s.id]?.attempt).length;
-        return done === b.steps.length ? `${done}/${b.steps.length} attempts recorded` : null;
+        // Break/fix steps are optional extras: incidents come after the sprint.
+        const required = b.steps.filter((s) => s.level !== 'breakfix');
+        const done = required.filter((s) => r.steps?.[s.id]?.attempt).length;
+        return done === required.length ? `${done}/${required.length} attempts recorded` : null;
       }
       case 'english':
         return r.english ? `${words(r.english.answer)} words${r.english.spoken ? ', said aloud' : ''}${r.english.seconds ? ` in ${r.english.seconds} s` : ''}` : null;
@@ -287,21 +290,18 @@ export class SprintTracker {
   }
 
   // What the browser may see: recall answers only after submitting, steps only
-  // after recall, solutions only after they were opened (which needs an attempt),
-  // sealed checker evidence only after every attempt is recorded.
+  // after recall, solutions only after they were opened (which needs an attempt).
   view(id, { running = false } = {}) {
     const b = this.block(id);
     const r = this.peek(id);
     const { state, reason } = this.stateOf(id, { running });
     const recallDone = Boolean(r.recall?.submittedAt);
-    const allAttempts = b.steps.every((s) => r.steps?.[s.id]?.attempt);
-    const sealed = Boolean(b.checker?.sealUntilAttempts) && !allAttempts;
-    const criteria = this.criteria(id).map((c) => (sealed && c.verify === 'checker' && c.evidence ? { ...c, evidence: 'Sealed until you record an attempt for every step.', reason: null } : c));
+    const criteria = this.criteria(id);
     const history = r.history ?? [];
     const { recall, steps, english, criteria: _c, checker, ...content } = b;
     return {
       ...content,
-      kind: 'sprint',
+      kind: this.key,
       state,
       reason,
       startedAt: r.startedAt ?? null,
@@ -311,7 +311,6 @@ export class SprintTracker {
       mode: r.completion?.mode ?? (r.assistedBefore || r.aiAssisted ? 'AI_ASSISTED' : 'SOLO'),
       aiAssisted: Boolean(r.aiAssisted),
       hasChecker: Boolean(checker),
-      sealed,
       recall: b.recall.map((q) => ({ id: q.id, question: q.question, mine: r.recall?.answers?.[q.id] ?? null, answer: recallDone ? q.answer : null })),
       recallSubmittedAt: r.recall?.submittedAt ?? null,
       steps: recallDone

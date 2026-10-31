@@ -5,7 +5,7 @@
   "intro": "Two days of four hours, six blocks in order. Every block starts with recall questions answered without notes, then a practical exercise that moves from guided to solo, real evidence and a 60–90 second answer in English. Solutions stay sealed until you record your own attempt. Logged hours show effort, not approval: a block is complete only when every criterion has evidence.",
   "rules": [
     "Answer the recall questions before reading the instructions. \"I don't remember\" is a valid answer and is exactly what the sprint is for.",
-    "Record your attempt before opening a solution. Every hint or solution opened before completion makes the block AI-assisted.",
+    "Record your attempt before opening a solution. Every hint or solution opened before completion makes the block AI-assisted. Break/fix steps are optional: a quick extra, not needed to complete the block — incidents come after the sprint.",
     "Automatic checks only read Azure, GitHub and local files. Nothing in the sprint deploys, destroys or changes permissions; steps that take a lease or need an OK say so.",
     "When the environment or a tool blocks you, report it as a blocker. It is not counted as a technical mistake.",
     "Completing the sprint does not complete a platform session or an AZ-400 lab: those keep their own checkers and Validate.ps1."
@@ -968,109 +968,99 @@
       "number": 6,
       "day": 2,
       "minutes": 60,
-      "title": "Integrated troubleshooting: the plan that cannot log in",
-      "focus": "A real incident: Observation → Hypothesis → Test → Evidence, then explain it in English",
-      "objective": "Diagnose why the terraform plan jobs of this repository fail on pull requests, with evidence from GitHub and Entra ID, and propose the fix with trade-offs. The fix itself changes the tenant, so it is applied later in session C003 with your OK.",
-      "interviewAngle": "\"Tell me about a pipeline that suddenly could not authenticate\" — and this time the story is real and recent.",
+      "title": "Integrated recap: one change through GitHub Actions and Azure DevOps",
+      "focus": "The end-to-end flow on both platforms, side by side, told in English",
+      "objective": "Put the five blocks together: follow one change from a feature branch to production on this platform, name the file and the control at each stage in GitHub Actions and in Azure DevOps, and tell it in two minutes.",
+      "interviewAngle": "\"Walk me through your CI/CD, from a commit to production\" opens most platform interviews, and clients will ask it about both tools.",
       "prerequisites": {
         "platform": [
-          "azure",
-          "github"
+          "offline"
         ],
         "tools": [
-          "gh",
-          "az"
+          "git"
         ],
-        "notes": "Read-only. The automatic evidence of this block stays sealed until you record your attempts, so the checker does not give the answer away."
+        "notes": "Reading and writing only: no cloud call. The incident on the plan jobs (AADSTS700213) is not part of the sprint; it opens session C003."
       },
       "files": [
-        ".github/workflows/infra.yml",
-        "infra/terraform/05-identity/main.tf"
+        "docs/E2E-FEATURE-FLOW.md",
+        ".github/workflows/",
+        "pipelines/azure-devops/",
+        "docs/decisions/"
       ],
       "reuse": {
         "sessions": [
-          "C003",
-          "C023"
+          "C017",
+          "C022"
         ],
-        "az400": [
-          "21"
-        ],
-        "note": "The fix belongs to session C003 (pipelines without secrets) and the drill to C023 (the pipeline cannot log in). Lab 21 practises federation in its own sandbox."
+        "az400": [],
+        "note": "C017 (feature to production) and C022 (the Azure DevOps team) run this flow for real later in the route, once AKS is up."
       },
       "recall": [
         {
-          "id": "method",
-          "question": "Describe your incident method in four steps.",
-          "answer": "Observation (what exactly fails, since when, exact error), Hypothesis (the most likely causes, ranked), Test (the cheapest read-only check that confirms or kills each hypothesis), Evidence (what proves the root cause and later the fix)."
+          "id": "loop",
+          "question": "Without notes: list the stages a change goes through on this platform, from the feature branch to production.",
+          "answer": "Feature branch → PR with CI (lint, tests, build, scan) and required checks → squash merge to main → app pipeline builds and pushes the image once → opens a GitOps PR for dev → Argo CD syncs → PostSync smoke test → promotion PR to prod with the same image → sync + smoke. Infra changes: the PR shows the terraform plan; a manual run applies after the environment approval."
         },
         {
-          "id": "oidc-parts",
-          "question": "List what must match for a GitHub OIDC login to Azure to succeed.",
-          "answer": "Issuer, audience and subject of the token vs the federated credential of the app registration; the client id/tenant id used by the job; the app's RBAC on the target scope; and permissions: id-token: write in the workflow."
+          "id": "push-pull",
+          "question": "Why does CI here open a pull request instead of deploying to the cluster?",
+          "answer": "GitOps (ADR-0003): Git is the source of truth and Argo CD pulls and applies, so every deploy is a reviewed commit, drift is corrected and rollback is a git revert. Pipelines never get cluster credentials."
+        },
+        {
+          "id": "same-image",
+          "question": "What does \"build once, promote the same image\" mean, and why does it matter?",
+          "answer": "The image built from main is the exact artifact promoted to every environment (ideally by digest, not by a mutable tag). What was tested in dev is what runs in prod; rebuilding per environment breaks that guarantee."
         }
       ],
       "steps": [
         {
-          "id": "observe",
+          "id": "flow",
           "level": "guided",
-          "title": "Observation: what fails and with which error",
-          "detail": "Find the failed infra runs and read only the failing lines. Write in your attempt the exact error code and the full subject that GitHub presented.",
-          "command": "gh run list -R edymonte/azure-enterprise-platform --workflow infra.yml --status failure -L 5\ngh run view <run-id> -R edymonte/azure-enterprise-platform --log-failed | Select-String AADSTS",
+          "title": "Read the standard loop",
+          "detail": "Read only the \"standard loop\" section of the E2E flow and write the stages in your own words, one line each.",
+          "command": "Get-Content docs/E2E-FEATURE-FLOW.md | Select-String -Context 0,20 \"The standard loop\"",
           "hints": [
-            "The run id is the number in the list.",
-            "AADSTS codes are Entra errors: look the code up."
+            "Where does a human approve something?",
+            "Which step can never happen from your laptop?"
           ],
-          "solution": "AADSTS700213: No matching federated identity record found for presented assertion subject 'repo:edymonte@51175821/azure-enterprise-platform@1415933453:pull_request'."
+          "solution": "Branch → PR (CI + required checks) → merge → app.yml builds/pushes once → deploy PR to gitops/envs/dev → Argo CD sync → PostSync smoke → promotion PR to prod (same image) → sync + smoke. Humans approve PRs and the environment gate; nothing is applied by hand."
         },
         {
-          "id": "hypothesis",
+          "id": "map",
           "level": "partial",
-          "title": "Hypothesis: what does Azure expect?",
-          "detail": "List the subjects Azure trusts for this app and compare them with the presented subject. Write your hypothesis.",
-          "command": "$clientId = gh variable get AZURE_CLIENT_ID -R edymonte/azure-enterprise-platform",
+          "title": "Map every stage to both tools",
+          "detail": "For each stage, write the file and the control in GitHub Actions and in Azure DevOps: trigger, identity, approval, artifact, deploy. Use the workflows and pipelines you read in R4 and R5.",
+          "command": "Get-ChildItem .github/workflows, pipelines/azure-devops -Recurse -Filter *.yml | Select-Object FullName",
           "hints": [
-            "az ad app federated-credential list --id $clientId --query \"[].subject\" -o tsv",
-            "Compare character by character: owner and repository parts."
+            "App: .github/workflows/app.yml ↔ pipelines/azure-devops/app.yml; infra: infra.yml in both.",
+            "Approval: environment required reviewers ↔ environment Approvals and checks; identity: federated credential ↔ WIF service connection."
           ],
-          "solution": "Azure trusts repo:edymonte/azure-enterprise-platform:pull_request (and :ref:refs/heads/main, :environment:lab). GitHub presents the owner and repository with immutable ids (edymonte@51175821/…@1415933453). Hypothesis: the repository's OIDC subject format changed; the credentials in 05-identity still use the name-only format."
+          "solution": "Trigger: on.pull_request/push ↔ pr/trigger. Identity: OIDC federated credential (subject per event/environment) ↔ WIF service connection. Approval: environment lab with reviewers ↔ environment mfs-lab with an Approval check. Artifact: image pushed once to ACR in both. Deploy: both open a PR to gitops/ — Argo CD deploys, never the pipeline. Reuse: reusable workflow ↔ templates."
         },
         {
-          "id": "test",
+          "id": "choose",
           "level": "partial",
-          "title": "Test: confirm the subject format",
-          "detail": "Read the repository's OIDC subject customization (read-only) and confirm or reject the hypothesis.",
-          "command": "gh api repos/edymonte/azure-enterprise-platform/actions/oidc/customization/sub",
+          "title": "When would you pick each tool?",
+          "detail": "Write three reasons a client would choose GitHub Actions and three for Azure DevOps, thinking of a team you could join on your next project.",
           "hints": [
-            "Look for use_immutable_subject and sub_claim_prefix.",
-            "This is a repository setting, not something in the workflow file."
+            "Where does the code already live? What does the company already pay for and govern?",
+            "Boards, test plans and fine-grained project permissions vs marketplace, developer experience and GHAS."
           ],
-          "solution": "use_immutable_subject: true with sub_claim_prefix repo:edymonte@51175821/azure-enterprise-platform@1415933453 → confirmed: every job presents the immutable format, so none of the three credentials match."
+          "solution": "GitHub Actions: code already on GitHub, marketplace and reusable workflows, developer experience, GitHub Advanced Security. Azure DevOps: company already on Boards/Test Plans/Artifacts, fine-grained project permissions and checks on resources, existing pipelines and templates. Many clients run both: be able to translate one into the other."
         },
         {
-          "id": "evidence",
+          "id": "pitch",
           "level": "solo",
-          "title": "Evidence and fix plan (do not apply)",
-          "detail": "Write the root cause in one sentence, two ways to fix it with their trade-offs, the one you choose, how you would prove the fix, and how you would prevent it next time.",
+          "title": "Write your 2-minute pitch outline",
+          "detail": "Five bullet points you will say in the English answer: context, flow, identity without secrets, approvals and one trade-off. Bullets you can speak from, not full sentences.",
           "hints": [
-            "Option A changes the repository setting; option B changes the Terraform in 05-identity.",
-            "Which option survives a repository rename or transfer?"
+            "Start with the business context (the MFS customer portal), not with tools.",
+            "End with a trade-off: GitOps PRs add a step but give audit and easy rollback."
           ],
-          "solution": "Root cause: the repository presents immutable OIDC subjects but the federated credentials expect the name-based subject. A) turn immutable subjects off on the repository: quick, but loses rename protection and is a manual setting outside Terraform. B) change github_subjects in 05-identity to the immutable prefix and apply 05-identity (tenant change, with OK): code-reviewed and survives renames — preferred. Proof: re-run the PR plan jobs → green, and a plan comment on the PR. Prevention: plan checks required before merge (PR #14 was merged with them red), and an alert on infra workflow failures."
+          "solution": "Your bullets are yours: the review checks they cover context, the flow, OIDC/WIF, approvals and one trade-off."
         }
       ],
       "criteria": [
-        {
-          "id": "failure-evidence",
-          "text": "A failed infra run with an AADSTS error was found in the repository",
-          "verify": "checker",
-          "owner": "environment"
-        },
-        {
-          "id": "subject-comparison",
-          "text": "Presented subject format and federated credential subjects were read and compared",
-          "verify": "checker",
-          "owner": "environment"
-        },
         {
           "id": "recall-recorded",
           "text": "Recall answers recorded before the instructions",
@@ -1084,14 +1074,14 @@
           "rule": "attempts"
         },
         {
-          "id": "root-cause-reviewed",
-          "text": "Root cause, fix options with trade-offs, proof and prevention reviewed",
+          "id": "flow-explained",
+          "text": "Flow and the GitHub ↔ Azure DevOps mapping reviewed: every stage has its file and control in both tools",
           "verify": "review",
           "owner": "learner"
         },
         {
           "id": "english-answer",
-          "text": "English answer recorded (60–90 seconds), in STAR form",
+          "text": "English answer recorded (60–90 seconds)",
           "verify": "portal",
           "rule": "english"
         },
@@ -1102,20 +1092,15 @@
           "rule": "feedback"
         }
       ],
-      "checker": {
-        "script": "checkers/sprint-r6-incident.js",
-        "timeoutSeconds": 120,
-        "sealUntilAttempts": true
-      },
       "english": {
-        "question": "Tell me about a time a pipeline suddenly could not authenticate to Azure. How did you diagnose it and what did you change?",
+        "question": "Walk me through your CI/CD: how does a change get from a developer's branch to production, in GitHub Actions and in Azure DevOps?",
         "followUps": [
-          "Why not just turn the setting off?",
-          "How do you make sure it doesn't happen again?"
+          "Why does the pipeline not deploy to the cluster?",
+          "How do you roll back?"
         ],
-        "modelAnswer": "On my platform the Terraform plan jobs started failing on every pull request with AADSTS700213, no matching federated identity record. I read the failing log and saw the subject GitHub presented used immutable owner and repository IDs, while the federated credentials in our identity layer trusted the name-based subject. I confirmed it in the repository's OIDC customization settings. Instead of turning the setting off, I updated the subjects in Terraform, so the fix is reviewed and survives a repository rename, re-ran the plans and they went green. I also made the plan checks required before merge, because one PR had been merged with them red."
+        "modelAnswer": "A developer opens a pull request; CI runs lint, tests, the build and a scan, and the checks are required before the squash merge. On main the pipeline builds the image once, pushes it to ACR and opens a pull request to the GitOps folder for dev. Argo CD syncs it and a smoke test runs after the sync. Promotion to production is another pull request with the same image. The pipelines never touch the cluster and never hold a secret: GitHub uses OIDC federated credentials and Azure DevOps a workload identity federation service connection, and applies wait for an environment approval. Rollback is a git revert. The same flow exists in both tools, so I can work with either team."
       },
-      "next": "Sprint done. Continue the full route from the Schedule: the first item after the sprint is session C002, then C003 applies the fix you just designed."
+      "next": "Sprint done. Next on the Schedule: session C002, then C003, which opens with the real incident on the plan jobs (AADSTS700213)."
     }
   ]
 }

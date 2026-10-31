@@ -8,7 +8,7 @@
   --ok: #17845a; --ok-soft: #ddf3e8; --warn: #a86200; --warn-soft: #fbefd9; --bad: #b4372b; --bad-soft: #fbe3e0;
   --lock: #6b5bb5; --lock-soft: #ece8fb; --gold: #b07a00;
   --code-bg: #0f1726; --code-ink: #dbe6fb; --code-dim: #8b93ad; --code-line: #2a3650;
-  --d-process: #7a4fc4; --d-source: #0f8a8a; --d-pipelines: #1f5fd1; --d-security: #c0452f; --d-instrumentation: #b07a00; --d-foundation: #5a6578; --d-capstone: #1d7d4f; --d-platform: #c2410c; --d-sprint: #0e7490;
+  --d-process: #7a4fc4; --d-source: #0f8a8a; --d-pipelines: #1f5fd1; --d-security: #c0452f; --d-instrumentation: #b07a00; --d-foundation: #5a6578; --d-capstone: #1d7d4f; --d-platform: #c2410c; --d-sprint: #0e7490; --d-gitflow: #7c3aed;
   --f-ui: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
   --f-mono: "Cascadia Code", "JetBrains Mono", Consolas, ui-monospace, monospace;
   --r: 10px;
@@ -23,7 +23,7 @@
     --ok: #4cc995; --ok-soft: #14332a; --warn: #f0b34d; --warn-soft: #3a2c12; --bad: #f07b6c; --bad-soft: #3d1c19;
     --lock: #b5a6f5; --lock-soft: #2a2447; --gold: #e8b13f;
     --code-bg: #080d17; --code-ink: #d3defa;
-    --d-process: #a98bf0; --d-source: #3cc4c4; --d-pipelines: #6e9dff; --d-security: #f07b6c; --d-instrumentation: #e8b13f; --d-foundation: #a3afc4; --d-capstone: #4cc995; --d-platform: #fb923c; --d-sprint: #22b8cf;
+    --d-process: #a98bf0; --d-source: #3cc4c4; --d-pipelines: #6e9dff; --d-security: #f07b6c; --d-instrumentation: #e8b13f; --d-foundation: #a3afc4; --d-capstone: #4cc995; --d-platform: #fb923c; --d-sprint: #22b8cf; --d-gitflow: #b794f6;
     --shadow: none;
     color-scheme: dark;
   }
@@ -35,7 +35,7 @@
   --ok: #4cc995; --ok-soft: #14332a; --warn: #f0b34d; --warn-soft: #3a2c12; --bad: #f07b6c; --bad-soft: #3d1c19;
   --lock: #b5a6f5; --lock-soft: #2a2447; --gold: #e8b13f;
   --code-bg: #080d17; --code-ink: #d3defa;
-  --d-process: #a98bf0; --d-source: #3cc4c4; --d-pipelines: #6e9dff; --d-security: #f07b6c; --d-instrumentation: #e8b13f; --d-foundation: #a3afc4; --d-capstone: #4cc995; --d-platform: #fb923c; --d-sprint: #22b8cf;
+  --d-process: #a98bf0; --d-source: #3cc4c4; --d-pipelines: #6e9dff; --d-security: #f07b6c; --d-instrumentation: #e8b13f; --d-foundation: #a3afc4; --d-capstone: #4cc995; --d-platform: #fb923c; --d-sprint: #22b8cf; --d-gitflow: #b794f6;
   --shadow: none;
   color-scheme: dark;
 }
@@ -80,7 +80,7 @@ code, .mono { font-family: var(--f-mono); font-size: .92em; }
 .today-btn { all: unset; cursor: pointer; display: block; background: var(--accent); color: var(--accent-ink); border-radius: var(--r); padding: 10px 12px; min-width: 0; }
 .today-btn span { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; opacity: .85; }
 .today-btn b { display: block; font-size: 15px; font-weight: 700; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.domains { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 10px; padding-block: 2px 12px; }
+.domains { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; padding-block: 2px 12px; }
 .dom { min-width: 0; }
 .dom .row { display: flex; justify-content: space-between; gap: 6px; font-size: 12px; }
 .dom .row b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -452,6 +452,13 @@ textarea { width: 100%; min-height: 70px; background: var(--panel); color: var(-
 .score-row { display: grid; grid-template-columns: 110px 170px 1fr; gap: 10px; align-items: center; margin: 6px 0; font-size: 13px; }
 .priority ol { padding-left: 20px; }
 .priority li { margin: 4px 0; }
+
+/* command reference */
+.cmd-search { width: 100%; padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); font: inherit; margin: 6px 0 10px; }
+.cmd-tabs .btn.on { background: var(--accent); color: var(--accent-ink); }
+.cmd-item { padding: 12px 0; border-top: 1px solid var(--line); }
+.cmd-item h4 { margin: 0 0 4px; font-size: 14px; }
+.cmd-item p { margin: 0 0 6px; font-size: 13.5px; max-width: 90ch; }
 
 @media (max-width: 1200px) {
   .band-grid { grid-template-columns: 1fr; }

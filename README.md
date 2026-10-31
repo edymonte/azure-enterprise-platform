@@ -6,7 +6,7 @@ A **simulated but real** production platform for the fictional company **Monteir
 
 > Start with **[docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md)** — the whole environment explained layer by layer.
 >
-> Study day to day with the **[local learning portal](portal/README.md)**: `npm --prefix portal start` → <http://127.0.0.1:4317/> — a dated schedule (an 8-hour recovery sprint first, then 30 platform sessions and the AZ-400 labs in one sequence) where progress comes from verified evidence.
+> Study day to day with the **[local learning portal](portal/README.md)**: `npm --prefix portal start` → <http://127.0.0.1:4317/> — a dated schedule (an 8-hour recovery sprint first, then 30 platform sessions with a daily Git Flow lab mission in Azure DevOps and GitHub) where progress comes from verified evidence.
 
 ## Status
 
