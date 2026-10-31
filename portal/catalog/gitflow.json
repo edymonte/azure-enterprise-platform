@@ -1,0 +1,1641 @@
+{
+  "id": "gitflow",
+  "title": "Git Flow lab",
+  "subtitle": "Git Flow delivery built from blank files: Azure DevOps first (CI, central CD by source branch, approvals, versioned templates, a self-hosted agent), then GitHub Actions",
+  "intro": "Companion repository lab-gitflow: one mission a day next to the platform session. The platform is trunk-based with GitOps; here you build the other model clients run — Git Flow with a push-based central pipeline. Deploys are simulated (a deployment record per environment), so nothing costs money. You write every pipeline yourself; the checks only read Azure DevOps and GitHub.",
+  "settings": {
+    "adoOrg": "https://dev.azure.com/az400edilsonmontry",
+    "adoProject": "lab-gitflow",
+    "appRepo": "orders-app",
+    "templatesRepo": "pipeline-templates",
+    "githubRepo": "edymonte/lab-gitflow",
+    "agentPool": "lab-wsl"
+  },
+  "rules": [
+    "Answer the recall questions before reading the mission. \"I don't remember\" is a valid answer.",
+    "Write every pipeline from a blank file. Official docs are fine; copying a finished pipeline is not.",
+    "Record your attempt before opening a solution. Hints or solutions opened before completion make the mission AI-assisted. Ask the instructor when you are stuck: help comes as a hint ladder.",
+    "The checks only read Azure DevOps and GitHub. Everything you create is yours to create.",
+    "No secrets in any pipeline or repository. The self-hosted agent's PAT is typed once on the agent machine and never stored in Git."
+  ],
+  "blocks": [
+    {
+      "id": "G00",
+      "number": 1,
+      "day": 1,
+      "minutes": 45,
+      "title": "Project, repositories and long-lived branches",
+      "focus": "Azure Repos, main and develop, default branch",
+      "objective": "Put the orders service in Azure Repos with the two long-lived Git Flow branches, main and develop, and make develop the default branch.",
+      "interviewAngle": "\"Which branching strategy do you use and why?\" — the answer starts with the long-lived branches and what each one represents.",
+      "prerequisites": {
+        "platform": [
+          "azure-devops"
+        ],
+        "tools": [
+          "az (azure-devops extension)",
+          "git"
+        ],
+        "notes": "Project lab-gitflow already exists in the organization. The sample service is in C:\\Projects\\lab-gitflow\\app."
+      },
+      "files": [
+        "C:\\Projects\\lab-gitflow\\app\\",
+        "C:\\Projects\\lab-gitflow\\README.md"
+      ],
+      "reuse": {
+        "sessions": [],
+        "az400": [],
+        "note": "Mirrors what the platform does with main only; here develop is added on purpose."
+      },
+      "recall": [
+        {
+          "id": "branches",
+          "question": "Name the Git Flow branch types and what each one represents.",
+          "answer": "main = what runs in production (tagged per release); develop = integration of the next release; feature/* = one change, from and back to develop; release/x.y.z = stabilise a release cut from develop; hotfix/x.y.z = urgent fix cut from main. Release and hotfix end merged into main and back into develop."
+        },
+        {
+          "id": "default",
+          "question": "Why is develop usually the default branch in Git Flow?",
+          "answer": "New feature branches and pull requests should start from and target develop by default; main only receives release and hotfix merges."
+        }
+      ],
+      "steps": [
+        {
+          "id": "repo",
+          "level": "guided",
+          "title": "Create the app repository",
+          "detail": "Set the defaults once so every az devops command targets the lab project, then create the repository orders-app.",
+          "command": "az devops configure --defaults organization=https://dev.azure.com/az400edilsonmontry project=lab-gitflow\naz repos create --name orders-app --query \"{name:name, url:remoteUrl}\" -o table",
+          "hints": [
+            "The project was created with a repository named lab-gitflow; you can leave it or delete it later.",
+            "remoteUrl is what you add as a git remote."
+          ],
+          "solution": "az repos create --name orders-app returns the remoteUrl https://az400edilsonmontry@dev.azure.com/az400edilsonmontry/lab-gitflow/_git/orders-app."
+        },
+        {
+          "id": "push",
+          "level": "partial",
+          "title": "Push the service with main and develop",
+          "detail": "From C:\\Projects\\lab-gitflow, add the Azure Repos remote, push main, then create develop from main and push it. Only the first command is given.",
+          "command": "git -C C:\\Projects\\lab-gitflow remote add ado <remoteUrl>",
+          "hints": [
+            "git push ado main, then git switch -c develop and git push -u ado develop.",
+            "Git Credential Manager opens a browser sign-in the first time."
+          ],
+          "solution": "git remote add ado <url>; git push ado main; git switch -c develop; git push -u ado develop. az repos ref list --repository orders-app --filter heads/ -o table shows both."
+        },
+        {
+          "id": "default",
+          "level": "solo",
+          "title": "Make develop the default branch",
+          "detail": "No command given. Change the repository's default branch to develop and prove it.",
+          "hints": [
+            "az repos update has a --default-branch option.",
+            "az repos show --repository orders-app --query defaultBranch"
+          ],
+          "solution": "az repos update --repository orders-app --default-branch develop; az repos show --repository orders-app --query defaultBranch → \"refs/heads/develop\"."
+        }
+      ],
+      "criteria": [
+        {
+          "id": "repo-exists",
+          "text": "Repository orders-app exists in project lab-gitflow",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "long-lived-branches",
+          "text": "Branches main and develop exist, and develop has the app (app/package.json)",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "develop-default",
+          "text": "develop is the default branch",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "recall-recorded",
+          "text": "Recall answers recorded before the instructions",
+          "verify": "portal",
+          "rule": "recall"
+        },
+        {
+          "id": "attempts-recorded",
+          "text": "An attempt recorded for every step",
+          "verify": "portal",
+          "rule": "attempts"
+        },
+        {
+          "id": "english-answer",
+          "text": "English answer recorded (60–90 seconds)",
+          "verify": "portal",
+          "rule": "english"
+        },
+        {
+          "id": "feedback-recorded",
+          "text": "Feedback recorded",
+          "verify": "portal",
+          "rule": "feedback"
+        }
+      ],
+      "checker": {
+        "script": "checkers/gitflow.js",
+        "timeoutSeconds": 120
+      },
+      "english": {
+        "question": "Which branching strategy did you set up for this service, and what does each long-lived branch represent?",
+        "followUps": [
+          "Why is develop the default branch?"
+        ],
+        "modelAnswer": "I set up Git Flow. main always reflects production and gets a tag for every release. develop is where the next release is integrated, so it's the default branch: feature branches start from it and come back to it through pull requests. Releases and hotfixes are short-lived branches that end merged into main and back into develop, so the two never drift apart."
+      },
+      "next": "G01: the CI pipeline for every Git Flow branch."
+    },
+    {
+      "id": "G01",
+      "number": 2,
+      "day": 2,
+      "minutes": 50,
+      "title": "CI pipeline from a blank file",
+      "focus": "YAML triggers for Git Flow branches, PR trigger, artifact",
+      "objective": "Write azure-pipelines/ci.yml from a blank file: it runs on develop, release/*, hotfix/* and main, installs Node, runs the tests and publishes the app as a pipeline artifact; register it as pipeline orders-ci and get a green run on develop.",
+      "interviewAngle": "Clients ask you to read and fix CI YAML on day one: triggers, steps and artifacts.",
+      "prerequisites": {
+        "platform": [
+          "azure-devops"
+        ],
+        "tools": [
+          "az",
+          "git",
+          "editor"
+        ],
+        "notes": "One free Microsoft-hosted parallel job (1,800 min/month): keep runs short."
+      },
+      "files": [
+        "orders-app: azure-pipelines/ci.yml"
+      ],
+      "reuse": {
+        "sessions": [],
+        "az400": [],
+        "note": "Same skills as the R5 drill, now running for real."
+      },
+      "recall": [
+        {
+          "id": "trigger-pr",
+          "question": "In Azure Repos, which trigger runs a pipeline on a pull request: pr: in YAML or a branch policy?",
+          "answer": "For Azure Repos Git the pr: keyword is ignored; PR builds come from the Build validation branch policy. trigger: covers pushes (CI)."
+        },
+        {
+          "id": "artifact",
+          "question": "What is the difference between a pipeline artifact and a build artifact, and which would you publish here?",
+          "answer": "Pipeline artifacts (PublishPipelineArtifact / publish:) are the modern, faster storage used by pipeline resources and download:; build artifacts are the older Publish Build Artifacts task. Use a pipeline artifact."
+        }
+      ],
+      "steps": [
+        {
+          "id": "write",
+          "level": "solo",
+          "title": "Write ci.yml from a blank file",
+          "detail": "On a feature branch of orders-app (feature/ci-pipeline), create azure-pipelines/ci.yml: trigger on develop, release/*, hotfix/* and main; ubuntu-latest; Node 20 via NodeTool@0; npm test in app/; publish app/ as the artifact named app.",
+          "command": "git -C C:\\Projects\\lab-gitflow switch -c feature/ci-pipeline develop\ncode C:\\Projects\\lab-gitflow\\azure-pipelines\\ci.yml",
+          "hints": [
+            "trigger: branches: include: [develop, release/*, hotfix/*, main]",
+            "steps: - task: NodeTool@0 inputs: versionSpec: '20.x' - script: npm test workingDirectory: app - publish: app artifact: app"
+          ],
+          "solution": "trigger:\n  branches:\n    include: [develop, release/*, hotfix/*, main]\npool:\n  vmImage: ubuntu-latest\nsteps:\n  - task: NodeTool@0\n    inputs:\n      versionSpec: '20.x'\n  - script: npm test\n    workingDirectory: app\n    displayName: Unit tests\n  - publish: app\n    artifact: app"
+        },
+        {
+          "id": "register",
+          "level": "partial",
+          "title": "Register the pipeline as orders-ci",
+          "detail": "Push the branch, then create the pipeline from the YAML without running it. Then merge to develop for now with a direct push (branch policies come in G02).",
+          "command": "az pipelines create --name orders-ci --repository orders-app --repository-type tfsgit --branch feature/ci-pipeline --yml-path azure-pipelines/ci.yml --skip-first-run",
+          "hints": [
+            "git push -u ado feature/ci-pipeline before az pipelines create.",
+            "git switch develop; git merge feature/ci-pipeline; git push ado develop — the push triggers the run."
+          ],
+          "solution": "After the merge to develop the trigger starts orders-ci; az pipelines runs list --pipeline-ids <id> --branch develop -o table shows it."
+        },
+        {
+          "id": "green",
+          "level": "guided",
+          "title": "Read the run",
+          "detail": "Find the run on develop and open its log. Write which stage/job/steps ran and where the artifact is.",
+          "command": "az pipelines runs list --name orders-ci --top 3 --query \"[].{id:id, branch:sourceBranch, result:result}\" -o table",
+          "hints": [
+            "az pipelines runs show --id <id> --open opens it in the browser.",
+            "No stages: declared means one implicit stage and one job."
+          ],
+          "solution": "One implicit stage, one job (Job), steps: checkout, NodeTool, Unit tests, publish. The artifact app is under the run's Related → Published."
+        },
+        {
+          "id": "red",
+          "level": "breakfix",
+          "title": "Break/fix (optional): a failing test",
+          "detail": "On a feature branch, break orderTotal (e.g. remove the rounding) and push. Predict which step fails and why the artifact is not published; then revert.",
+          "hints": [
+            "Steps after a failure are skipped unless they have a condition.",
+            "A red CI is the gate that keeps develop green."
+          ],
+          "solution": "Unit tests fails, publish is skipped (default condition succeeded()), the run is red. Revert the change and push again."
+        }
+      ],
+      "criteria": [
+        {
+          "id": "ci-pipeline",
+          "text": "Pipeline orders-ci exists and points at azure-pipelines/ci.yml in orders-app",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "ci-triggers",
+          "text": "ci.yml on develop triggers on develop, release/*, hotfix/* and main",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "ci-green-develop",
+          "text": "orders-ci has a succeeded run on develop",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "recall-recorded",
+          "text": "Recall answers recorded before the instructions",
+          "verify": "portal",
+          "rule": "recall"
+        },
+        {
+          "id": "attempts-recorded",
+          "text": "An attempt recorded for every required step",
+          "verify": "portal",
+          "rule": "attempts"
+        },
+        {
+          "id": "yaml-reviewed",
+          "text": "ci.yml reviewed (revisor-yaml findings addressed or explained)",
+          "verify": "review",
+          "owner": "learner"
+        },
+        {
+          "id": "english-answer",
+          "text": "English answer recorded (60–90 seconds)",
+          "verify": "portal",
+          "rule": "english"
+        },
+        {
+          "id": "feedback-recorded",
+          "text": "Feedback recorded",
+          "verify": "portal",
+          "rule": "feedback"
+        }
+      ],
+      "checker": {
+        "script": "checkers/gitflow.js",
+        "timeoutSeconds": 180
+      },
+      "english": {
+        "question": "Walk me through the CI pipeline you wrote: what triggers it, what it does and what it produces.",
+        "followUps": [
+          "How do pull requests get a build in Azure Repos?"
+        ],
+        "modelAnswer": "The CI pipeline runs on every push to develop, release, hotfix and main branches. It installs Node 20, runs the unit tests and publishes the application folder as a pipeline artifact, so the same package can be deployed later without rebuilding. Pull requests in Azure Repos get their build from a build-validation branch policy, not from the YAML, which I add next."
+      },
+      "next": "G02: protect develop and main with branch policies."
+    },
+    {
+      "id": "G02",
+      "number": 3,
+      "day": 3,
+      "minutes": 40,
+      "title": "Branch policies: PR, reviewer, build validation",
+      "focus": "Protect develop and main",
+      "objective": "Require a pull request with at least one reviewer and a green orders-ci build on develop and on main, so nothing reaches them by direct push.",
+      "interviewAngle": "\"How do you stop a broken change from reaching main?\" — branch policies with build validation is the Azure DevOps answer.",
+      "prerequisites": {
+        "platform": [
+          "azure-devops"
+        ],
+        "tools": [
+          "az"
+        ],
+        "notes": "You are the only user: allow requestors to approve their own changes, otherwise you lock yourself out."
+      },
+      "files": [],
+      "reuse": {
+        "sessions": [],
+        "az400": [],
+        "note": "The platform repository does the same with GitHub branch protection."
+      },
+      "recall": [
+        {
+          "id": "policies",
+          "question": "Name three branch policies you would put on main.",
+          "answer": "Minimum number of reviewers, build validation (a required pipeline), linked work items / comment resolution / limit merge types (e.g. squash only)."
+        },
+        {
+          "id": "bypass",
+          "question": "Who can bypass branch policies and why is that a risk?",
+          "answer": "Users with \"Bypass policies when completing pull requests/pushing\" permission (often project admins). It must be limited and audited, otherwise the gate is optional."
+        }
+      ],
+      "steps": [
+        {
+          "id": "reviewers",
+          "level": "guided",
+          "title": "Minimum reviewers on develop",
+          "detail": "Create the reviewer policy on develop (one reviewer, creator can approve because you work alone).",
+          "command": "$repoId = az repos show --repository orders-app --query id -o tsv\naz repos policy approver-count create --repository-id $repoId --branch develop --minimum-approver-count 1 --creator-vote-counts true --allow-downvotes false --reset-on-source-push true --blocking true --enabled true",
+          "hints": [
+            "--creator-vote-counts true lets you approve your own PR.",
+            "az repos policy list --repository-id $repoId --branch develop -o table"
+          ],
+          "solution": "The policy \"Minimum number of reviewers\" appears enabled and blocking on refs/heads/develop."
+        },
+        {
+          "id": "build",
+          "level": "partial",
+          "title": "Build validation with orders-ci",
+          "detail": "Add a build-validation policy on develop that runs orders-ci. The command group is given; complete the arguments.",
+          "command": "az repos policy build create --repository-id $repoId --branch develop ...",
+          "hints": [
+            "--build-definition-id comes from az pipelines show --name orders-ci --query id.",
+            "--queue-on-source-update-only false --manual-queue-only false --valid-duration 720 --display-name ci --blocking true --enabled true"
+          ],
+          "solution": "az repos policy build create --repository-id $repoId --branch develop --build-definition-id <id> --display-name ci --queue-on-source-update-only false --manual-queue-only false --valid-duration 720 --blocking true --enabled true"
+        },
+        {
+          "id": "main",
+          "level": "solo",
+          "title": "The same on main",
+          "detail": "No command given: put the reviewer and build-validation policies on main too, then try a direct push to develop and record the error.",
+          "hints": [
+            "Repeat both commands with --branch main.",
+            "git push ado develop with a new commit should be rejected (TF402455)."
+          ],
+          "solution": "Both policies on main. A direct push fails with TF402455: Pushes to this branch are not permitted; you must use a pull request."
+        }
+      ],
+      "criteria": [
+        {
+          "id": "policies-develop",
+          "text": "develop has a blocking minimum-reviewers policy and a blocking build validation running orders-ci",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "policies-main",
+          "text": "main has the same two policies",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "recall-recorded",
+          "text": "Recall answers recorded before the instructions",
+          "verify": "portal",
+          "rule": "recall"
+        },
+        {
+          "id": "attempts-recorded",
+          "text": "An attempt recorded for every step",
+          "verify": "portal",
+          "rule": "attempts"
+        },
+        {
+          "id": "english-answer",
+          "text": "English answer recorded (60–90 seconds)",
+          "verify": "portal",
+          "rule": "english"
+        },
+        {
+          "id": "feedback-recorded",
+          "text": "Feedback recorded",
+          "verify": "portal",
+          "rule": "feedback"
+        }
+      ],
+      "checker": {
+        "script": "checkers/gitflow.js",
+        "timeoutSeconds": 120
+      },
+      "english": {
+        "question": "How do you make sure nothing reaches develop or main without review and a green build?",
+        "followUps": [
+          "Who can bypass it?"
+        ],
+        "modelAnswer": "Both branches have branch policies: a pull request is mandatory, it needs at least one approval, and a build-validation policy runs the CI pipeline on the merged result, so a red build blocks completion. Direct pushes are rejected. The bypass permission is limited to a couple of admins and audited."
+      },
+      "next": "G03: the first feature through develop."
+    },
+    {
+      "id": "G03",
+      "number": 4,
+      "day": 4,
+      "minutes": 40,
+      "title": "First feature through develop",
+      "focus": "feature/* → PR → build validation → squash merge",
+      "objective": "Add a small feature (a minimum order value) on feature/min-order, open a PR to develop, get the policy build green, complete it with squash and delete the branch.",
+      "interviewAngle": "The daily loop every team expects you to run without thinking.",
+      "prerequisites": {
+        "platform": [
+          "azure-devops"
+        ],
+        "tools": [
+          "az",
+          "git"
+        ],
+        "notes": ""
+      },
+      "files": [
+        "orders-app: app/src/orders.js, app/test/orders.test.js"
+      ],
+      "reuse": {
+        "sessions": [],
+        "az400": [],
+        "note": "The platform's FEAT-01 is the trunk-based version of the same loop."
+      },
+      "recall": [
+        {
+          "id": "merge-types",
+          "question": "Merge commit, squash, rebase and fast-forward: which would you allow into develop and why?",
+          "answer": "Squash keeps develop history one commit per feature and makes reverts easy; merge commits preserve branch history; rebase/fast-forward keep it linear. Teams usually allow squash for features and a merge commit for release/hotfix back-merges."
+        },
+        {
+          "id": "pr-content",
+          "question": "What should a good PR description contain?",
+          "answer": "What and why, how it was tested, risk/rollback notes and linked work item — enough for a reviewer who did not write it."
+        }
+      ],
+      "steps": [
+        {
+          "id": "code",
+          "level": "partial",
+          "title": "Code and test the feature",
+          "detail": "On feature/min-order from develop: orderTotal throws a RangeError when the total is below a minOrder option (default 0). Add a test first.",
+          "command": "git -C C:\\Projects\\lab-gitflow switch -c feature/min-order develop",
+          "hints": [
+            "Add { minOrder = 0 } to the options and compare after the discount.",
+            "npm test in app/ must pass before you push."
+          ],
+          "solution": "A test asserting orderTotal([{price:5,quantity:1}], {minOrder:10}) throws RangeError, and the check in orderTotal after the discount."
+        },
+        {
+          "id": "pr",
+          "level": "guided",
+          "title": "Open the PR to develop",
+          "detail": "Push and open the PR with auto-complete and squash.",
+          "command": "git push -u ado feature/min-order\naz repos pr create --source-branch feature/min-order --target-branch develop --title \"Minimum order value\" --description \"Adds minOrder; tests included.\" --auto-complete true --squash true --delete-source-branch true",
+          "hints": [
+            "The policy build starts by itself.",
+            "Approve your own PR: az repos pr set-vote --id <id> --vote approve"
+          ],
+          "solution": "The PR completes once the build is green and the vote is in; the branch is deleted; develop gets one squash commit and orders-ci runs on develop."
+        },
+        {
+          "id": "explain",
+          "level": "solo",
+          "title": "Explain what ran twice",
+          "detail": "orders-ci ran for the PR and again on develop. Write why both runs exist and what each one proves.",
+          "hints": [
+            "The PR build validates the merge result before completion.",
+            "The push to develop is what feeds deployment later."
+          ],
+          "solution": "The policy build proves the merge result is green before it lands; the CI run on develop produces the artifact that CD will deploy."
+        }
+      ],
+      "criteria": [
+        {
+          "id": "feature-merged",
+          "text": "A completed PR from feature/* into develop exists in orders-app",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "recall-recorded",
+          "text": "Recall answers recorded before the instructions",
+          "verify": "portal",
+          "rule": "recall"
+        },
+        {
+          "id": "attempts-recorded",
+          "text": "An attempt recorded for every step",
+          "verify": "portal",
+          "rule": "attempts"
+        },
+        {
+          "id": "english-answer",
+          "text": "English answer recorded (60–90 seconds)",
+          "verify": "portal",
+          "rule": "english"
+        },
+        {
+          "id": "feedback-recorded",
+          "text": "Feedback recorded",
+          "verify": "portal",
+          "rule": "feedback"
+        }
+      ],
+      "checker": {
+        "script": "checkers/gitflow.js",
+        "timeoutSeconds": 120
+      },
+      "english": {
+        "question": "Walk me through how a feature gets into develop in this repository.",
+        "followUps": [
+          "Why squash?"
+        ],
+        "modelAnswer": "I branch from develop, write the change with a test, push and open a pull request to develop. The build-validation policy runs CI on the merged result, a reviewer approves, and the PR completes with a squash merge, so develop gets one clean commit per feature and the branch is deleted. The push to develop runs CI again and produces the artifact that will be deployed."
+      },
+      "next": "G04: a repository of versioned pipeline templates."
+    },
+    {
+      "id": "G04",
+      "number": 5,
+      "day": 5,
+      "minutes": 45,
+      "title": "A versioned template repository",
+      "focus": "Steps/stage template, parameters, a tag as the version",
+      "objective": "Create repository pipeline-templates with templates/deploy-stage.yml (a parameterised deployment stage that simulates a deploy) and tag it v1.0.0.",
+      "interviewAngle": "Platform teams ship pipeline templates like a product: versioned, reviewed and pinned by consumers.",
+      "prerequisites": {
+        "platform": [
+          "azure-devops"
+        ],
+        "tools": [
+          "az",
+          "git"
+        ],
+        "notes": ""
+      },
+      "files": [
+        "pipeline-templates: templates/deploy-stage.yml"
+      ],
+      "reuse": {
+        "sessions": [],
+        "az400": [],
+        "note": "Same idea as pipelines/azure-devops/templates/terraform-layer.yml in the platform."
+      },
+      "recall": [
+        {
+          "id": "kinds",
+          "question": "Which kinds of templates exist in Azure Pipelines?",
+          "answer": "Stage, job, step and variable templates (includes), plus extends templates (the template controls the whole pipeline — used for governance)."
+        },
+        {
+          "id": "version",
+          "question": "Why pin a template to a tag instead of a branch?",
+          "answer": "A tag is immutable: consumers get the same template until they choose to upgrade; a branch changes under them and can break every pipeline at once."
+        }
+      ],
+      "steps": [
+        {
+          "id": "repo",
+          "level": "guided",
+          "title": "Create the repository",
+          "detail": "Create pipeline-templates and clone it next to the lab.",
+          "command": "az repos create --name pipeline-templates --query remoteUrl -o tsv",
+          "hints": [
+            "git clone <url> C:\\Projects\\pipeline-templates",
+            "az repos list --query \"[].name\" -o tsv shows both repositories."
+          ],
+          "solution": "An empty repository you clone locally; its default branch will be main."
+        },
+        {
+          "id": "template",
+          "level": "solo",
+          "title": "Write templates/deploy-stage.yml",
+          "detail": "A stage template with parameters envName, environment and condition. One deployment job on the given environment, strategy runOnce: download the app artifact from the pipeline resource ci, write a deployment record (version, source branch, run name, environment) to a file and publish it as an artifact named deploy-<envName>.",
+          "hints": [
+            "parameters: - name: envName type: string ...; stages: - stage: ${{ parameters.envName }} condition: ${{ parameters.condition }}",
+            "- download: ci artifact: app; the variables resources.pipeline.ci.sourceBranch and resources.pipeline.ci.runName describe what you deploy."
+          ],
+          "solution": "parameters:\n  - name: envName\n    type: string\n  - name: environment\n    type: string\n  - name: condition\n    type: string\n    default: succeeded()\nstages:\n  - stage: ${{ parameters.envName }}\n    condition: ${{ parameters.condition }}\n    jobs:\n      - deployment: deploy\n        environment: ${{ parameters.environment }}\n        strategy:\n          runOnce:\n            deploy:\n              steps:\n                - download: ci\n                  artifact: app\n                - bash: |\n                    mkdir -p $(Pipeline.Workspace)/record\n                    echo \"env=${{ parameters.envName }} build=$(resources.pipeline.ci.runName) branch=$(resources.pipeline.ci.sourceBranch)\" | tee $(Pipeline.Workspace)/record/deployment.txt\n                  displayName: Simulated deploy\n                - publish: $(Pipeline.Workspace)/record\n                  artifact: deploy-${{ parameters.envName }}"
+        },
+        {
+          "id": "tag",
+          "level": "partial",
+          "title": "Release v1.0.0 of the template",
+          "detail": "Commit on main, push, then create and push an annotated tag v1.0.0.",
+          "command": "git tag -a v1.0.0 -m \"deploy-stage template v1.0.0\"",
+          "hints": [
+            "git push origin main --follow-tags",
+            "az repos ref list --repository pipeline-templates --filter tags/ -o table"
+          ],
+          "solution": "refs/tags/v1.0.0 appears in the ref list."
+        }
+      ],
+      "criteria": [
+        {
+          "id": "templates-repo",
+          "text": "Repository pipeline-templates exists",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "template-tagged",
+          "text": "Tag v1.0.0 exists and templates/deploy-stage.yml at that tag is a stage template with parameters and a deployment job",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "recall-recorded",
+          "text": "Recall answers recorded before the instructions",
+          "verify": "portal",
+          "rule": "recall"
+        },
+        {
+          "id": "attempts-recorded",
+          "text": "An attempt recorded for every step",
+          "verify": "portal",
+          "rule": "attempts"
+        },
+        {
+          "id": "yaml-reviewed",
+          "text": "Template reviewed (revisor-yaml findings addressed or explained)",
+          "verify": "review",
+          "owner": "learner"
+        },
+        {
+          "id": "english-answer",
+          "text": "English answer recorded (60–90 seconds)",
+          "verify": "portal",
+          "rule": "english"
+        },
+        {
+          "id": "feedback-recorded",
+          "text": "Feedback recorded",
+          "verify": "portal",
+          "rule": "feedback"
+        }
+      ],
+      "checker": {
+        "script": "checkers/gitflow.js",
+        "timeoutSeconds": 120
+      },
+      "english": {
+        "question": "How do you share pipeline logic across teams without breaking them when you change it?",
+        "followUps": [
+          "What is an extends template for?"
+        ],
+        "modelAnswer": "We keep the shared logic in a templates repository and release it with tags, like a library. Consumers reference the repository as a resource pinned to a tag, so a change only reaches them when they bump the version in a pull request. For governance we can go further with extends templates, where the template owns the pipeline structure."
+      },
+      "next": "G05: the central CD pipeline that consumes the template."
+    },
+    {
+      "id": "G05",
+      "number": 6,
+      "day": 6,
+      "minutes": 60,
+      "title": "Central CD: pipeline resource, DEV/HML/PRD by source branch",
+      "focus": "resources.pipelines trigger, repository resource at a tag, stage conditions",
+      "objective": "Write azure-pipelines/cd.yml in orders-app and register it as orders-cd: triggered by orders-ci, using the template pinned to v1.0.0, with three stages whose conditions route develop → DEV, release/* and hotfix/* → HML, main → PRD. Get a deployment to DEV.",
+      "interviewAngle": "\"How do you decide which environment a build goes to?\" — in Git Flow, by the source branch of the artifact.",
+      "prerequisites": {
+        "platform": [
+          "azure-devops"
+        ],
+        "tools": [
+          "az",
+          "git"
+        ],
+        "notes": "Environments DEV, HML and PRD are created automatically on the first run that targets them, or create them first in Pipelines → Environments."
+      },
+      "files": [
+        "orders-app: azure-pipelines/cd.yml"
+      ],
+      "reuse": {
+        "sessions": [
+          "C022"
+        ],
+        "az400": [],
+        "note": "C022 uses the same mechanics on the platform."
+      },
+      "recall": [
+        {
+          "id": "resource",
+          "question": "What does a pipeline resource with a trigger give you that a single CI+CD pipeline does not?",
+          "answer": "CD runs separately from CI, starts when CI completes on chosen branches, deploys exactly the CI run's artifact and exposes its metadata (resources.pipeline.<alias>.sourceBranch, runName); one CD can serve several CIs."
+        },
+        {
+          "id": "condition",
+          "question": "Where should the branch condition live so approvals are only requested when needed?",
+          "answer": "On the stage (condition: …). A stage skipped by its condition never requests the environment approval; a condition only on the job would still trigger the stage-level checks."
+        }
+      ],
+      "steps": [
+        {
+          "id": "write",
+          "level": "solo",
+          "title": "Write cd.yml from a blank file",
+          "detail": "trigger: none; resources: pipelines (alias ci, source orders-ci, trigger on develop, release/*, hotfix/*, main) and repositories (alias templates, git lab-gitflow/pipeline-templates, ref refs/tags/v1.0.0); three stages from the template with conditions on variables['resources.pipeline.ci.sourceBranch'].",
+          "hints": [
+            "- template: templates/deploy-stage.yml@templates with parameters envName, environment and condition.",
+            "condition: and(succeeded(), startsWith(variables['resources.pipeline.ci.sourceBranch'], 'refs/heads/release/'))"
+          ],
+          "solution": "trigger: none\nresources:\n  pipelines:\n    - pipeline: ci\n      source: orders-ci\n      trigger:\n        branches:\n          include: [develop, release/*, hotfix/*, main]\n  repositories:\n    - repository: templates\n      type: git\n      name: lab-gitflow/pipeline-templates\n      ref: refs/tags/v1.0.0\nstages:\n  - template: templates/deploy-stage.yml@templates\n    parameters:\n      envName: DEV\n      environment: DEV\n      condition: and(succeeded(), eq(variables['resources.pipeline.ci.sourceBranch'], 'refs/heads/develop'))\n  - template: templates/deploy-stage.yml@templates\n    parameters:\n      envName: HML\n      environment: HML\n      condition: and(succeeded(), or(startsWith(variables['resources.pipeline.ci.sourceBranch'], 'refs/heads/release/'), startsWith(variables['resources.pipeline.ci.sourceBranch'], 'refs/heads/hotfix/')))\n  - template: templates/deploy-stage.yml@templates\n    parameters:\n      envName: PRD\n      environment: PRD\n      condition: and(succeeded(), eq(variables['resources.pipeline.ci.sourceBranch'], 'refs/heads/main'))"
+        },
+        {
+          "id": "register",
+          "level": "partial",
+          "title": "Register orders-cd and trigger it",
+          "detail": "The file arrives on develop through a feature PR (policies!). Register the pipeline from develop, authorise the template repository on the first run, then merge any small change to develop.",
+          "command": "az pipelines create --name orders-cd --repository orders-app --repository-type tfsgit --branch develop --yml-path azure-pipelines/cd.yml --skip-first-run",
+          "hints": [
+            "The first run may wait for permission to use pipeline-templates: approve it in the run page.",
+            "Stages HML and PRD must show as Skipped on a develop build."
+          ],
+          "solution": "orders-cd starts after orders-ci on develop: DEV deploys, HML and PRD are skipped; environment DEV shows the deployment."
+        },
+        {
+          "id": "stages",
+          "level": "guided",
+          "title": "Explain the skipped stages",
+          "detail": "Write why HML and PRD were skipped and which variable decided it.",
+          "hints": [
+            "Open the run: each skipped stage shows its condition.",
+            "sourceBranch of the CI run, not of the CD run."
+          ],
+          "solution": "Their conditions evaluated false: resources.pipeline.ci.sourceBranch was refs/heads/develop. The CD run's own Build.SourceBranch is irrelevant — the artifact's origin decides."
+        }
+      ],
+      "criteria": [
+        {
+          "id": "cd-pipeline",
+          "text": "Pipeline orders-cd exists in orders-app",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "cd-resources",
+          "text": "cd.yml has a pipeline resource on orders-ci and the template repository pinned to a tag",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "dev-deployed",
+          "text": "Environment DEV has at least one deployment",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "recall-recorded",
+          "text": "Recall answers recorded before the instructions",
+          "verify": "portal",
+          "rule": "recall"
+        },
+        {
+          "id": "attempts-recorded",
+          "text": "An attempt recorded for every step",
+          "verify": "portal",
+          "rule": "attempts"
+        },
+        {
+          "id": "yaml-reviewed",
+          "text": "cd.yml reviewed (revisor-yaml findings addressed or explained)",
+          "verify": "review",
+          "owner": "learner"
+        },
+        {
+          "id": "english-answer",
+          "text": "English answer recorded (60–90 seconds)",
+          "verify": "portal",
+          "rule": "english"
+        },
+        {
+          "id": "feedback-recorded",
+          "text": "Feedback recorded",
+          "verify": "portal",
+          "rule": "feedback"
+        }
+      ],
+      "checker": {
+        "script": "checkers/gitflow.js",
+        "timeoutSeconds": 180
+      },
+      "english": {
+        "question": "How does your CD pipeline decide which environment a build goes to?",
+        "followUps": [
+          "Why is CD a separate pipeline?"
+        ],
+        "modelAnswer": "CD is a separate pipeline triggered by the CI pipeline as a resource, so it deploys exactly the artifact CI produced. Each stage — DEV, staging and production — comes from a versioned template and has a condition on the source branch of that CI run: develop goes to DEV, release and hotfix branches to staging, and main to production. Stages that don't match are skipped, so they never ask for an approval."
+      },
+      "next": "G06: run deployments on your own self-hosted agent."
+    },
+    {
+      "id": "G06",
+      "number": 7,
+      "day": 7,
+      "minutes": 60,
+      "title": "Self-hosted agent on WSL",
+      "focus": "Agent pool, agent install as a service, demands, PAT hygiene",
+      "objective": "Create agent pool lab-wsl, install an Azure Pipelines agent in WSL Ubuntu as a systemd service, and make the DEV stage of orders-cd run on it.",
+      "interviewAngle": "Real projects run self-hosted agents for network access to private resources, tools and cost. \"How do you run and secure your own agents?\" is a common question.",
+      "prerequisites": {
+        "platform": [
+          "azure-devops"
+        ],
+        "tools": [
+          "WSL Ubuntu",
+          "curl",
+          "az"
+        ],
+        "notes": "The agent needs a PAT with the scope Agent Pools (read, manage) for registration only. Type it in the config prompt; never save it in a file or repository, and revoke it after the agent is configured."
+      },
+      "files": [
+        "WSL: ~/agents/lab-wsl-01"
+      ],
+      "reuse": {
+        "sessions": [],
+        "az400": [],
+        "note": "Docker and minikube already run in this WSL (see the environment notes): the agent lives next to them."
+      },
+      "recall": [
+        {
+          "id": "why",
+          "question": "Give three reasons to use a self-hosted agent instead of Microsoft-hosted.",
+          "answer": "Network access to private resources (VNet, on-prem), preinstalled tools/caches and faster builds, cost/parallelism control, compliance (data stays in your network)."
+        },
+        {
+          "id": "security",
+          "question": "What are the main security risks of a self-hosted agent?",
+          "answer": "Persistent state between jobs (secrets or files left behind), any pipeline in the project can run code on the machine, the identity/credentials the machine holds, and an unpatched host. Mitigate with dedicated pools per trust level, pipeline permissions on the pool, ephemeral or cleaned workspaces and least-privilege machine identity."
+        }
+      ],
+      "steps": [
+        {
+          "id": "pool",
+          "level": "guided",
+          "title": "Create the pool",
+          "detail": "Create the self-hosted pool lab-wsl in Organization settings → Agent pools (Add pool → Self-hosted, \"grant access to all pipelines\" off). Then list the pools.",
+          "command": "az pipelines pool list --query \"[?name=='lab-wsl'].{id:id, name:name, hosted:isHosted}\" -o table",
+          "hints": [
+            "The pool exists at organization level; the project gets an agent queue with the same name.",
+            "Leave pipeline access off: you will authorise orders-cd explicitly."
+          ],
+          "solution": "lab-wsl appears with isHosted false."
+        },
+        {
+          "id": "install",
+          "level": "partial",
+          "title": "Install and register the agent in WSL",
+          "detail": "In WSL: download the Linux x64 agent (version from the pool's New agent dialog), extract to ~/agents/lab-wsl-01, run ./config.sh against the organization with pool lab-wsl and agent name wsl-01, then install it as a service.",
+          "command": "wsl -d Ubuntu\nmkdir -p ~/agents/lab-wsl-01 && cd ~/agents/lab-wsl-01",
+          "hints": [
+            "./config.sh --url https://dev.azure.com/az400edilsonmontry --auth pat --pool lab-wsl --agent wsl-01 --acceptTeeEula (paste the PAT when asked).",
+            "sudo ./svc.sh install $USER && sudo ./svc.sh start; Node must be available to the agent for the deploy steps."
+          ],
+          "solution": "The agent shows Online in the pool. ./svc.sh status shows active (running). Revoke the PAT afterwards: the agent keeps its own credential."
+        },
+        {
+          "id": "use",
+          "level": "solo",
+          "title": "Run DEV on lab-wsl",
+          "detail": "No code given. Make the DEV stage run on the pool lab-wsl while HML and PRD stay on Microsoft-hosted — without forking the template for one environment.",
+          "hints": [
+            "Add a pool parameter to the template (default vmImage ubuntu-latest) — that is a template change: tag it v1.1.0 later in G10, or pass pool at job level now.",
+            "Authorise orders-cd to use the pool when the run asks."
+          ],
+          "solution": "A pool parameter in the template (or a pool: name: lab-wsl override for the DEV stage), authorised once. The DEV job log shows Agent name: wsl-01."
+        },
+        {
+          "id": "down",
+          "level": "breakfix",
+          "title": "Break/fix (optional): the agent is offline",
+          "detail": "Stop the service (sudo ./svc.sh stop) and trigger a develop build. Predict what the DEV stage does, then start the service again.",
+          "hints": [
+            "Jobs wait in the queue for a capable agent.",
+            "The run does not fail at once."
+          ],
+          "solution": "The DEV job stays queued (\"waiting for an available agent\") until the agent is back or the job times out; restarting the service picks it up."
+        }
+      ],
+      "criteria": [
+        {
+          "id": "pool-exists",
+          "text": "Self-hosted pool lab-wsl exists",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "agent-online",
+          "text": "At least one agent in lab-wsl is online and enabled",
+          "verify": "checker",
+          "owner": "environment",
+          "how": "Start WSL and the agent service: sudo ~/agents/lab-wsl-01/svc.sh start"
+        },
+        {
+          "id": "job-ran-on-agent",
+          "text": "A job completed successfully on the lab-wsl pool",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "recall-recorded",
+          "text": "Recall answers recorded before the instructions",
+          "verify": "portal",
+          "rule": "recall"
+        },
+        {
+          "id": "attempts-recorded",
+          "text": "An attempt recorded for every required step",
+          "verify": "portal",
+          "rule": "attempts"
+        },
+        {
+          "id": "agent-hygiene-reviewed",
+          "text": "Agent setup reviewed: PAT revoked or short-lived, pool not open to all pipelines, service running as a non-root user",
+          "verify": "review",
+          "owner": "learner"
+        },
+        {
+          "id": "english-answer",
+          "text": "English answer recorded (60–90 seconds)",
+          "verify": "portal",
+          "rule": "english"
+        },
+        {
+          "id": "feedback-recorded",
+          "text": "Feedback recorded",
+          "verify": "portal",
+          "rule": "feedback"
+        }
+      ],
+      "checker": {
+        "script": "checkers/gitflow.js",
+        "timeoutSeconds": 120
+      },
+      "english": {
+        "question": "Have you run self-hosted build agents? How did you set them up and secure them?",
+        "followUps": [
+          "What happens when the agent is offline?"
+        ],
+        "modelAnswer": "Yes. I created a dedicated self-hosted pool, installed the agent on a Linux machine as a service under a non-root user and registered it with a short-lived token that I revoked afterwards, because the agent keeps its own credential. The pool is not open to every pipeline: each pipeline is authorised explicitly. Only the development stage runs there; production stays on Microsoft-hosted agents. If the agent goes offline, jobs wait in the queue rather than fail, so we monitor agent status."
+      },
+      "next": "G07: approvals only where they are needed."
+    },
+    {
+      "id": "G07",
+      "number": 8,
+      "day": 8,
+      "minutes": 35,
+      "title": "Approvals only where they are needed",
+      "focus": "Environment checks, approval on PRD, stage conditions",
+      "objective": "Put an Approval check on the PRD environment (and optionally a branch control on PRD so only main can deploy), and prove a develop build never asks for it.",
+      "interviewAngle": "Approvals belong to the resource, not to the YAML — a frequent Azure DevOps question.",
+      "prerequisites": {
+        "platform": [
+          "azure-devops"
+        ],
+        "tools": [
+          "az"
+        ],
+        "notes": ""
+      },
+      "files": [],
+      "reuse": {
+        "sessions": [
+          "C020"
+        ],
+        "az400": [],
+        "note": "The platform does the same with GitHub environment reviewers (C020)."
+      },
+      "recall": [
+        {
+          "id": "checks",
+          "question": "Name three checks you can put on an environment.",
+          "answer": "Approvals, branch control, business hours, invoke Azure Function/REST API, query Azure Monitor alerts, required template, exclusive lock."
+        },
+        {
+          "id": "where",
+          "question": "Where are approvals configured in Azure DevOps YAML pipelines?",
+          "answer": "On the protected resource (environment, service connection, agent pool, repository, variable group) under Approvals and checks — not in the YAML."
+        }
+      ],
+      "steps": [
+        {
+          "id": "approval",
+          "level": "guided",
+          "title": "Approval on PRD",
+          "detail": "Pipelines → Environments → PRD → Approvals and checks → Approvals: add yourself, allow approvers to approve their own runs, timeout 1 day.",
+          "hints": [
+            "Instructions for approvers are a good place to ask for the release notes link.",
+            "az devops invoke on PipelinesChecks/configurations lists the checks of an environment (read-only)."
+          ],
+          "solution": "PRD lists one Approval check."
+        },
+        {
+          "id": "branch-control",
+          "level": "partial",
+          "title": "Branch control on PRD",
+          "detail": "Add a Branch control check on PRD allowing only refs/heads/main.",
+          "hints": [
+            "Allowed branches: refs/heads/main.",
+            "It checks the branch of the run (the CD run), so set orders-cd to run from main or allow the default branch the run uses — write down what you observe."
+          ],
+          "solution": "Branch control evaluates the source branch of the pipeline run that targets the environment. Because orders-cd runs from its own default branch, either keep it on main or combine with the stage condition on the CI source branch — explain the trade-off."
+        },
+        {
+          "id": "prove",
+          "level": "solo",
+          "title": "Prove a develop build is not blocked",
+          "detail": "Merge a small feature to develop and show that no approval was requested.",
+          "hints": [
+            "The PRD stage is skipped by its condition, so its checks never run.",
+            "az pipelines runs list --name orders-cd --top 1 then open it: skipped stages show their condition."
+          ],
+          "solution": "The run deploys DEV, HML/PRD are skipped and no approval appears in the run."
+        }
+      ],
+      "criteria": [
+        {
+          "id": "prd-approval",
+          "text": "Environment PRD has an Approval check",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "recall-recorded",
+          "text": "Recall answers recorded before the instructions",
+          "verify": "portal",
+          "rule": "recall"
+        },
+        {
+          "id": "attempts-recorded",
+          "text": "An attempt recorded for every step",
+          "verify": "portal",
+          "rule": "attempts"
+        },
+        {
+          "id": "english-answer",
+          "text": "English answer recorded (60–90 seconds)",
+          "verify": "portal",
+          "rule": "english"
+        },
+        {
+          "id": "feedback-recorded",
+          "text": "Feedback recorded",
+          "verify": "portal",
+          "rule": "feedback"
+        }
+      ],
+      "checker": {
+        "script": "checkers/gitflow.js",
+        "timeoutSeconds": 120
+      },
+      "english": {
+        "question": "How do approvals work in your Azure DevOps pipelines?",
+        "followUps": [
+          "Why doesn't a develop build ask for approval?"
+        ],
+        "modelAnswer": "Approvals live on the production environment, not in the YAML: anyone who deploys to it, from any pipeline, has to pass the check. I also restrict production with branch control. Each stage has a condition on the source branch, so a develop build skips the production stage entirely and never waits for an approval — the approval only appears for real production releases."
+      },
+      "next": "G08: cut, ship and back-merge a release."
+    },
+    {
+      "id": "G08",
+      "number": 9,
+      "day": 9,
+      "minutes": 60,
+      "title": "Cut, ship and back-merge a release",
+      "focus": "release/x.y.z → HML → main → PRD with approval → tag → develop",
+      "objective": "Cut release/1.0.0 from develop, deploy it to HML, merge it into main with a PR, approve the PRD deployment, tag main v1.0.0 and merge back into develop.",
+      "interviewAngle": "The full Git Flow release — the story clients want to hear end to end.",
+      "prerequisites": {
+        "platform": [
+          "azure-devops"
+        ],
+        "tools": [
+          "az",
+          "git"
+        ],
+        "notes": ""
+      },
+      "files": [
+        "orders-app: app/package.json (version)"
+      ],
+      "reuse": {
+        "sessions": [],
+        "az400": [],
+        "note": ""
+      },
+      "recall": [
+        {
+          "id": "release",
+          "question": "What is allowed on a release branch and what is not?",
+          "answer": "Only stabilisation: bug fixes, version bump, release notes. No new features — they wait in develop for the next release."
+        },
+        {
+          "id": "backmerge",
+          "question": "Why must a release be merged back into develop?",
+          "answer": "Fixes made on the release branch would otherwise be lost in the next release; develop must contain everything that is in main."
+        }
+      ],
+      "steps": [
+        {
+          "id": "cut",
+          "level": "guided",
+          "title": "Cut release/1.0.0",
+          "detail": "Branch from develop, bump app/package.json and VERSION in orders.js to 1.0.0, push. CD deploys to HML.",
+          "command": "git -C C:\\Projects\\lab-gitflow switch -c release/1.0.0 develop",
+          "hints": [
+            "release/* has no policy here: pushing directly is allowed — would you add one?",
+            "Bump both app/package.json and VERSION in app/src/orders.js so /health shows the release."
+          ],
+          "solution": "orders-ci runs on release/1.0.0, orders-cd deploys HML; DEV and PRD are skipped."
+        },
+        {
+          "id": "ship",
+          "level": "partial",
+          "title": "Merge into main and approve PRD",
+          "detail": "PR release/1.0.0 → main with a merge commit (not squash), complete it, approve the PRD stage in the CD run.",
+          "command": "az repos pr create --source-branch release/1.0.0 --target-branch main --title \"Release 1.0.0\"",
+          "hints": [
+            "Merge commits keep the release history; set --squash false when completing.",
+            "The PRD stage waits for your approval in the run page."
+          ],
+          "solution": "main gets the merge commit, orders-ci on main → orders-cd deploys PRD after approval."
+        },
+        {
+          "id": "tag",
+          "level": "solo",
+          "title": "Tag and back-merge",
+          "detail": "No commands given: tag main v1.0.0 and get the release changes back into develop through a PR.",
+          "hints": [
+            "git tag -a v1.0.0 on the merge commit, git push ado v1.0.0.",
+            "PR main → develop (or release/1.0.0 → develop) with a merge commit."
+          ],
+          "solution": "refs/tags/v1.0.0 on main; a completed PR into develop containing the release commits; the release branch deleted."
+        }
+      ],
+      "criteria": [
+        {
+          "id": "release-merged-main",
+          "text": "A completed PR from release/* into main exists",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "release-tagged",
+          "text": "Tag v1.0.0 exists in orders-app",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "prd-deployed",
+          "text": "Environment PRD has at least one deployment",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "back-merged",
+          "text": "A completed PR into develop from release/* or main exists after the release",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "recall-recorded",
+          "text": "Recall answers recorded before the instructions",
+          "verify": "portal",
+          "rule": "recall"
+        },
+        {
+          "id": "attempts-recorded",
+          "text": "An attempt recorded for every step",
+          "verify": "portal",
+          "rule": "attempts"
+        },
+        {
+          "id": "english-answer",
+          "text": "English answer recorded (60–90 seconds)",
+          "verify": "portal",
+          "rule": "english"
+        },
+        {
+          "id": "feedback-recorded",
+          "text": "Feedback recorded",
+          "verify": "portal",
+          "rule": "feedback"
+        }
+      ],
+      "checker": {
+        "script": "checkers/gitflow.js",
+        "timeoutSeconds": 180
+      },
+      "english": {
+        "question": "Walk me through a release in Git Flow, from develop to production.",
+        "followUps": [
+          "Why the back-merge?"
+        ],
+        "modelAnswer": "I cut a release branch from develop and bump the version. The CI build of that branch is deployed to staging automatically, where we only fix bugs — no new features. When it's stable I merge it into main through a pull request; the main build goes to production after an approval on the production environment. Then I tag main with the version and merge the release back into develop, so any fix made during stabilisation is not lost."
+      },
+      "next": "G09: a hotfix from main."
+    },
+    {
+      "id": "G09",
+      "number": 10,
+      "day": 10,
+      "minutes": 45,
+      "title": "Hotfix from main",
+      "focus": "hotfix/x.y.z → HML → main → PRD → tag → develop",
+      "objective": "Fix a production bug on hotfix/1.0.1 cut from main, ship it through HML and PRD, tag v1.0.1 and bring it back to develop.",
+      "interviewAngle": "\"Production is broken and develop has unreleased work — what do you do?\"",
+      "prerequisites": {
+        "platform": [
+          "azure-devops"
+        ],
+        "tools": [
+          "az",
+          "git"
+        ],
+        "notes": ""
+      },
+      "files": [
+        "orders-app: app/src/orders.js"
+      ],
+      "reuse": {
+        "sessions": [],
+        "az400": [],
+        "note": "FEAT-06 in the platform is the trunk-based hotfix."
+      },
+      "recall": [
+        {
+          "id": "from-main",
+          "question": "Why is a hotfix cut from main and not from develop?",
+          "answer": "develop contains unreleased work; branching from main ships only the fix on top of exactly what runs in production."
+        },
+        {
+          "id": "release-open",
+          "question": "A release branch is open when the hotfix is done. Where must the hotfix go?",
+          "answer": "Into main, and into the open release branch (instead of, or in addition to, develop), so the next release also contains it."
+        }
+      ],
+      "steps": [
+        {
+          "id": "bug",
+          "level": "partial",
+          "title": "Reproduce and fix",
+          "detail": "Bug: a discount of exactly 100% returns -0. Cut hotfix/1.0.1 from main, add a failing test, fix it, bump to 1.0.1.",
+          "command": "git -C C:\\Projects\\lab-gitflow switch -c hotfix/1.0.1 main",
+          "hints": [
+            "Object.is(orderTotal([...], {discountPercent: 100}), -0) — or assert.equal(..., 0) with strict deepEqual semantics.",
+            "Math.round(...) / 100 + 0 normalises -0."
+          ],
+          "solution": "A test that fails on -0 and the fix; CI green on hotfix/1.0.1; CD deploys HML."
+        },
+        {
+          "id": "ship",
+          "level": "solo",
+          "title": "Ship and back-merge",
+          "detail": "No commands given: PR to main, approve PRD, tag v1.0.1, PR back to develop.",
+          "hints": [
+            "Same as the release, with a smaller scope.",
+            "Conflicts with develop are expected if develop changed the same lines: resolve them in the back-merge PR."
+          ],
+          "solution": "Completed PRs hotfix/1.0.1 → main and → develop (or main → develop), tag v1.0.1, PRD deployed after approval."
+        }
+      ],
+      "criteria": [
+        {
+          "id": "hotfix-merged-main",
+          "text": "A completed PR from hotfix/* into main exists",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "hotfix-tagged",
+          "text": "Tag v1.0.1 exists in orders-app",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "hotfix-back-merged",
+          "text": "A completed PR from hotfix/* or main into develop exists",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "recall-recorded",
+          "text": "Recall answers recorded before the instructions",
+          "verify": "portal",
+          "rule": "recall"
+        },
+        {
+          "id": "attempts-recorded",
+          "text": "An attempt recorded for every step",
+          "verify": "portal",
+          "rule": "attempts"
+        },
+        {
+          "id": "english-answer",
+          "text": "English answer recorded (60–90 seconds)",
+          "verify": "portal",
+          "rule": "english"
+        },
+        {
+          "id": "feedback-recorded",
+          "text": "Feedback recorded",
+          "verify": "portal",
+          "rule": "feedback"
+        }
+      ],
+      "checker": {
+        "script": "checkers/gitflow.js",
+        "timeoutSeconds": 180
+      },
+      "english": {
+        "question": "Production has a bug and develop already has unreleased features. How do you ship the fix?",
+        "followUps": [
+          "What if a release branch is open?"
+        ],
+        "modelAnswer": "I cut a hotfix branch from main, so the fix sits on exactly what's in production, write a failing test and fix it. The hotfix build goes to staging, then I merge it into main and the production deployment waits for approval. I tag the new patch version and merge the fix back into develop — or into the open release branch — so it isn't lost in the next release."
+      },
+      "next": "G10: upgrade the template on purpose."
+    },
+    {
+      "id": "G10",
+      "number": 11,
+      "day": 11,
+      "minutes": 40,
+      "title": "Template v1.1.0: upgrade on purpose",
+      "focus": "Change a shared template without breaking consumers",
+      "objective": "Release v1.1.0 of the deploy-stage template (for example a pool parameter or a smoke step), show that orders-cd keeps using v1.0.0 until you bump the ref through a PR, then bump it.",
+      "interviewAngle": "Platform teams evolve shared pipelines safely — the same idea as module versions in Terraform.",
+      "prerequisites": {
+        "platform": [
+          "azure-devops"
+        ],
+        "tools": [
+          "az",
+          "git"
+        ],
+        "notes": ""
+      },
+      "files": [
+        "pipeline-templates: templates/deploy-stage.yml",
+        "orders-app: azure-pipelines/cd.yml"
+      ],
+      "reuse": {
+        "sessions": [],
+        "az400": [],
+        "note": ""
+      },
+      "recall": [
+        {
+          "id": "semver",
+          "question": "When is a template change a major, minor or patch version?",
+          "answer": "Major: breaking (renamed/removed parameter, changed behaviour consumers rely on). Minor: new optional parameter or feature with a safe default. Patch: fix without interface change."
+        },
+        {
+          "id": "rollout",
+          "question": "How would you roll a template upgrade out to twenty consumer pipelines?",
+          "answer": "Release the tag, upgrade one pilot pipeline, watch it, then open bump PRs for the rest (automatable); keep the previous tag available for rollback."
+        }
+      ],
+      "steps": [
+        {
+          "id": "change",
+          "level": "partial",
+          "title": "Add a feature to the template",
+          "detail": "Add an optional parameter (e.g. pool, default ubuntu-latest, or smokeCommand) with a safe default; tag v1.1.0.",
+          "hints": [
+            "A new optional parameter with a default is a minor version.",
+            "git tag -a v1.1.0; git push --follow-tags"
+          ],
+          "solution": "v1.1.0 exists; v1.0.0 consumers are unaffected."
+        },
+        {
+          "id": "pinned",
+          "level": "guided",
+          "title": "Prove the pin",
+          "detail": "Run orders-cd again and show from the run's resources that it still uses v1.0.0.",
+          "hints": [
+            "The run summary lists repository resources and the commit used.",
+            "az pipelines runs show --id <run> --query resources.repositories shows the ref used."
+          ],
+          "solution": "The templates resource shows refs/tags/v1.0.0."
+        },
+        {
+          "id": "bump",
+          "level": "solo",
+          "title": "Bump through a PR",
+          "detail": "Change cd.yml to refs/tags/v1.1.0 through a feature PR to develop and deploy DEV with the new template.",
+          "hints": [
+            "The bump is a normal feature: branch, PR, policy build.",
+            "Change only the ref line in cd.yml; the policy build validates it."
+          ],
+          "solution": "cd.yml on develop references refs/tags/v1.1.0 and the next DEV deploy uses it."
+        }
+      ],
+      "criteria": [
+        {
+          "id": "template-v110",
+          "text": "Tag v1.1.0 exists in pipeline-templates",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "cd-bumped",
+          "text": "cd.yml on develop references refs/tags/v1.1.0",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "recall-recorded",
+          "text": "Recall answers recorded before the instructions",
+          "verify": "portal",
+          "rule": "recall"
+        },
+        {
+          "id": "attempts-recorded",
+          "text": "An attempt recorded for every step",
+          "verify": "portal",
+          "rule": "attempts"
+        },
+        {
+          "id": "english-answer",
+          "text": "English answer recorded (60–90 seconds)",
+          "verify": "portal",
+          "rule": "english"
+        },
+        {
+          "id": "feedback-recorded",
+          "text": "Feedback recorded",
+          "verify": "portal",
+          "rule": "feedback"
+        }
+      ],
+      "checker": {
+        "script": "checkers/gitflow.js",
+        "timeoutSeconds": 120
+      },
+      "english": {
+        "question": "You own shared pipeline templates. How do you change them without breaking other teams?",
+        "followUps": [
+          "What makes a change major?"
+        ],
+        "modelAnswer": "Templates are versioned with semantic tags and consumers pin a tag. I add new behaviour as optional parameters with safe defaults, release a minor version and upgrade one pilot pipeline first. The other teams bump the version through their own pull requests when they're ready, and a broken upgrade is rolled back by pointing back to the previous tag."
+      },
+      "next": "G11: the same flow in GitHub Actions."
+    },
+    {
+      "id": "G11",
+      "number": 12,
+      "day": 12,
+      "minutes": 60,
+      "title": "The same flow in GitHub Actions",
+      "focus": "Branch triggers, reusable workflow, environments with reviewers, branch protection",
+      "objective": "Rebuild the flow in the GitHub repository lab-gitflow: a CI workflow for the Git Flow branches, a reusable deploy workflow (workflow_call) used for dev, hml and prd by source branch, prd protected by a required reviewer, and main and develop protected. Then compare Git Flow with the platform's trunk-based model.",
+      "interviewAngle": "\"Have you done this in GitHub too?\" — and \"When would you choose Git Flow over trunk-based?\"",
+      "prerequisites": {
+        "platform": [
+          "github"
+        ],
+        "tools": [
+          "gh",
+          "git"
+        ],
+        "notes": "Repository edymonte/lab-gitflow (private) with the same app."
+      },
+      "files": [
+        "lab-gitflow: .github/workflows/ci.yml, .github/workflows/deploy.yml"
+      ],
+      "reuse": {
+        "sessions": [
+          "C018",
+          "C020"
+        ],
+        "az400": [],
+        "note": "The platform's workflows are trunk-based; this one is Git Flow."
+      },
+      "recall": [
+        {
+          "id": "reusable",
+          "question": "Reusable workflow vs composite action: what is the difference?",
+          "answer": "A reusable workflow (on: workflow_call) is a whole workflow with jobs, called as a job (uses: owner/repo/.github/workflows/x.yml@ref), can use environments and secrets: inherit. A composite action bundles steps into one step and runs inside the caller's job."
+        },
+        {
+          "id": "env-by-branch",
+          "question": "How do you send develop to dev and main to prd in one GitHub workflow?",
+          "answer": "Jobs with if: on github.ref (or on the workflow_run head_branch), each calling the deploy workflow with its environment; environment deployment branch rules make it enforceable."
+        }
+      ],
+      "steps": [
+        {
+          "id": "ci",
+          "level": "partial",
+          "title": "ci.yml for the Git Flow branches",
+          "detail": "Push triggers on develop, release/**, hotfix/** and main, pull_request to develop and main, Node 20, npm test, upload the app artifact.",
+          "hints": [
+            "on: push: branches: [develop, 'release/**', 'hotfix/**', main]",
+            "actions/setup-node@v4, actions/upload-artifact@v4"
+          ],
+          "solution": "A ci workflow with those triggers; runs green on develop."
+        },
+        {
+          "id": "deploy",
+          "level": "solo",
+          "title": "Reusable deploy and the routing",
+          "detail": "deploy.yml with on: workflow_call (input environment) that writes and uploads a deployment record; in ci.yml, three jobs that need the build job and call it for dev / hml / prd by branch.",
+          "hints": [
+            "jobs: deploy-dev: if: github.ref == 'refs/heads/develop' needs: build uses: ./.github/workflows/deploy.yml with: environment: dev",
+            "Inside deploy.yml the job declares environment: ${{ inputs.environment }}."
+          ],
+          "solution": "A run on develop deploys dev only; on release/* hml; on main prd after review."
+        },
+        {
+          "id": "protect",
+          "level": "partial",
+          "title": "Environments and branch protection",
+          "detail": "Create environments dev, hml and prd (prd with you as required reviewer and deployment branches limited to main) and protect main and develop (PR + required check).",
+          "command": "gh api -X PUT repos/edymonte/lab-gitflow/environments/prd -f wait_timer=0",
+          "hints": [
+            "Reviewers need your user id: gh api user --jq .id; send reviewers as JSON with --input.",
+            "gh api -X PUT repos/edymonte/lab-gitflow/branches/main/protection --input protection.json"
+          ],
+          "solution": "Environments listed with prd protected by required_reviewers; branch protection on main and develop."
+        },
+        {
+          "id": "compare",
+          "level": "solo",
+          "title": "Git Flow vs trunk-based",
+          "detail": "Write when you would choose each, using this lab and the platform as examples.",
+          "hints": [
+            "Release cadence, several versions in parallel, regulated sign-off vs continuous delivery, small batches, drift control.",
+            "Use the LEARNING-PATH contrast table: branching, deployment model, environment selection, rollback."
+          ],
+          "solution": "Git Flow: scheduled releases, regulated sign-offs, several supported versions, push deployments by branch. Trunk-based + GitOps: continuous delivery, small batches, fast feedback, Git as the source of truth with easy revert. Both: protected branches, review, build once."
+        }
+      ],
+      "criteria": [
+        {
+          "id": "gh-ci-branches",
+          "text": "A workflow triggers on develop, release, hotfix and main branches",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "gh-reusable",
+          "text": "A reusable workflow (on: workflow_call) is used for the deployments",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "gh-prd-protected",
+          "text": "Environment prd exists with required reviewers",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "gh-branches-protected",
+          "text": "main and develop are protected",
+          "verify": "checker",
+          "owner": "learner"
+        },
+        {
+          "id": "recall-recorded",
+          "text": "Recall answers recorded before the instructions",
+          "verify": "portal",
+          "rule": "recall"
+        },
+        {
+          "id": "attempts-recorded",
+          "text": "An attempt recorded for every step",
+          "verify": "portal",
+          "rule": "attempts"
+        },
+        {
+          "id": "comparison-reviewed",
+          "text": "Git Flow vs trunk-based comparison reviewed",
+          "verify": "review",
+          "owner": "learner"
+        },
+        {
+          "id": "english-answer",
+          "text": "English answer recorded (60–90 seconds)",
+          "verify": "portal",
+          "rule": "english"
+        },
+        {
+          "id": "feedback-recorded",
+          "text": "Feedback recorded",
+          "verify": "portal",
+          "rule": "feedback"
+        }
+      ],
+      "checker": {
+        "script": "checkers/gitflow.js",
+        "timeoutSeconds": 120
+      },
+      "english": {
+        "question": "When would you choose Git Flow with push deployments over trunk-based development with GitOps?",
+        "followUps": [
+          "How did you build the same flow in GitHub Actions?"
+        ],
+        "modelAnswer": "Git Flow fits teams with scheduled releases, formal sign-off or several supported versions at once: develop, release and hotfix branches map naturally to environments and a central pipeline pushes each build to the right one. Trunk-based with GitOps fits continuous delivery: small changes go to main behind checks, Argo CD pulls the desired state and rollback is a revert. I've built both — Git Flow in Azure DevOps and GitHub Actions with a reusable deploy workflow and protected environments, and trunk-based GitOps on my Azure platform."
+      },
+      "next": "Git Flow lab done. Keep using it for interview stories; the platform route continues on the Schedule."
+    }
+  ]
+}

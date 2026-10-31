@@ -122,23 +122,23 @@ test('az400: a passing validation completes a lab once, with XP; steps and score
   assert.ok(today.steps >= 1 && today.completions >= 1);
 });
 
-test('schedule: recovery sprint first, then one sequence with every session and lab dated, scheduled sessions unlocked', () => {
+test('schedule: recovery sprint first, then the platform route with every session dated, scheduled sessions unlocked', () => {
   const s = loadSchedule(PORTAL_ROOT, catalog);
   const az = s.items.filter((i) => i.kind === 'az400');
   assert.equal(az[0].id, 'prep', 'preparation first on day one');
   assert.equal(az.find((i) => i.id === '01').date, '2026-10-20');
-  assert.deepEqual(s.sprintDays, ['2026-10-30', '2026-10-31']);
+  assert.deepEqual(s.sprintDays, ['2026-10-31', '2026-11-01']);
   const sprint = s.items.filter((i) => i.kind === 'sprint');
-  assert.deepEqual(sprint.map((i) => `${i.id}@${i.date}`), ['R1@2026-10-30', 'R2@2026-10-30', 'R3@2026-10-30', 'R4@2026-10-31', 'R5@2026-10-31', 'R6@2026-10-31']);
+  assert.deepEqual(sprint.map((i) => `${i.id}@${i.date}`), ['R1@2026-10-31', 'R2@2026-10-31', 'R3@2026-10-31', 'R4@2026-11-01', 'R5@2026-11-01', 'R6@2026-11-01']);
   const pending = s.items.filter((i) => i.kind !== 'sprint' && i.date > '2026-10-22');
-  assert.ok(pending.every((i) => i.date > '2026-10-31'), 'everything still pending comes after the sprint');
-  assert.equal(az.length, 29, 'preparation + all 28 AZ-400 labs are back in the sequence');
-  const lab04 = az.find((i) => i.id === '04');
-  assert.equal(lab04.date, '2026-11-01');
-  assert.equal(lab04.replans[0].from, '2026-10-28', 'the overdue original date is kept');
-  assert.match(lab04.replans[0].reason, /overdue/i);
-  for (const day of new Set(s.items.filter((i) => i.date <= s.lastDay && i.date > '2026-10-31').map((i) => i.date))) {
-    assert.ok(s.items.filter((i) => i.date === day).length <= 2, `${day}: at most one platform session and one AZ-400 lab (4 h a day)`);
+  assert.ok(pending.every((i) => i.date > '2026-11-01'), 'everything still pending comes after the sprint');
+  assert.deepEqual(az.map((i) => i.id), ['prep', '00', '01', '02'], 'AZ-400 is out of this phase: only the labs already done stay as history');
+  const c002 = s.items.find((i) => i.id === 'C002');
+  assert.equal(c002.date, '2026-11-02');
+  assert.equal(c002.replans[0].from, '2026-10-30', 'the original date is kept');
+  for (const day of new Set(s.items.filter((i) => i.date <= s.lastDay && i.date > '2026-11-01').map((i) => i.date))) {
+    const load = s.items.filter((i) => i.date === day);
+    assert.ok(load.filter((i) => i.kind === 'platform').length <= 1 && load.filter((i) => i.kind === 'gitflow').length <= 1 && load.length <= 2, `${day}: one platform session and one Git Flow mission`);
   }
   assert.equal(s.scheduledSessions.size, 30, 'every platform session has a date');
   const p = new ProgressStore({ dataDir: tempDir(), catalog, scheduledSessions: s.scheduledSessions }).load();

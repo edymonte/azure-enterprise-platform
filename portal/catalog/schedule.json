@@ -1,16 +1,16 @@
 {
-  "title": "Recovery sprint first, then the full route",
-  "subtitle": "Priority since Oct 29: the 8-hour recovery sprint (Oct 30–31), then platform sessions and AZ-400 labs in one sequence · 4 h a day until Nov 12, every other day after",
+  "title": "Recovery sprint first, then the platform route",
+  "subtitle": "Priority since Oct 31: the 8-hour recovery sprint (Oct 31 – Nov 1), then one platform session + one Git Flow lab mission a day (GitHub Actions and Azure DevOps) until Nov 12, every other day after · AZ-400 out of this phase",
   "start": "2026-10-19",
   "lastDay": "2026-11-12",
   "dailyHours": 4,
   "sprint": {
-    "2026-10-30": [
+    "2026-10-31": [
       "R1",
       "R2",
       "R3"
     ],
-    "2026-10-31": [
+    "2026-11-01": [
       "R4",
       "R5",
       "R6"
@@ -19,34 +19,9 @@
   "az400": {
     "prep": "2026-10-19",
     "labs": {
-      "10": "2026-11-04",
-      "11": "2026-11-05",
-      "12": "2026-11-06",
-      "13": "2026-11-07",
-      "14": "2026-11-08",
-      "15": "2026-11-09",
-      "16": "2026-11-10",
-      "17": "2026-12-02",
-      "18": "2026-12-04",
-      "19": "2026-12-06",
-      "20": "2026-11-12",
-      "21": "2026-11-11",
-      "22": "2026-11-14",
-      "23": "2026-12-08",
-      "24": "2026-11-16",
-      "25": "2026-11-18",
-      "26": "2026-11-20",
-      "27": "2026-11-22",
       "00": "2026-10-19",
       "01": "2026-10-20",
-      "02": "2026-10-22",
-      "04": "2026-11-01",
-      "08": "2026-11-02",
-      "09": "2026-11-03",
-      "03": "2026-11-24",
-      "05": "2026-11-26",
-      "06": "2026-11-28",
-      "07": "2026-11-30"
+      "02": "2026-10-22"
     }
   },
   "platform": [
@@ -56,146 +31,160 @@
     },
     {
       "id": "C002",
-      "date": "2026-11-01"
-    },
-    {
-      "id": "C003",
       "date": "2026-11-02"
     },
     {
-      "id": "C004",
+      "id": "C003",
       "date": "2026-11-03"
     },
     {
-      "id": "C005",
+      "id": "C004",
       "date": "2026-11-04"
     },
     {
-      "id": "C006",
+      "id": "C005",
       "date": "2026-11-05"
     },
     {
-      "id": "C007",
+      "id": "C006",
       "date": "2026-11-06"
     },
     {
-      "id": "C008",
+      "id": "C007",
       "date": "2026-11-07"
     },
     {
-      "id": "C009",
+      "id": "C008",
       "date": "2026-11-08"
     },
     {
-      "id": "C010",
+      "id": "C009",
       "date": "2026-11-09"
     },
     {
-      "id": "C011",
+      "id": "C010",
       "date": "2026-11-10"
     },
     {
-      "id": "C012",
+      "id": "C011",
       "date": "2026-11-11"
     },
     {
-      "id": "C013",
+      "id": "C012",
       "date": "2026-11-12"
     },
     {
-      "id": "C014",
+      "id": "C013",
       "date": "2026-11-14"
     },
     {
-      "id": "C015",
+      "id": "C014",
       "date": "2026-11-16"
     },
     {
-      "id": "C016",
+      "id": "C015",
       "date": "2026-11-18"
     },
     {
+      "id": "C016",
+      "date": "2026-11-20"
+    },
+    {
       "id": "C017",
-      "date": "2026-11-24"
+      "date": "2026-11-22"
     },
     {
       "id": "C018",
-      "date": "2026-11-26"
+      "date": "2026-11-24"
     },
     {
       "id": "C019",
-      "date": "2026-11-28"
+      "date": "2026-11-26"
     },
     {
       "id": "C020",
-      "date": "2026-11-30"
+      "date": "2026-11-28"
     },
     {
       "id": "C021",
-      "date": "2026-12-02"
+      "date": "2026-11-30"
     },
     {
       "id": "C022",
-      "date": "2026-12-04"
+      "date": "2026-12-02"
     },
     {
       "id": "C023",
-      "date": "2026-12-06"
+      "date": "2026-12-04"
     },
     {
       "id": "C024",
-      "date": "2026-12-08"
+      "date": "2026-12-06"
     },
     {
       "id": "C025",
-      "date": "2026-12-10"
+      "date": "2026-12-08"
     },
     {
       "id": "C026",
-      "date": "2026-12-12"
+      "date": "2026-12-10"
     },
     {
       "id": "C027",
-      "date": "2026-12-14"
+      "date": "2026-12-12"
     },
     {
       "id": "C028",
-      "date": "2026-12-16"
+      "date": "2026-12-14"
     },
     {
       "id": "C029",
-      "date": "2026-12-18"
+      "date": "2026-12-16"
     },
     {
       "id": "C030",
-      "date": "2026-12-20"
+      "date": "2026-12-18"
     }
   ],
+  "gitflow": {
+    "2026-11-02": [
+      "G00"
+    ],
+    "2026-11-03": [
+      "G01"
+    ],
+    "2026-11-04": [
+      "G02"
+    ],
+    "2026-11-05": [
+      "G03"
+    ],
+    "2026-11-06": [
+      "G04"
+    ],
+    "2026-11-07": [
+      "G05"
+    ],
+    "2026-11-08": [
+      "G06"
+    ],
+    "2026-11-09": [
+      "G07"
+    ],
+    "2026-11-10": [
+      "G08"
+    ],
+    "2026-11-11": [
+      "G09"
+    ],
+    "2026-11-12": [
+      "G10"
+    ],
+    "2026-11-14": [
+      "G11"
+    ]
+  },
   "replanned": [
-    {
-      "kind": "az400",
-      "id": "04",
-      "from": "2026-10-28",
-      "to": "2026-11-01",
-      "decidedAt": "2026-10-29",
-      "reason": "Overdue: planned in the vacation route, paused on Oct 29 when the platform became the main route; back in the single sequence after the recovery sprint."
-    },
-    {
-      "kind": "az400",
-      "id": "08",
-      "from": "2026-10-29",
-      "to": "2026-11-02",
-      "decidedAt": "2026-10-29",
-      "reason": "Planned in the vacation route, paused on Oct 29 when the platform became the main route; back in the single sequence after the recovery sprint."
-    },
-    {
-      "kind": "az400",
-      "id": "09",
-      "from": "2026-10-30",
-      "to": "2026-11-03",
-      "decidedAt": "2026-10-29",
-      "reason": "Planned in the vacation route, paused on Oct 29 when the platform became the main route; back in the single sequence after the recovery sprint."
-    },
     {
       "kind": "platform",
       "id": "C002",
@@ -203,14 +192,6 @@
       "to": "2026-11-01",
       "decidedAt": "2026-10-29",
       "reason": "Recovery sprint inserted on Oct 30–31; the full route resumes after it at 4 h a day."
-    },
-    {
-      "kind": "az400",
-      "id": "10",
-      "from": "2026-10-31",
-      "to": "2026-11-04",
-      "decidedAt": "2026-10-29",
-      "reason": "Planned in the vacation route, paused on Oct 29 when the platform became the main route; back in the single sequence after the recovery sprint."
     },
     {
       "kind": "platform",
@@ -229,28 +210,12 @@
       "reason": "Recovery sprint inserted on Oct 30–31; the full route resumes after it at 4 h a day."
     },
     {
-      "kind": "az400",
-      "id": "11",
-      "from": "2026-11-02",
-      "to": "2026-11-05",
-      "decidedAt": "2026-10-29",
-      "reason": "Planned in the vacation route, paused on Oct 29 when the platform became the main route; back in the single sequence after the recovery sprint."
-    },
-    {
       "kind": "platform",
       "id": "C005",
       "from": "2026-11-02",
       "to": "2026-11-04",
       "decidedAt": "2026-10-29",
       "reason": "Recovery sprint inserted on Oct 30–31; the full route resumes after it at 4 h a day."
-    },
-    {
-      "kind": "az400",
-      "id": "12",
-      "from": "2026-11-03",
-      "to": "2026-11-06",
-      "decidedAt": "2026-10-29",
-      "reason": "Planned in the vacation route, paused on Oct 29 when the platform became the main route; back in the single sequence after the recovery sprint."
     },
     {
       "kind": "platform",
@@ -261,28 +226,12 @@
       "reason": "Recovery sprint inserted on Oct 30–31; the full route resumes after it at 4 h a day."
     },
     {
-      "kind": "az400",
-      "id": "13",
-      "from": "2026-11-04",
-      "to": "2026-11-07",
-      "decidedAt": "2026-10-29",
-      "reason": "Planned in the vacation route, paused on Oct 29 when the platform became the main route; back in the single sequence after the recovery sprint."
-    },
-    {
       "kind": "platform",
       "id": "C007",
       "from": "2026-11-04",
       "to": "2026-11-06",
       "decidedAt": "2026-10-29",
       "reason": "Recovery sprint inserted on Oct 30–31; the full route resumes after it at 4 h a day."
-    },
-    {
-      "kind": "az400",
-      "id": "14",
-      "from": "2026-11-05",
-      "to": "2026-11-08",
-      "decidedAt": "2026-10-29",
-      "reason": "Planned in the vacation route, paused on Oct 29 when the platform became the main route; back in the single sequence after the recovery sprint."
     },
     {
       "kind": "platform",
@@ -293,28 +242,12 @@
       "reason": "Recovery sprint inserted on Oct 30–31; the full route resumes after it at 4 h a day."
     },
     {
-      "kind": "az400",
-      "id": "15",
-      "from": "2026-11-06",
-      "to": "2026-11-09",
-      "decidedAt": "2026-10-29",
-      "reason": "Planned in the vacation route, paused on Oct 29 when the platform became the main route; back in the single sequence after the recovery sprint."
-    },
-    {
       "kind": "platform",
       "id": "C009",
       "from": "2026-11-06",
       "to": "2026-11-08",
       "decidedAt": "2026-10-29",
       "reason": "Recovery sprint inserted on Oct 30–31; the full route resumes after it at 4 h a day."
-    },
-    {
-      "kind": "az400",
-      "id": "16",
-      "from": "2026-11-07",
-      "to": "2026-11-10",
-      "decidedAt": "2026-10-29",
-      "reason": "Planned in the vacation route, paused on Oct 29 when the platform became the main route; back in the single sequence after the recovery sprint."
     },
     {
       "kind": "platform",
@@ -333,28 +266,12 @@
       "reason": "Recovery sprint inserted on Oct 30–31; the full route resumes after it at 4 h a day."
     },
     {
-      "kind": "az400",
-      "id": "21",
-      "from": "2026-11-09",
-      "to": "2026-11-11",
-      "decidedAt": "2026-10-29",
-      "reason": "Planned in the vacation route, paused on Oct 29 when the platform became the main route; back in the single sequence after the recovery sprint."
-    },
-    {
       "kind": "platform",
       "id": "C012",
       "from": "2026-11-09",
       "to": "2026-11-11",
       "decidedAt": "2026-10-29",
       "reason": "Recovery sprint inserted on Oct 30–31; the full route resumes after it at 4 h a day."
-    },
-    {
-      "kind": "az400",
-      "id": "20",
-      "from": "2026-11-10",
-      "to": "2026-11-12",
-      "decidedAt": "2026-10-29",
-      "reason": "Planned in the vacation route, paused on Oct 29 when the platform became the main route; back in the single sequence after the recovery sprint."
     },
     {
       "kind": "platform",
@@ -365,28 +282,12 @@
       "reason": "Recovery sprint inserted on Oct 30–31; the full route resumes after it at 4 h a day."
     },
     {
-      "kind": "az400",
-      "id": "22",
-      "from": "2026-11-11",
-      "to": "2026-11-14",
-      "decidedAt": "2026-10-29",
-      "reason": "Planned in the vacation route, paused on Oct 29 when the platform became the main route; back in the single sequence after the recovery sprint."
-    },
-    {
       "kind": "platform",
       "id": "C014",
       "from": "2026-11-11",
       "to": "2026-11-14",
       "decidedAt": "2026-10-29",
       "reason": "Recovery sprint inserted on Oct 30–31; the full route resumes after it at 4 h a day."
-    },
-    {
-      "kind": "az400",
-      "id": "24",
-      "from": "2026-11-12",
-      "to": "2026-11-16",
-      "decidedAt": "2026-10-29",
-      "reason": "Planned in the vacation route, paused on Oct 29 when the platform became the main route; back in the single sequence after the recovery sprint."
     },
     {
       "kind": "platform",
@@ -397,28 +298,12 @@
       "reason": "Recovery sprint inserted on Oct 30–31; the full route resumes after it at 4 h a day."
     },
     {
-      "kind": "az400",
-      "id": "25",
-      "from": "2026-11-14",
-      "to": "2026-11-18",
-      "decidedAt": "2026-10-29",
-      "reason": "Planned in the vacation route, paused on Oct 29 when the platform became the main route; back in the single sequence after the recovery sprint."
-    },
-    {
       "kind": "platform",
       "id": "C016",
       "from": "2026-11-14",
       "to": "2026-11-18",
       "decidedAt": "2026-10-29",
       "reason": "Recovery sprint inserted on Oct 30–31; the full route resumes after it at 4 h a day."
-    },
-    {
-      "kind": "az400",
-      "id": "26",
-      "from": "2026-11-16",
-      "to": "2026-11-20",
-      "decidedAt": "2026-10-29",
-      "reason": "Planned in the vacation route, paused on Oct 29 when the platform became the main route; back in the single sequence after the recovery sprint."
     },
     {
       "kind": "platform",
@@ -429,28 +314,12 @@
       "reason": "Recovery sprint inserted on Oct 30–31; the full route resumes after it at 4 h a day."
     },
     {
-      "kind": "az400",
-      "id": "27",
-      "from": "2026-11-18",
-      "to": "2026-11-22",
-      "decidedAt": "2026-10-29",
-      "reason": "Planned in the vacation route, paused on Oct 29 when the platform became the main route; back in the single sequence after the recovery sprint."
-    },
-    {
       "kind": "platform",
       "id": "C018",
       "from": "2026-11-18",
       "to": "2026-11-26",
       "decidedAt": "2026-10-29",
       "reason": "Recovery sprint inserted on Oct 30–31; the full route resumes after it at 4 h a day."
-    },
-    {
-      "kind": "az400",
-      "id": "03",
-      "from": "2026-11-20",
-      "to": "2026-11-24",
-      "decidedAt": "2026-10-29",
-      "reason": "Planned in the vacation route, paused on Oct 29 when the platform became the main route; back in the single sequence after the recovery sprint."
     },
     {
       "kind": "platform",
@@ -461,28 +330,12 @@
       "reason": "Recovery sprint inserted on Oct 30–31; the full route resumes after it at 4 h a day."
     },
     {
-      "kind": "az400",
-      "id": "05",
-      "from": "2026-11-22",
-      "to": "2026-11-26",
-      "decidedAt": "2026-10-29",
-      "reason": "Planned in the vacation route, paused on Oct 29 when the platform became the main route; back in the single sequence after the recovery sprint."
-    },
-    {
       "kind": "platform",
       "id": "C020",
       "from": "2026-11-22",
       "to": "2026-11-30",
       "decidedAt": "2026-10-29",
       "reason": "Recovery sprint inserted on Oct 30–31; the full route resumes after it at 4 h a day."
-    },
-    {
-      "kind": "az400",
-      "id": "06",
-      "from": "2026-11-24",
-      "to": "2026-11-28",
-      "decidedAt": "2026-10-29",
-      "reason": "Planned in the vacation route, paused on Oct 29 when the platform became the main route; back in the single sequence after the recovery sprint."
     },
     {
       "kind": "platform",
@@ -493,28 +346,12 @@
       "reason": "Recovery sprint inserted on Oct 30–31; the full route resumes after it at 4 h a day."
     },
     {
-      "kind": "az400",
-      "id": "07",
-      "from": "2026-11-26",
-      "to": "2026-11-30",
-      "decidedAt": "2026-10-29",
-      "reason": "Planned in the vacation route, paused on Oct 29 when the platform became the main route; back in the single sequence after the recovery sprint."
-    },
-    {
       "kind": "platform",
       "id": "C022",
       "from": "2026-11-26",
       "to": "2026-12-04",
       "decidedAt": "2026-10-29",
       "reason": "Recovery sprint inserted on Oct 30–31; the full route resumes after it at 4 h a day."
-    },
-    {
-      "kind": "az400",
-      "id": "17",
-      "from": "2026-11-28",
-      "to": "2026-12-02",
-      "decidedAt": "2026-10-29",
-      "reason": "Planned in the vacation route, paused on Oct 29 when the platform became the main route; back in the single sequence after the recovery sprint."
     },
     {
       "kind": "platform",
@@ -525,14 +362,6 @@
       "reason": "Recovery sprint inserted on Oct 30–31; the full route resumes after it at 4 h a day."
     },
     {
-      "kind": "az400",
-      "id": "18",
-      "from": "2026-11-30",
-      "to": "2026-12-04",
-      "decidedAt": "2026-10-29",
-      "reason": "Planned in the vacation route, paused on Oct 29 when the platform became the main route; back in the single sequence after the recovery sprint."
-    },
-    {
       "kind": "platform",
       "id": "C024",
       "from": "2026-11-30",
@@ -541,28 +370,12 @@
       "reason": "Recovery sprint inserted on Oct 30–31; the full route resumes after it at 4 h a day."
     },
     {
-      "kind": "az400",
-      "id": "19",
-      "from": "2026-12-02",
-      "to": "2026-12-06",
-      "decidedAt": "2026-10-29",
-      "reason": "Planned in the vacation route, paused on Oct 29 when the platform became the main route; back in the single sequence after the recovery sprint."
-    },
-    {
       "kind": "platform",
       "id": "C025",
       "from": "2026-12-02",
       "to": "2026-12-10",
       "decidedAt": "2026-10-29",
       "reason": "Recovery sprint inserted on Oct 30–31; the full route resumes after it at 4 h a day."
-    },
-    {
-      "kind": "az400",
-      "id": "23",
-      "from": "2026-12-04",
-      "to": "2026-12-08",
-      "decidedAt": "2026-10-29",
-      "reason": "Planned in the vacation route, paused on Oct 29 when the platform became the main route; back in the single sequence after the recovery sprint."
     },
     {
       "kind": "platform",
@@ -603,6 +416,398 @@
       "to": "2026-12-20",
       "decidedAt": "2026-10-29",
       "reason": "Recovery sprint inserted on Oct 30–31; the full route resumes after it at 4 h a day."
+    },
+    {
+      "kind": "sprint",
+      "id": "R1",
+      "from": "2026-10-30",
+      "to": "2026-10-31",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "sprint",
+      "id": "R2",
+      "from": "2026-10-30",
+      "to": "2026-10-31",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "sprint",
+      "id": "R3",
+      "from": "2026-10-30",
+      "to": "2026-10-31",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "sprint",
+      "id": "R4",
+      "from": "2026-10-31",
+      "to": "2026-11-01",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "sprint",
+      "id": "R5",
+      "from": "2026-10-31",
+      "to": "2026-11-01",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "sprint",
+      "id": "R6",
+      "from": "2026-10-31",
+      "to": "2026-11-01",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "platform",
+      "id": "C002",
+      "from": "2026-11-01",
+      "to": "2026-11-02",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "platform",
+      "id": "C003",
+      "from": "2026-11-02",
+      "to": "2026-11-03",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "platform",
+      "id": "C004",
+      "from": "2026-11-03",
+      "to": "2026-11-04",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "platform",
+      "id": "C005",
+      "from": "2026-11-04",
+      "to": "2026-11-05",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "platform",
+      "id": "C006",
+      "from": "2026-11-05",
+      "to": "2026-11-06",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "platform",
+      "id": "C007",
+      "from": "2026-11-06",
+      "to": "2026-11-07",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "platform",
+      "id": "C008",
+      "from": "2026-11-07",
+      "to": "2026-11-08",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "platform",
+      "id": "C009",
+      "from": "2026-11-08",
+      "to": "2026-11-09",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "platform",
+      "id": "C010",
+      "from": "2026-11-09",
+      "to": "2026-11-10",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "platform",
+      "id": "C011",
+      "from": "2026-11-10",
+      "to": "2026-11-11",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "platform",
+      "id": "C012",
+      "from": "2026-11-11",
+      "to": "2026-11-12",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "platform",
+      "id": "C013",
+      "from": "2026-11-12",
+      "to": "2026-11-14",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "platform",
+      "id": "C014",
+      "from": "2026-11-14",
+      "to": "2026-11-16",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "platform",
+      "id": "C015",
+      "from": "2026-11-16",
+      "to": "2026-11-18",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "platform",
+      "id": "C016",
+      "from": "2026-11-18",
+      "to": "2026-11-20",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "platform",
+      "id": "C017",
+      "from": "2026-11-24",
+      "to": "2026-11-26",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "platform",
+      "id": "C018",
+      "from": "2026-11-26",
+      "to": "2026-11-28",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "platform",
+      "id": "C019",
+      "from": "2026-11-28",
+      "to": "2026-11-30",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "platform",
+      "id": "C020",
+      "from": "2026-11-30",
+      "to": "2026-12-02",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "platform",
+      "id": "C021",
+      "from": "2026-12-02",
+      "to": "2026-12-04",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "platform",
+      "id": "C022",
+      "from": "2026-12-04",
+      "to": "2026-12-06",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "platform",
+      "id": "C023",
+      "from": "2026-12-06",
+      "to": "2026-12-08",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "platform",
+      "id": "C024",
+      "from": "2026-12-08",
+      "to": "2026-12-10",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "platform",
+      "id": "C025",
+      "from": "2026-12-10",
+      "to": "2026-12-12",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "platform",
+      "id": "C026",
+      "from": "2026-12-12",
+      "to": "2026-12-14",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "platform",
+      "id": "C027",
+      "from": "2026-12-14",
+      "to": "2026-12-16",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "platform",
+      "id": "C028",
+      "from": "2026-12-16",
+      "to": "2026-12-18",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "platform",
+      "id": "C029",
+      "from": "2026-12-18",
+      "to": "2026-12-20",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "platform",
+      "id": "C030",
+      "from": "2026-12-20",
+      "to": "2026-12-22",
+      "decidedAt": "2026-10-31",
+      "reason": "Sprint start moved from Oct 30 to Oct 31: Edilson was away delivering a Claude training on Oct 30; the following items shift with it."
+    },
+    {
+      "kind": "platform",
+      "id": "C017",
+      "from": "2026-11-26",
+      "to": "2026-11-22",
+      "decidedAt": "2026-10-31",
+      "reason": "AZ-400 labs taken out of this phase (Oct 31): the route is now the platform only, focused on daily Platform Engineer work with GitHub and Azure DevOps."
+    },
+    {
+      "kind": "platform",
+      "id": "C018",
+      "from": "2026-11-28",
+      "to": "2026-11-24",
+      "decidedAt": "2026-10-31",
+      "reason": "AZ-400 labs taken out of this phase (Oct 31): the route is now the platform only, focused on daily Platform Engineer work with GitHub and Azure DevOps."
+    },
+    {
+      "kind": "platform",
+      "id": "C019",
+      "from": "2026-11-30",
+      "to": "2026-11-26",
+      "decidedAt": "2026-10-31",
+      "reason": "AZ-400 labs taken out of this phase (Oct 31): the route is now the platform only, focused on daily Platform Engineer work with GitHub and Azure DevOps."
+    },
+    {
+      "kind": "platform",
+      "id": "C020",
+      "from": "2026-12-02",
+      "to": "2026-11-28",
+      "decidedAt": "2026-10-31",
+      "reason": "AZ-400 labs taken out of this phase (Oct 31): the route is now the platform only, focused on daily Platform Engineer work with GitHub and Azure DevOps."
+    },
+    {
+      "kind": "platform",
+      "id": "C021",
+      "from": "2026-12-04",
+      "to": "2026-11-30",
+      "decidedAt": "2026-10-31",
+      "reason": "AZ-400 labs taken out of this phase (Oct 31): the route is now the platform only, focused on daily Platform Engineer work with GitHub and Azure DevOps."
+    },
+    {
+      "kind": "platform",
+      "id": "C022",
+      "from": "2026-12-06",
+      "to": "2026-12-02",
+      "decidedAt": "2026-10-31",
+      "reason": "AZ-400 labs taken out of this phase (Oct 31): the route is now the platform only, focused on daily Platform Engineer work with GitHub and Azure DevOps."
+    },
+    {
+      "kind": "platform",
+      "id": "C023",
+      "from": "2026-12-08",
+      "to": "2026-12-04",
+      "decidedAt": "2026-10-31",
+      "reason": "AZ-400 labs taken out of this phase (Oct 31): the route is now the platform only, focused on daily Platform Engineer work with GitHub and Azure DevOps."
+    },
+    {
+      "kind": "platform",
+      "id": "C024",
+      "from": "2026-12-10",
+      "to": "2026-12-06",
+      "decidedAt": "2026-10-31",
+      "reason": "AZ-400 labs taken out of this phase (Oct 31): the route is now the platform only, focused on daily Platform Engineer work with GitHub and Azure DevOps."
+    },
+    {
+      "kind": "platform",
+      "id": "C025",
+      "from": "2026-12-12",
+      "to": "2026-12-08",
+      "decidedAt": "2026-10-31",
+      "reason": "AZ-400 labs taken out of this phase (Oct 31): the route is now the platform only, focused on daily Platform Engineer work with GitHub and Azure DevOps."
+    },
+    {
+      "kind": "platform",
+      "id": "C026",
+      "from": "2026-12-14",
+      "to": "2026-12-10",
+      "decidedAt": "2026-10-31",
+      "reason": "AZ-400 labs taken out of this phase (Oct 31): the route is now the platform only, focused on daily Platform Engineer work with GitHub and Azure DevOps."
+    },
+    {
+      "kind": "platform",
+      "id": "C027",
+      "from": "2026-12-16",
+      "to": "2026-12-12",
+      "decidedAt": "2026-10-31",
+      "reason": "AZ-400 labs taken out of this phase (Oct 31): the route is now the platform only, focused on daily Platform Engineer work with GitHub and Azure DevOps."
+    },
+    {
+      "kind": "platform",
+      "id": "C028",
+      "from": "2026-12-18",
+      "to": "2026-12-14",
+      "decidedAt": "2026-10-31",
+      "reason": "AZ-400 labs taken out of this phase (Oct 31): the route is now the platform only, focused on daily Platform Engineer work with GitHub and Azure DevOps."
+    },
+    {
+      "kind": "platform",
+      "id": "C029",
+      "from": "2026-12-20",
+      "to": "2026-12-16",
+      "decidedAt": "2026-10-31",
+      "reason": "AZ-400 labs taken out of this phase (Oct 31): the route is now the platform only, focused on daily Platform Engineer work with GitHub and Azure DevOps."
+    },
+    {
+      "kind": "platform",
+      "id": "C030",
+      "from": "2026-12-22",
+      "to": "2026-12-18",
+      "decidedAt": "2026-10-31",
+      "reason": "AZ-400 labs taken out of this phase (Oct 31): the route is now the platform only, focused on daily Platform Engineer work with GitHub and Azure DevOps."
     }
   ]
 }

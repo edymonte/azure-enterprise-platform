@@ -1,0 +1,411 @@
+{
+  "title": "Command reference",
+  "intro": "The commands you use every day as a platform engineer, each with what it does and an example you can copy. Examples use the lab's names (orders-app, lab-gitflow, rg-mfs-*) where it helps. Shell note: in Git Bash use forward slashes (/c/Projects/...); in PowerShell backslashes are fine.",
+  "sections": [
+    {
+      "id": "az",
+      "title": "Azure CLI (az)",
+      "note": "On Windows az is a .cmd file: in PowerShell, expressions with parentheses or pipes in --query can break. Prefer counting and filtering in PowerShell (ConvertFrom-Json) or escape the quotes.",
+      "commands": [
+        {
+          "cmd": "az account show / list",
+          "what": "Who you are and which subscription is active. Two subscriptions can share a name: target them by ID. -o table hides fields named id, so alias them (subId:id).",
+          "example": "az account list --query \"[].{nome:name, subId:id, tenant:tenantId, padrao:isDefault}\" -o table"
+        },
+        {
+          "cmd": "az account set",
+          "what": "Changes the default subscription. Check it after any az login: logging in to another tenant can change it.",
+          "example": "az account set --subscription <subscription-id>"
+        },
+        {
+          "cmd": "--subscription (on any command)",
+          "what": "Runs one command against another subscription without changing the default — the safe way to look around.",
+          "example": "az group list --subscription <sub-id> -o table"
+        },
+        {
+          "cmd": "az group list",
+          "what": "Lists resource groups; managedBy shows groups owned by an Azure service (do not touch them).",
+          "example": "az group list --query \"[].{rg:name, regiao:location, gerenciadoPor:managedBy}\" -o table"
+        },
+        {
+          "cmd": "az resource list",
+          "what": "Lists resources, optionally in one group. Count them in PowerShell to avoid quoting problems with length().",
+          "example": "(az resource list -g rg-mfs-hub-lab -o json | ConvertFrom-Json).Count"
+        },
+        {
+          "cmd": "az role assignment list",
+          "what": "Who has which role at which scope. --all lists every assignment in the subscription; --assignee filters by user or app.",
+          "example": "az role assignment list --assignee <your-upn> --all --query \"[].{role:roleDefinitionName, scope:scope}\" -o table"
+        },
+        {
+          "cmd": "az login --tenant",
+          "what": "Signs in to a specific tenant (directory). A token from one tenant does not reach subscriptions in another (MSAL cache error).",
+          "example": "az login --tenant <tenant-id>; az account set --subscription <sub-id>"
+        }
+      ]
+    },
+    {
+      "id": "git",
+      "title": "Git",
+      "note": "Local version control. Everything here works in Azure Repos and GitHub alike.",
+      "commands": [
+        {
+          "cmd": "git status",
+          "what": "Shows the current branch, staged and unstaged changes and untracked files. Run it before and after every change.",
+          "example": "git status -sb"
+        },
+        {
+          "cmd": "git switch",
+          "what": "Changes branch; -c creates a new one from a start point. Replaces the older git checkout for branches.",
+          "example": "git switch -c feature/min-order develop"
+        },
+        {
+          "cmd": "git add",
+          "what": "Stages changes for the next commit. -p lets you pick hunks interactively.",
+          "example": "git add app/src/orders.js app/test/orders.test.js"
+        },
+        {
+          "cmd": "git commit",
+          "what": "Records the staged changes with a message. Keep one logical change per commit.",
+          "example": "git commit -m \"feat(orders): reject orders below the minimum value\""
+        },
+        {
+          "cmd": "git push",
+          "what": "Sends commits to a remote. -u sets the upstream so later pushes need no arguments.",
+          "example": "git push -u origin feature/min-order"
+        },
+        {
+          "cmd": "git pull",
+          "what": "Fetches and integrates the remote branch into yours. --rebase keeps history linear.",
+          "example": "git pull --rebase origin develop"
+        },
+        {
+          "cmd": "git fetch",
+          "what": "Downloads remote branches and tags without changing your working tree. --prune removes deleted remote branches.",
+          "example": "git fetch --all --prune"
+        },
+        {
+          "cmd": "git log",
+          "what": "Shows history. --oneline --graph is the quickest way to see how branches relate.",
+          "example": "git log --oneline --graph --decorate -15"
+        },
+        {
+          "cmd": "git diff",
+          "what": "Shows changes: working tree vs index, --staged for what will be committed, or between two refs.",
+          "example": "git diff develop...feature/min-order"
+        },
+        {
+          "cmd": "git merge",
+          "what": "Joins another branch into the current one. --no-ff always creates a merge commit (useful for release/hotfix back-merges).",
+          "example": "git switch develop && git merge --no-ff release/1.0.0"
+        },
+        {
+          "cmd": "git rebase",
+          "what": "Replays your commits on top of another branch. Never rebase commits others already pulled.",
+          "example": "git rebase develop"
+        },
+        {
+          "cmd": "git tag",
+          "what": "Marks a commit, usually a release. Annotated tags (-a) carry author, date and message; push them explicitly.",
+          "example": "git tag -a v1.0.0 -m \"Release 1.0.0\" && git push origin v1.0.0"
+        },
+        {
+          "cmd": "git stash",
+          "what": "Shelves uncommitted work so you can switch branch; pop brings it back.",
+          "example": "git stash push -m \"wip\" && git switch main && git stash pop"
+        },
+        {
+          "cmd": "git restore",
+          "what": "Discards changes in the working tree, or unstages with --staged.",
+          "example": "git restore --staged app/src/orders.js"
+        },
+        {
+          "cmd": "git revert",
+          "what": "Creates a new commit that undoes an earlier one — the safe way to undo on shared branches (GitOps rollback).",
+          "example": "git revert --no-edit a1b2c3d"
+        },
+        {
+          "cmd": "git reset",
+          "what": "Moves the branch pointer. --soft keeps changes staged, --hard discards them (destructive: local branches only).",
+          "example": "git reset --soft HEAD~1"
+        },
+        {
+          "cmd": "git cherry-pick",
+          "what": "Applies one commit from another branch onto the current one, e.g. a fix into a release branch.",
+          "example": "git cherry-pick a1b2c3d"
+        },
+        {
+          "cmd": "git remote",
+          "what": "Lists and manages remotes. A repository can push to several (origin on GitHub, ado on Azure Repos).",
+          "example": "git remote add ado https://dev.azure.com/az400edilsonmontry/lab-gitflow/_git/orders-app && git remote -v"
+        },
+        {
+          "cmd": "git branch",
+          "what": "Lists, creates or deletes branches. -a includes remote branches; -d deletes a merged branch.",
+          "example": "git branch -a && git branch -d feature/min-order"
+        },
+        {
+          "cmd": "git blame",
+          "what": "Shows who last changed each line and in which commit — useful when investigating a regression.",
+          "example": "git blame -L 1,20 app/src/orders.js"
+        }
+      ]
+    },
+    {
+      "id": "gh",
+      "title": "GitHub CLI (gh)",
+      "note": "GitHub from the terminal: repositories, pull requests, Actions runs, variables, environments and the REST API.",
+      "commands": [
+        {
+          "cmd": "gh auth status",
+          "what": "Shows which account is signed in and the token scopes. First thing to check when a gh command fails.",
+          "example": "gh auth status"
+        },
+        {
+          "cmd": "gh repo create",
+          "what": "Creates a repository; --source with --push publishes an existing local repository.",
+          "example": "gh repo create edymonte/lab-gitflow --private --source /c/Projects/lab-gitflow --push"
+        },
+        {
+          "cmd": "gh repo clone",
+          "what": "Clones a repository with the gh credentials.",
+          "example": "gh repo clone edymonte/azure-enterprise-platform"
+        },
+        {
+          "cmd": "gh pr create",
+          "what": "Opens a pull request from the current branch. --base sets the target; --fill uses the commit messages.",
+          "example": "gh pr create --base develop --title \"Minimum order value\" --body \"Adds minOrder with tests.\""
+        },
+        {
+          "cmd": "gh pr checks",
+          "what": "Shows the status checks of a PR; --watch waits until they finish.",
+          "example": "gh pr checks 20 --watch"
+        },
+        {
+          "cmd": "gh pr merge",
+          "what": "Merges a PR with the chosen method and can delete the branch.",
+          "example": "gh pr merge 20 --squash --delete-branch"
+        },
+        {
+          "cmd": "gh pr view / list",
+          "what": "Shows one PR (with --web in the browser) or lists PRs by state.",
+          "example": "gh pr list --state open"
+        },
+        {
+          "cmd": "gh run list",
+          "what": "Lists workflow runs, filtered by workflow, branch or status.",
+          "example": "gh run list --workflow infra.yml --status failure -L 5"
+        },
+        {
+          "cmd": "gh run view",
+          "what": "Shows a run's jobs; --log-failed prints only the failing steps' logs.",
+          "example": "gh run view 39316142374 --log-failed"
+        },
+        {
+          "cmd": "gh run watch / rerun",
+          "what": "Follows a running workflow live, or re-runs a finished one (--failed for failed jobs only).",
+          "example": "gh run rerun 39316142374 --failed"
+        },
+        {
+          "cmd": "gh workflow run",
+          "what": "Starts a workflow_dispatch workflow with inputs.",
+          "example": "gh workflow run infra.yml -f layer=10-foundation -f action=plan"
+        },
+        {
+          "cmd": "gh variable / secret",
+          "what": "Manages repository (or environment) variables and secrets. Secrets are write-only.",
+          "example": "gh variable list && gh variable set TF_STATE_RG --body rg-mfs-tfstate"
+        },
+        {
+          "cmd": "gh api",
+          "what": "Calls any GitHub REST endpoint with your auth — for settings the CLI has no command for.",
+          "example": "gh api repos/edymonte/azure-enterprise-platform/environments --jq \".environments[].name\""
+        }
+      ]
+    },
+    {
+      "id": "docker",
+      "title": "Docker",
+      "note": "In this lab Docker runs inside WSL Ubuntu; Windows docker works only while WSL is up (DOCKER_HOST=tcp://127.0.0.1:2375).",
+      "commands": [
+        {
+          "cmd": "docker build",
+          "what": "Builds an image from a Dockerfile. -t names and tags it; the last argument is the build context.",
+          "example": "docker build -t orders:1.0.0 ."
+        },
+        {
+          "cmd": "docker images",
+          "what": "Lists local images with tag, ID and size.",
+          "example": "docker images orders"
+        },
+        {
+          "cmd": "docker run",
+          "what": "Creates and starts a container. -d detached, -p host:container ports, --name, -e environment variables, --rm removes it on exit.",
+          "example": "docker run -d --name orders -p 3000:3000 -e PORT=3000 orders:1.0.0"
+        },
+        {
+          "cmd": "docker ps",
+          "what": "Lists running containers; -a includes stopped ones.",
+          "example": "docker ps -a --format \"table {{.Names}}\\t{{.Status}}\\t{{.Ports}}\""
+        },
+        {
+          "cmd": "docker logs",
+          "what": "Shows a container's stdout/stderr; -f follows, --tail limits.",
+          "example": "docker logs -f --tail 50 orders"
+        },
+        {
+          "cmd": "docker exec",
+          "what": "Runs a command inside a running container — e.g. a shell to look around.",
+          "example": "docker exec -it orders sh"
+        },
+        {
+          "cmd": "docker stop / rm",
+          "what": "Stops a container (SIGTERM, then SIGKILL) and removes it.",
+          "example": "docker stop orders && docker rm orders"
+        },
+        {
+          "cmd": "docker inspect",
+          "what": "Low-level JSON about a container or image: IP, mounts, env, health. Use --format to pick a field.",
+          "example": "docker inspect -f \"{{.State.Status}} {{.State.ExitCode}}\" orders"
+        },
+        {
+          "cmd": "docker tag",
+          "what": "Gives an image another name, e.g. the registry path before a push.",
+          "example": "docker tag orders:1.0.0 acrmfslab.azurecr.io/orders:1.0.0"
+        },
+        {
+          "cmd": "docker login / push / pull",
+          "what": "Authenticates to a registry and sends or fetches images. For ACR prefer az acr login (Entra ID token, no password).",
+          "example": "az acr login -n acrmfslab && docker push acrmfslab.azurecr.io/orders:1.0.0"
+        },
+        {
+          "cmd": "docker compose",
+          "what": "Runs a multi-container app from compose.yaml: up -d starts, down stops and removes.",
+          "example": "docker compose up -d && docker compose logs -f && docker compose down"
+        },
+        {
+          "cmd": "docker volume",
+          "what": "Manages named volumes — data that survives the container.",
+          "example": "docker volume ls && docker volume inspect orders-data"
+        },
+        {
+          "cmd": "docker network",
+          "what": "Manages networks; containers on the same user network reach each other by name.",
+          "example": "docker network create lab && docker run -d --network lab --name db postgres:16"
+        },
+        {
+          "cmd": "docker stats",
+          "what": "Live CPU, memory and I/O per container — first look at a resource problem.",
+          "example": "docker stats --no-stream"
+        },
+        {
+          "cmd": "docker system prune",
+          "what": "Removes stopped containers, unused networks, dangling images and build cache. -a also removes unused images.",
+          "example": "docker system df && docker system prune -f"
+        },
+        {
+          "cmd": "docker history",
+          "what": "Shows the layers of an image and their sizes — useful to shrink images.",
+          "example": "docker history orders:1.0.0"
+        }
+      ]
+    },
+    {
+      "id": "kubectl",
+      "title": "kubectl",
+      "note": "In this lab kubectl and minikube run inside WSL; for AKS get credentials first (az aks get-credentials) and kubelogin handles the Entra ID sign-in.",
+      "commands": [
+        {
+          "cmd": "kubectl config",
+          "what": "Shows and switches contexts (cluster + user + namespace). Check it before any change.",
+          "example": "kubectl config get-contexts && kubectl config use-context aks-mfs-portal-lab"
+        },
+        {
+          "cmd": "kubectl get",
+          "what": "Lists resources. -o wide adds node and IP; -A all namespaces; -w watches changes.",
+          "example": "kubectl get pods -n portal-dev -o wide"
+        },
+        {
+          "cmd": "kubectl describe",
+          "what": "Detailed state plus recent Events — the first stop for Pending, CrashLoopBackOff or ImagePullBackOff.",
+          "example": "kubectl describe pod customer-portal-api-7d9c -n portal-dev"
+        },
+        {
+          "cmd": "kubectl logs",
+          "what": "Container logs; -f follows, --previous shows the crashed container's last logs, -c picks a container.",
+          "example": "kubectl logs deploy/customer-portal-api -n portal-dev --previous"
+        },
+        {
+          "cmd": "kubectl apply",
+          "what": "Creates or updates resources from YAML (declarative). With GitOps, Argo CD does this — use it only in labs.",
+          "example": "kubectl apply -f deployment.yaml"
+        },
+        {
+          "cmd": "kubectl delete",
+          "what": "Deletes resources by name, label or file.",
+          "example": "kubectl delete pod -l app=orders -n lab"
+        },
+        {
+          "cmd": "kubectl exec",
+          "what": "Runs a command in a container, e.g. to test DNS or connectivity from inside the cluster.",
+          "example": "kubectl exec -it deploy/customer-portal-api -n portal-dev -- sh"
+        },
+        {
+          "cmd": "kubectl port-forward",
+          "what": "Tunnels a local port to a pod or service — reach an app without exposing it.",
+          "example": "kubectl port-forward svc/customer-portal-api 8080:80 -n portal-dev"
+        },
+        {
+          "cmd": "kubectl rollout",
+          "what": "Status, history, restart and undo of a Deployment rollout. With GitOps, roll back by reverting the commit instead of undo.",
+          "example": "kubectl rollout status deploy/customer-portal-api -n portal-dev"
+        },
+        {
+          "cmd": "kubectl scale",
+          "what": "Changes the replica count (drift from Git in a GitOps setup — Argo CD will revert it).",
+          "example": "kubectl scale deploy/orders --replicas=3 -n lab"
+        },
+        {
+          "cmd": "kubectl top",
+          "what": "CPU and memory per pod or node (needs metrics-server) — to compare usage with requests and limits.",
+          "example": "kubectl top pods -n portal-dev --sort-by=memory"
+        },
+        {
+          "cmd": "kubectl get events",
+          "what": "Cluster events in time order: scheduling failures, OOMKilled, failed pulls.",
+          "example": "kubectl get events -n portal-dev --sort-by=.lastTimestamp"
+        },
+        {
+          "cmd": "kubectl explain",
+          "what": "Built-in documentation of any resource field — no browser needed.",
+          "example": "kubectl explain deployment.spec.template.spec.containers.resources"
+        },
+        {
+          "cmd": "kubectl create --dry-run",
+          "what": "Generates YAML for a resource without creating it — a quick start for manifests.",
+          "example": "kubectl create deployment orders --image=orders:1.0.0 --dry-run=client -o yaml > deployment.yaml"
+        },
+        {
+          "cmd": "kubectl get -o jsonpath",
+          "what": "Extracts exact fields from the API output for scripts and quick checks.",
+          "example": "kubectl get pods -n portal-dev -o jsonpath=\"{.items[*].status.containerStatuses[*].restartCount}\""
+        },
+        {
+          "cmd": "kubectl auth can-i",
+          "what": "Checks whether you (or a service account with --as) may perform an action — RBAC troubleshooting.",
+          "example": "kubectl auth can-i delete pods -n portal-prod"
+        },
+        {
+          "cmd": "kubectl cordon / drain",
+          "what": "Marks a node unschedulable and evicts its pods (respecting PodDisruptionBudgets) for maintenance.",
+          "example": "kubectl drain aks-user-12345-vmss000000 --ignore-daemonsets --delete-emptydir-data"
+        },
+        {
+          "cmd": "kubectl get ns / create ns",
+          "what": "Lists or creates namespaces; -n on every command picks the namespace.",
+          "example": "kubectl create namespace lab && kubectl get ns"
+        }
+      ]
+    }
+  ]
+}

@@ -114,19 +114,18 @@ export function loadCatalog(portalRoot) {
   for (const s of sessions) if (!cycleIds.has(s.cycle)) throw new Error(`catalog: ${s.id} refers to unknown cycle ${s.cycle}`);
 
   const byId = new Map(sessions.map((s) => [s.id, s]));
-  return { track, sessions, byId, studyPlan: loadStudyPlan(catalogDir), tftec: loadTftec(catalogDir), sprint: loadSprint(catalogDir, portalRoot, byId) };
+  return { track, sessions, byId, studyPlan: loadStudyPlan(catalogDir), tftec: loadTftec(catalogDir), sprint: loadGuided(catalogDir, 'sprint.json', /^R\d$/, portalRoot, byId), gitflow: loadGuided(catalogDir, 'gitflow.json', /^G\d\d$/, portalRoot, byId), commands: loadCommands(catalogDir) };
 }
 
-// Recovery sprint: dated blocks with recall, exercise, criteria and English.
-// Criteria are verified by the block checker, by the portal (recorded facts)
-// or by an explicit review — never assumed.
-export const SPRINT_BLOCK_ID = /^R\d$/;
+// Guided tracks (recovery sprint, Git Flow lab): dated blocks with recall,
+// exercise, criteria and English. Criteria are verified by the block checker,
+// by the portal (recorded facts) or by an explicit review — never assumed.
 const SPRINT_VERIFY = new Set(['checker', 'portal', 'review']);
 const SPRINT_RULES = new Set(['recall', 'attempts', 'english', 'feedback']);
 const SPRINT_OWNERS = new Set(['learner', 'environment']);
 const SPRINT_LEVELS = new Set(['guided', 'partial', 'solo', 'breakfix']);
-function loadSprint(catalogDir, portalRoot, sessionsById) {
-  const file = path.join(catalogDir, 'sprint.json');
+function loadGuided(catalogDir, name, idPattern, portalRoot, sessionsById) {
+  const file = path.join(catalogDir, name);
   if (!fs.existsSync(file)) return null;
   const sprint = JSON.parse(fs.readFileSync(file, 'utf8'));
   for (const key of ['id', 'title', 'intro']) requireString(sprint, key, file);
@@ -134,7 +133,7 @@ function loadSprint(catalogDir, portalRoot, sessionsById) {
   const byId = new Map();
   sprint.blocks.forEach((b, i) => {
     const where = `block ${b.id ?? i + 1}`;
-    if (!SPRINT_BLOCK_ID.test(b.id ?? '')) fail(file, `${where}: id must match ${SPRINT_BLOCK_ID}`);
+    if (!idPattern.test(b.id ?? '')) fail(file, `${where}: id must match ${idPattern}`);
     if (byId.has(b.id)) fail(file, `duplicate block id "${b.id}"`);
     if (b.number !== i + 1) fail(file, `${where}: numbers must be contiguous from 1`);
     for (const key of ['title', 'objective', 'english']) if (!b[key]) fail(file, `${where}: "${key}" is required`);
@@ -226,4 +225,23 @@ function loadTftec(catalogDir) {
     }
   }
   return { ...course, itemIds };
+}
+
+// Command reference tab: sections of commands, each with an explanation and an example.
+function loadCommands(catalogDir) {
+  const file = path.join(catalogDir, 'commands.json');
+  if (!fs.existsSync(file)) return null;
+  const ref = JSON.parse(fs.readFileSync(file, 'utf8'));
+  requireString(ref, 'title', file);
+  requireArray(ref, 'sections', file);
+  const ids = new Set();
+  for (const sec of ref.sections) {
+    requireString(sec, 'id', file);
+    requireString(sec, 'title', file);
+    if (ids.has(sec.id)) fail(file, `duplicate section id "${sec.id}"`);
+    ids.add(sec.id);
+    requireArray(sec, 'commands', file);
+    for (const c of sec.commands) for (const key of ['cmd', 'what', 'example']) requireString(c, key, file);
+  }
+  return ref;
 }
