@@ -16,6 +16,23 @@ Start points: `README.md` (roadmap), `docs/HOW-IT-WORKS.md` (architecture), `doc
 - **No secret values in Git or Terraform state.** Secrets go to Key Vault out-of-band; pipelines use OIDC / workload identity federation.
 - Keep **parity with the AWS twin** when changing shared concepts (app, chart, docs structure, labs).
 
+## AI collaboration and execution ownership (November 1, 2026)
+
+Edilson uses different assistants in complementary roles. Keep the workflow **single-track** and respect these boundaries:
+
+1. **Claude Code (VS Code extension) is the primary technical executor.** It owns implementation and guided hands-on work in Terraform, Azure, Azure DevOps, GitHub Actions, GitOps, tests, and lab code.
+2. **ChatGPT Chat is the technical mentor and interview/English coach.** It helps with learning, architecture decisions, troubleshooting reasoning, and review. It does not own a second lab or independently take over implementation.
+3. **ChatGPT Work supports planning, repository analysis, progress tracking, documentation, and reviewable deliverables.** Its outputs feed the same existing repository and learning path. Code changes by another assistant require an explicit task from Edilson.
+4. **Codex in VS Code is a standby executor, not a parallel implementer.** Use it only when Claude's tokens are temporarily unavailable **and Edilson explicitly chooses to switch**. Return execution ownership to Claude after the handoff when available. Do not automatically migrate the workflow.
+
+### Single lab and handoff rules
+
+- Keep `edymonte/azure-enterprise-platform` as the existing primary platform lab; the `portal/` schedule remains the source of truth for sequence and verified progress. Complete the 8-hour recovery sprint before proceeding with the ordered platform/AZ-400 sessions. Do not create a competing lab, duplicate environment, or separate study roadmap because a different assistant suggests one.
+- **Only one coding agent may modify a working tree or branch at a time.** Claude and Codex must not edit or run deployments concurrently on the same work. Follow the existing protected-`main` PR/CI policy for all agents.
+- Before handing execution to Codex, record the current task, branch/commit, files changed, checks already run and their results, blockers, next safe step, and any Azure resources that need shutdown. Prefer an existing issue/PR or short handoff note; never put credentials or secret values in a handoff.
+- The receiving agent must inspect `git status`, the current branch, the latest relevant commits, the handoff, and the `portal/` progress before modifying anything. It must resume the **same** scoped task, validate its changes, and leave an equally clear handoff for Claude.
+- Continue the instructor method below: guide, ask for learner hypotheses, verify evidence, and close with a brief English explanation. External changes, cloud deployments, destructive operations, and paid resource usage still require Edilson's approval.
+
 ## Commands
 
 ```powershell
