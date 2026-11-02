@@ -21,10 +21,12 @@ export function loadSchedule(portalRoot, catalog) {
   const cfg = JSON.parse(fs.readFileSync(file, 'utf8'));
   for (const key of ['start', 'lastDay']) if (!DATE.test(cfg[key] ?? '')) throw new Error(`schedule.json: "${key}" must be YYYY-MM-DD`);
   const items = [];
-  for (const [date, ids] of Object.entries(cfg.sprint ?? {})) {
-    for (const id of ids) {
-      if (!catalog.sprint?.byId.has(id)) throw new Error(`schedule.json: unknown sprint block ${id}`);
-      items.push({ kind: 'sprint', id, date });
+  for (const kind of ['sprint', 'gitflow']) {
+    for (const [date, ids] of Object.entries(cfg[kind] ?? {})) {
+      for (const id of ids) {
+        if (!catalog[kind]?.byId.has(id)) throw new Error(`schedule.json: unknown ${kind} block ${id}`);
+        items.push({ kind, id, date });
+      }
     }
   }
   const az = cfg.az400 ?? {};
@@ -53,9 +55,9 @@ export function loadSchedule(portalRoot, catalog) {
   for (const it of items) {
     if (it.replans && it.replans.at(-1).to !== it.date) throw new Error(`schedule.json: the last replan of ${it.kind} ${it.id} must end on ${it.date}`);
   }
-  // Stable order: date, then sprint → AZ-400 → platform on the same day, then id.
+  // Stable order: date, then sprint → AZ-400 → platform → Git Flow on the same day, then id.
   const rank = (i) => (i.id === 'prep' ? '' : i.id);
-  const kinds = ['sprint', 'az400', 'platform'];
+  const kinds = ['sprint', 'az400', 'platform', 'gitflow'];
   items.sort((a, b) => a.date.localeCompare(b.date) || (a.kind === b.kind ? rank(a).localeCompare(rank(b)) : kinds.indexOf(a.kind) - kinds.indexOf(b.kind)));
   return {
     title: cfg.title,

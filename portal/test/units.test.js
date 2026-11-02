@@ -112,3 +112,11 @@ test('redact removes secret-looking values', () => {
   assert.ok(!out.includes('SECRET'));
   assert.ok(!out.includes('ghp_x'));
 });
+
+test('commands tab: every command has an explanation and an example', async () => {
+  const { loadCatalog } = await import('../server/catalog.js');
+  const { PORTAL_ROOT } = await import('../server/config.js');
+  const ref = loadCatalog(PORTAL_ROOT).commands;
+  assert.deepEqual(ref.sections.map((s) => s.id), ['az', 'git', 'gh', 'docker', 'kubectl']);
+  for (const s of ref.sections) for (const c of s.commands) assert.ok(c.what.length > 20 && c.example.length > 5, `${s.id}: ${c.cmd}`);
+});

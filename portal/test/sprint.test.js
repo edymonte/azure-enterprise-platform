@@ -123,14 +123,19 @@ test('sprint: reviews need evidence and a named reviewer; a failed review counts
   assert.throws(() => sprint.logTime('R3', 0), /minutes/);
 });
 
-test('sprint: sealed checker evidence stays hidden until every step has an attempt', () => {
+test('sprint: break/fix steps are optional for completion', () => {
   const { sprint } = tracker();
-  sprint.start('R6');
-  sprint.recordObservation('R6', passingObservation('R6'));
-  assert.ok(sprint.view('R6').criteria.filter((c) => c.verify === 'checker').every((c) => /Sealed/.test(c.evidence)));
-  sprint.submitRecall('R6', allAnswers('R6'));
-  for (const s of block('R6').steps) sprint.saveAttempt('R6', s.id, 'my diagnosis');
-  assert.equal(sprint.view('R6').criteria.find((c) => c.id === 'failure-evidence').evidence, 'seen');
+  sprint.start('R3');
+  sprint.submitRecall('R3', allAnswers('R3'));
+  for (const s of block('R3').steps.filter((x) => x.level !== 'breakfix')) sprint.saveAttempt('R3', s.id, 'my attempt');
+  assert.equal(sprint.criteria('R3').find((c) => c.id === 'attempts-recorded').status, 'pass');
+});
+
+test('sprint: R6 is a recap with no incident and no cloud call', () => {
+  const r6 = block('R6');
+  assert.deepEqual(r6.prerequisites.platform, ['offline']);
+  assert.ok(!r6.checker && !r6.steps.some((s) => s.level === 'breakfix'));
+  assert.ok(catalog.byId.get('C003').steps[0].title.startsWith('Opening incident'), 'the incident opens C003');
 });
 
 test('schedule: replanning history must end on the current date', () => {
@@ -206,21 +211,6 @@ test('R3 checker: protected state passes; a leased blob is a stale lock; no sign
   const signedOut = parse(runNode(checker('sprint-r3-state.js'), { PORTAL_REPO_ROOT: root, PORTAL_FAKE_AZ: fakeAz({ 'account show': { code: 1, stderr: 'Please run az login' } }) }));
   assert.equal(signedOut.outcome, 'blocked');
   assert.equal(signedOut.blockedReason, 'auth_error');
-});
-
-test('R6 checker: finds the Entra error and compares subjects (read-only)', () => {
-  const { root, git } = gitRepo({ 'README.md': 'x\n' });
-  git('remote', 'add', 'origin', 'https://github.com/acme/platform.git');
-  const gh = fakeGh({
-    'run list -R acme/platform --workflow infra.yml --status failure -L 10 --json databaseId,headBranch,createdAt': { stdout: [{ databaseId: 7, headBranch: 'fix/x', createdAt: '2026-10-19T20:00:00Z' }] },
-    'run view 7 -R acme/platform --log-failed': { stdout: 'plan\tError: AADSTS700213: No matching federated identity record found' },
-    'api repos/acme/platform/actions/oidc/customization/sub': { stdout: { use_default: true, use_immutable_subject: true, sub_claim_prefix: 'repo:acme@1/platform@2' } },
-    'variable get AZURE_CLIENT_ID -R acme/platform': { stdout: 'app-1\n' },
-  });
-  const az = fakeAz({ 'ad app federated-credential list --id app-1 --query [].subject': { stdout: ['repo:acme/platform:pull_request'] } });
-  const out = parse(runNode(checker('sprint-r6-incident.js'), { PORTAL_REPO_ROOT: root, PORTAL_FAKE_GH: gh, PORTAL_FAKE_AZ: az }));
-  assert.equal(out.outcome, 'pass', JSON.stringify(out));
-  assert.match(out.criteria.find((c) => c.id === 'subject-comparison').evidence, /with the presented prefix: 0/);
 });
 
 test('sprint checkers never write: no az/gh mutation verbs in their source', () => {

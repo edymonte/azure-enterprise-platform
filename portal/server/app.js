@@ -49,8 +49,12 @@ export function createApp(config) {
   const notebook = new Notebook({ dataDir: config.dataDir });
   const probe = new EnvironmentProbe({ repoRoot: config.repoRoot, track: catalog.track });
   const runner = new Runner({ config, catalog, probe });
-  const sprint = new SprintTracker({ store: progress, sprint: catalog.sprint });
-  const sprintRunner = new Runner({ config, catalog: sprint.runnerCatalog(), probe });
+  // Guided tracks share one runner: block ids are distinct (R*, G*).
+  const sprint = new SprintTracker({ store: progress, sprint: catalog.sprint, key: 'sprint' });
+  const gitflow = new SprintTracker({ store: progress, sprint: catalog.gitflow, key: 'gitflow' });
+  const guided = [sprint, gitflow].filter((t) => t.enabled);
+  const trackerOf = (id) => guided.find((t) => t.sprint.byId.has(id)) ?? null;
+  const sprintRunner = new Runner({ config, catalog: { byId: new Map(guided.flatMap((t) => [...t.runnerCatalog().byId])) }, probe });
   const watcher = new RepoWatcher({ repoRoot: config.repoRoot, catalog, debounceMs: config.watchDebounceMs });
   const terminal = config.terminal ? new Terminal({ repoRoot: config.repoRoot, shell: config.terminalShell }) : null;
   const token = crypto.randomBytes(24).toString('hex');
@@ -168,16 +172,9 @@ export function createApp(config) {
       timeline: progress.timeline(30),
       links: progress.links(),
       schedule: { title: schedule.title, subtitle: schedule.subtitle, start: schedule.start, lastDay: schedule.lastDay, dailyHours: schedule.dailyHours, sprintDays: schedule.sprintDays ?? [], items: schedule.items },
-      sprint: sprint.enabled
-        ? {
-          title: catalog.sprint.title,
-          subtitle: catalog.sprint.subtitle,
-          intro: catalog.sprint.intro,
-          rules: catalog.sprint.rules ?? [],
-          summary: sprint.summary(),
-          blocks: catalog.sprint.blocks.map((b) => sprint.view(b.id, { running: sprintRunner.isRunning(b.id) })),
-        }
-        : null,
+      commands: catalog.commands,
+      sprint: guidedState(sprint),
+      gitflow: guidedState(gitflow),
       az400: {
         available: az400.available,
         error: az400.error,
@@ -190,6 +187,19 @@ export function createApp(config) {
       interview: Object.fromEntries(catalog.sessions.map((s) => [s.id, progress.data.interview?.[s.id] ?? { passes: 0 }])),
       sessions,
       next: nextStep(sessions),
+    };
+  }
+
+  function guidedState(t) {
+    if (!t.enabled) return null;
+    return {
+      id: t.sprint.id,
+      title: t.sprint.title,
+      subtitle: t.sprint.subtitle,
+      intro: t.sprint.intro,
+      rules: t.sprint.rules ?? [],
+      summary: t.summary(),
+      blocks: t.sprint.blocks.map((b) => t.view(b.id, { running: sprintRunner.isRunning(b.id) })),
     };
   }
 
@@ -228,11 +238,12 @@ export function createApp(config) {
   });
   sprintRunner.on('started', () => pushState());
   sprintRunner.on('finished', ({ id, observation }) => {
-    sprint.recordObservation(id, observation);
+    trackerOf(id)?.recordObservation(id, observation);
     pushState();
   });
 
   async function handleSprintAction(id, action, body) {
+    const sprint = trackerOf(id);
     switch (action) {
       case 'start': sprint.start(id); return { ok: true };
       case 'recall': sprint.submitRecall(id, body.answers); return { ok: true };
@@ -475,7 +486,7 @@ export function createApp(config) {
       const sp = pathname.match(/^\/api\/sprint\/([^/]+)\/([a-z]+)$/);
       if (req.method === 'POST' && sp) {
         const [, id, action] = sp;
-        if (!sprint.enabled || !catalog.sprint.byId.has(id)) return send(res, 404, { error: 'Unknown sprint block' });
+        if (!trackerOf(id)) return send(res, 404, { error: 'Unknown sprint block' });
         if (!SPRINT_ACTIONS.has(action)) return send(res, 404, { error: 'Unknown action' });
         const body = await readJson(req);
         const result = await handleSprintAction(id, action, body);
@@ -534,5 +545,5 @@ export function createApp(config) {
     await new Promise((resolve) => server.close(resolve));
   }
 
-  return { start, stop, server, token, state, progress, runner, sprint, sprintRunner, probe, catalog, terminal, az400, notebook };
+  return { start, stop, server, token, state, progress, runner, sprint, gitflow, sprintRunner, probe, catalog, terminal, az400, notebook };
 }

@@ -26,6 +26,11 @@
   "cost": "None.",
   "steps": [
     {
+      "title": "Opening incident: the plan jobs cannot log in",
+      "detail": "Every terraform plan job on pull requests fails with AADSTS700213 (no matching federated identity record). Diagnose it first with Observation → Hypothesis → Test → Evidence: read the failing log, list the trusted subjects, read the repository OIDC subject customization (gh api repos/<owner>/<repo>/actions/oidc/customization/sub), then fix the subjects in 05-identity (a tenant change: apply only with an explicit OK).",
+      "command": "gh run list --workflow infra.yml --status failure -L 5"
+    },
+    {
       "title": "List the trust",
       "detail": "List the federated credentials of app-mfs-github-actions and map each subject to the job that can present it.",
       "command": "az ad app federated-credential list --id <github_client_id> -o table"

@@ -162,17 +162,21 @@
   const labVerified = (l) => (l.id === 'prep' ? labProgress(l).d === labProgress(l).t : Boolean(az().progress.completions[l.id]));
 
   // ------------------------------------------------------------ plan model
-  const blockById = (id) => state.sprint?.blocks.find((b) => b.id === id);
+  const guidedTracks = () => [state.sprint, state.gitflow].filter(Boolean);
+  const allBlocks = () => guidedTracks().flatMap((t) => t.blocks);
+  const blockById = (id) => allBlocks().find((b) => b.id === id);
+  const trackOf = (b) => (b.kind === 'gitflow' ? state.gitflow : state.sprint);
+  const isGuided = (it) => it.kind === 'sprint' || it.kind === 'gitflow';
   function planItems() {
-    return state.schedule.items.filter((it) => (it.kind === 'sprint' ? Boolean(blockById(it.id)) : it.kind === 'az400' ? state.az400.available && labById(it.id) : state.sessions.some((s) => s.id === it.id)));
+    return state.schedule.items.filter((it) => (isGuided(it) ? Boolean(blockById(it.id)) : it.kind === 'az400' ? state.az400.available && labById(it.id) : state.sessions.some((s) => s.id === it.id)));
   }
   function itemDone(it) {
-    if (it.kind === 'sprint') return blockById(it.id).state === 'COMPLETED';
+    if (isGuided(it)) return blockById(it.id).state === 'COMPLETED';
     if (it.kind === 'az400') return labVerified(labById(it.id));
     return state.sessions.find((s) => s.id === it.id).state === 'COMPLETED';
   }
   function itemStarted(it) {
-    if (it.kind === 'sprint') return Boolean(blockById(it.id).startedAt);
+    if (isGuided(it)) return Boolean(blockById(it.id).startedAt);
     if (it.kind === 'az400') return labProgress(labById(it.id)).d > 0;
     return Boolean(state.sessions.find((s) => s.id === it.id).startedAt);
   }
@@ -187,7 +191,7 @@
   }
   const itemKey = (it) => `${it.kind}:${it.id}`;
   function itemTitle(it) {
-    if (it.kind === 'sprint') return `${it.id} · ${blockById(it.id).title}`;
+    if (isGuided(it)) return `${it.id} · ${blockById(it.id).title}`;
     if (it.kind === 'az400') return it.id === 'prep' ? 'Preparation' : `${it.id} · ${labById(it.id).title}`;
     const s = state.sessions.find((x) => x.id === it.id);
     return `${s.id} · ${s.title}`;
@@ -255,7 +259,10 @@
       $('#today-btn').onclick = () => { selectItem(itemKey(next)); location.hash = '#/schedule'; };
     } else { $('#today-lbl').textContent = 'All done'; $('#today-txt').textContent = 'Book the exam'; $('#today-btn').onclick = null; }
 
-    const order = ['process', 'source', 'pipelines', 'security', 'instrumentation', 'capstone'];
+    // AZ-400 counters only while AZ-400 labs are pending on the plan (it is out of the current phase).
+    const azActive = items.some((it) => it.kind === 'az400' && !itemDone(it));
+    $('#s-labs-stat').classList.toggle('hidden', !azActive);
+    const order = azActive ? ['process', 'source', 'pipelines', 'security', 'instrumentation', 'capstone'] : [];
     const doms = $('#domains');
     doms.replaceChildren(...order.map((k) => {
       const ls = labs.filter((l) => l.domain === k);
@@ -270,6 +277,16 @@
       fill.style.background = 'var(--d-platform)';
       return h('div', { class: 'dom' }, h('div', { class: 'row' }, h('b', {}, 'Azure platform'), h('span', {}, `${doneSessions}/${state.sessions.length}`)), h('div', { class: 'bar' }, fill));
     })());
+    const gsum = state.gitflow?.summary;
+    $('#s-gitflow-stat').classList.toggle('hidden', !gsum);
+    if (gsum) {
+      $('#s-gitflow').textContent = `${gsum.done}/${gsum.total}`;
+      $('#s-gitflow-bar').style.width = `${(gsum.done / gsum.total) * 100}%`;
+      const fill = h('div');
+      fill.style.width = `${(gsum.done / gsum.total) * 100}%`;
+      fill.style.background = 'var(--d-gitflow)';
+      doms.prepend(h('div', { class: 'dom' }, h('div', { class: 'row' }, h('b', {}, 'Git Flow lab'), h('span', {}, `${gsum.done}/${gsum.total}`)), h('div', { class: 'bar' }, fill)));
+    }
     if (sum) {
       const fill = h('div');
       fill.style.width = `${(sum.done / sum.total) * 100}%`;
@@ -320,9 +337,10 @@
       const f = fmtShort(it.date);
       const [sk, sl] = itemStatus(it);
       let dom; let sub;
-      if (it.kind === 'sprint') {
+      if (isGuided(it)) {
         const b = blockById(it.id);
-        dom = 'var(--d-sprint)'; sub = `Sprint day ${b.day} · ${b.minutes} min · ${SPRINT_STATE[b.state]}`;
+        dom = `var(--d-${it.kind})`;
+        sub = it.kind === 'gitflow' ? `Git Flow lab · ${b.minutes} min · ${SPRINT_STATE[b.state]}` : `Sprint day ${b.day} · ${b.minutes} min · ${SPRINT_STATE[b.state]}`;
       } else if (it.kind === 'az400') {
         const l = labById(it.id); const p = labProgress(l);
         dom = `var(--d-${l.domain})`; sub = `${DOMAINS[l.domain].n} · ${p.d}/${p.t}`;
@@ -339,7 +357,7 @@
     }
     const railEl = h('nav', { class: 'rail', 'aria-label': 'Schedule' },
       h('div', { class: 'rail-head' }, h('h2', {}, 'Schedule'), h('span', { class: 'mono small muted' }, `${items.filter(itemDone).length}/${items.length}`)), rail);
-    const detail = h('main', { class: 'detail' }, ...(sel.kind === 'sprint' ? sprintDetail(blockById(sel.id), sel, items) : sel.kind === 'az400' ? az400Detail(labById(sel.id), sel, items) : platformDetail(state.sessions.find((s) => s.id === sel.id), sel)));
+    const detail = h('main', { class: 'detail' }, ...(isGuided(sel) ? sprintDetail(blockById(sel.id), sel, items) : sel.kind === 'az400' ? az400Detail(labById(sel.id), sel, items) : platformDetail(state.sessions.find((s) => s.id === sel.id), sel)));
     const oldRail = view.querySelector('.rail-list');
     const railScroll = oldRail ? oldRail.scrollTop : null;
     view.replaceChildren(h('div', { class: 'main-grid' }, railEl, detail));
@@ -496,7 +514,7 @@
 
   // ------------------------------------------------------------ recovery sprint
   const SPRINT_STATE = { NOT_STARTED: 'Not started', IN_PROGRESS: 'In progress', CHECKING: 'Checking…', BLOCKED: 'Blocked', COMPLETED: 'Completed' };
-  const LEVEL = { guided: ['Guided', 'ok'], partial: ['Partial', 'info'], solo: ['Solo', 'warn'], breakfix: ['Break/fix', 'bad'] };
+  const LEVEL = { guided: ['Guided', 'ok'], partial: ['Partial', 'info'], solo: ['Solo', 'warn'], breakfix: ['Break/fix · optional', 'bad'] };
   const VERIFY = { checker: ['Automatic check', 'ok'], portal: ['Recorded in the portal', 'info'], review: ['Manual review', 'warn'] };
   const BLOCK_REASON = { environment: 'Environment', tool: 'Tool', access: 'Access', auth_error: 'Authentication', missing_prerequisite: 'Missing prerequisite', platform_stopped: 'Platform stopped' };
   const drafts = {};
@@ -511,16 +529,16 @@
 
   // On a platform session or AZ-400 lab: which sprint block practised it (evidence is shown, never transferred).
   function sprintPractice(kind, id) {
-    const blocks = (state.sprint?.blocks ?? []).filter((b) => (kind === 'az400' ? b.reuse?.az400 : b.reuse?.sessions)?.includes(id));
+    const blocks = allBlocks().filter((b) => (kind === 'az400' ? b.reuse?.az400 : b.reuse?.sessions)?.includes(id));
     if (!blocks.length) return null;
     return h('div', { class: 'replan sprint-ref' }, h('b', {}, 'Recovery sprint'), ` · practised in ${blocks.map((b) => `${b.id} (${SPRINT_STATE[b.state].toLowerCase()})`).join(', ')}. `,
       kind === 'az400' ? 'This lab still needs its own sandbox and a passing Validate.ps1 to be verified.' : 'This session still completes only through its own criteria.');
   }
   function sprintEvidenceFor(s) {
-    const blocks = (state.sprint?.blocks ?? []).filter((b) => b.reuse?.sessions?.includes(s.id));
+    const blocks = allBlocks().filter((b) => b.reuse?.sessions?.includes(s.id));
     if (!blocks.length) return null;
     const ids = new Set(s.criteria.map((c) => c.id));
-    return h('section', { class: 'card' }, h('h3', {}, 'Evidence from the recovery sprint'),
+    return h('section', { class: 'card' }, h('h3', {}, 'Evidence from the guided tracks'),
       h('p', { class: 'muted small' }, `Reused as reference: ${s.checker.status === 'implemented' ? 'this session runs its own checker.' : 'this session\'s checker is planned, so it is not completed by the sprint.'}`),
       ...blocks.map((b) => {
         const shared = b.criteria.filter((c) => ids.has(c.id));
@@ -532,6 +550,7 @@
   }
 
   function sprintDetail(b, it, items) {
+    const track = trackOf(b);
     const started = Boolean(b.startedAt);
     const done = b.state === 'COMPLETED';
     const reuseLinks = [
@@ -542,7 +561,7 @@
     const logTime = (m) => spAct(b.id, 'time', { minutes: m }).catch(() => {});
     const head = h('section', { class: `card ${done ? 'status-card COMPLETED' : ''}` },
       h('div', { class: 'lab-top' },
-        h('span', { class: 'tag' }, (() => { const d = h('i', { class: 'dot' }); d.style.background = 'var(--d-sprint)'; return d; })(), `Recovery sprint · day ${b.day} of 2 · block ${b.number}/6`),
+        h('span', { class: 'tag' }, (() => { const d = h('i', { class: 'dot' }); d.style.background = `var(--d-${b.kind})`; return d; })(), b.kind === 'gitflow' ? `Git Flow lab · mission ${b.number}/${track.blocks.length}` : `Recovery sprint · day ${b.day} of 2 · block ${b.number}/${track.blocks.length}`),
         h('span', { class: 'tag mono' }, `${b.minutes} min estimated`),
         h('span', { class: 'tag' }, b.focus),
         h('span', { class: `chip ${b.mode === 'SOLO' ? 'ok' : 'warn'}`, title: 'SOLO = no hint or solution opened before completion and no outside AI help declared.' }, b.mode === 'SOLO' ? 'SOLO' : 'AI-assisted'),
@@ -559,9 +578,9 @@
         started ? h('span', { class: 'time-btns' }, h('button', { class: 'btn copy', onclick: () => logTime(15) }, '+15 min'), h('button', { class: 'btn copy', onclick: () => logTime(30) }, '+30 min'), timeInput,
           h('button', { class: 'btn copy', onclick: () => { const v = Number(timeInput.value); if (v) logTime(v); } }, 'Log')) : null,
         h('span', { class: 'muted small' }, 'Logged time shows effort; only evidence completes the block.')),
-      keptDetails('sprint-rules', false, 'box', 'How the sprint works', h('p', {}, state.sprint.intro), h('ul', {}, state.sprint.rules.map((r) => h('li', {}, r)))),
+      keptDetails(`${b.kind}-rules`, false, 'box', `How the ${track.title} works`, h('p', {}, track.intro), h('ul', {}, track.rules.map((r) => h('li', {}, r)))),
       h('div', { class: 'links' },
-        started ? null : h('button', { class: 'btn btn-primary', onclick: () => spAct(b.id, 'start', {}, 'Block started. Answer the recall questions first — no notes.') }, 'Start the block'),
+        started ? null : h('button', { class: 'btn btn-primary', onclick: () => spAct(b.id, 'start', {}, 'Started. Answer the recall questions first — no notes.') }, b.kind === 'gitflow' ? 'Start the mission' : 'Start the block'),
         started && !done ? h('span', { class: 'muted small' }, `Started ${abs(b.startedAt)}`) : null));
     const cards = [head];
     if (!started) {
@@ -625,8 +644,7 @@
       h('div', { class: 'prog-head' }, h('h3', {}, '3 · Evidence and completion criteria'),
         b.hasChecker ? h('button', { class: 'btn btn-primary', disabled: b.state === 'CHECKING', onclick: () => spAct(b.id, 'check', {}, 'Automatic checks started (read-only).').catch(() => {}) }, b.state === 'CHECKING' ? 'Checking…' : '↻ Run automatic checks') : null),
       h('p', { class: 'muted small' }, `All ${b.criteria.length} must pass. Automatic checks only read Azure, GitHub and local files. Environment issues are shown apart from your technical errors.`),
-      b.lastObservation ? h('p', { class: 'small' }, `Last check ${rel(b.lastObservation.at)}: ${b.lastObservation.outcome}${b.lastObservation.blockedReason ? ` (${BLOCK_REASON[b.lastObservation.blockedReason] ?? b.lastObservation.blockedReason})` : ''} — ${b.lastObservation.summary}`) : null,
-      b.sealed ? h('p', { class: 'note' }, 'Automatic evidence for this block is sealed until you record an attempt for every step, so the checker does not give the diagnosis away.') : null);
+      b.lastObservation ? h('p', { class: 'small' }, `Last check ${rel(b.lastObservation.at)}: ${b.lastObservation.outcome}${b.lastObservation.blockedReason ? ` (${BLOCK_REASON[b.lastObservation.blockedReason] ?? b.lastObservation.blockedReason})` : ''} — ${b.lastObservation.summary}`) : null);
     const list = h('ul', { class: 'crit-list sprint-crit' });
     for (const c of b.criteria) {
       const [vt, vk] = VERIFY[c.verify];
@@ -1489,10 +1507,10 @@
     const items = planItems();
     const sum = state.sprint?.summary;
     const open = (it) => h('button', { class: 'btn copy', onclick: () => { selectItem(itemKey(it)); location.hash = '#/schedule'; } }, 'Open');
-    const row = (it) => h('li', {}, h('b', {}, fmtLong(it.date)), ` · ${it.kind === 'sprint' ? 'Sprint' : it.kind === 'az400' ? 'AZ-400 lab' : 'Platform'} ${itemTitle(it)} `,
+    const row = (it) => h('li', {}, h('b', {}, fmtLong(it.date)), ` · ${{ sprint: 'Sprint', gitflow: 'Git Flow', az400: 'AZ-400 lab' }[it.kind] ?? 'Platform'} ${itemTitle(it)} `,
       itemDone(it) ? h('span', { class: 'pill p-done' }, 'Done') : null, it.replans ? h('span', { class: 'moved small' }, ` ↻ from ${fmtShort(it.replans[0].from).dm}`) : null, ' ', open(it));
     const sprintItems = items.filter((it) => it.kind === 'sprint');
-    const after = items.filter((it) => it.kind !== 'sprint' && !itemDone(it)).slice(0, 6);
+    const after = items.filter((it) => it.kind !== 'sprint' && !itemDone(it)).slice(0, 8);
     const moved = items.filter((it) => it.replans);
     return h('section', { class: 'card priority' }, h('h2', {}, 'Priority and dates'),
       h('p', { class: 'muted' }, state.schedule.subtitle),
@@ -1832,12 +1850,40 @@
     view.replaceChildren(...[head, bar, h('section', {}, ...list), q.result ? null : h('section', { class: 'card foot' }, h('span', { class: 'muted small' }, 'Done? Submit to see the rationale of every option.'), h('button', { class: 'btn btn-primary', type: 'button', onclick: submit }, 'Submit and grade'))].filter(Boolean));
   }
 
+  // ------------------------------------------------------------ command reference
+  function renderCommands() {
+    const ref = state.commands;
+    if (!ref) { view.replaceChildren(h('section', { class: 'card' }, h('h2', {}, 'Commands'), h('p', { class: 'muted' }, 'catalog/commands.json is missing.'))); return; }
+    ui.cmdFilter ??= '';
+    ui.cmdSection ??= 'all';
+    const search = h('input', { type: 'search', placeholder: 'Search a command, flag or task (e.g. logs, tag, rollback)…', 'aria-label': 'Search commands', class: 'cmd-search' });
+    search.value = ui.cmdFilter;
+    search.addEventListener('input', () => { ui.cmdFilter = search.value; renderCommandList(); });
+    const tabs = h('div', { class: 'links cmd-tabs' }, ...[{ id: 'all', title: 'All' }, ...ref.sections].map((s) => h('button', { class: `btn copy ${ui.cmdSection === s.id ? 'on' : ''}`, type: 'button', onclick: () => { ui.cmdSection = s.id; render(true); } }, s.title)));
+    const list = h('div', { class: 'cmd-list' });
+    const count = h('p', { class: 'muted small' });
+    function renderCommandList() {
+      const q2 = ui.cmdFilter.trim().toLowerCase();
+      const m = (c) => !q2 || `${c.cmd} ${c.what} ${c.example}`.toLowerCase().includes(q2);
+      const secs = ref.sections.filter((s) => ui.cmdSection === 'all' || s.id === ui.cmdSection)
+        .map((s) => ({ ...s, commands: s.commands.filter(m) })).filter((s) => s.commands.length);
+      list.replaceChildren(...(secs.length ? secs.map((s) => h('section', { class: 'card' },
+        h('div', { class: 'cycle-head' }, h('h3', {}, s.title), h('span', { class: 'cycle-badge' }, String(s.commands.length))),
+        s.note ? h('p', { class: 'muted small' }, s.note) : null,
+        ...s.commands.map((c) => h('div', { class: 'cmd-item' }, h('h4', {}, h('code', {}, c.cmd)), h('p', {}, c.what), codeBlock(c.example, true)))))
+        : [h('section', { class: 'card' }, h('p', { class: 'muted' }, 'No command matches this search.'))]));
+      count.textContent = `${secs.reduce((n, s) => n + s.commands.length, 0)} commands`;
+    }
+    renderCommandList();
+    view.replaceChildren(h('section', { class: 'card' }, h('h2', {}, ref.title), h('p', { class: 'muted' }, ref.intro), search, tabs, count), list);
+  }
+
   // ------------------------------------------------------------ routing
   function route() {
     const parts = location.hash.replace(/^#\/?/, '').split('/');
     if (parts[0] === 'session' && /^C\d{3}$/.test(parts[1] ?? '')) return { view: 'session', id: parts[1] };
     if (parts[0] === 'quiz' && /^[0-2][0-9]$/.test(parts[1] ?? '')) return { view: 'quiz', id: parts[1] };
-    return { view: ['schedule', 'course', 'tftec', 'notebook', 'map', 'progress', 'environment', 'study', 'interview'].includes(parts[0]) ? parts[0] : 'schedule' };
+    return { view: ['schedule', 'course', 'tftec', 'notebook', 'commands', 'map', 'progress', 'environment', 'study', 'interview'].includes(parts[0]) ? parts[0] : 'schedule' };
   }
 
   function render(force = false) {
@@ -1858,6 +1904,7 @@
     else if (r.view === 'study') renderStudy();
     else if (r.view === 'tftec') renderTftec();
     else if (r.view === 'notebook') renderNotebook();
+    else if (r.view === 'commands') renderCommands();
     else if (r.view === 'interview') renderInterview();
     else renderSchedule();
     window.scrollTo(0, y);
