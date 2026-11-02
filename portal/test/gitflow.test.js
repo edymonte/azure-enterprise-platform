@@ -29,7 +29,7 @@ test('gitflow catalog: 12 missions from setup to GitHub, a self-hosted agent mis
   const s = loadSchedule(PORTAL_ROOT, catalog);
   const missions = s.items.filter((i) => i.kind === 'gitflow');
   assert.equal(missions.length, 12);
-  assert.equal(missions[0].date, '2026-11-02', 'the lab starts right after the sprint');
+  assert.equal(missions[0].date, '2026-11-05', 'the lab starts right after the sprint');
 });
 
 test('gitflow progress is stored apart from the sprint', () => {

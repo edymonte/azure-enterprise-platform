@@ -2,16 +2,18 @@
   "title": "Recovery sprint first, then the platform route",
   "subtitle": "Priority since Oct 31: the 8-hour recovery sprint (Oct 31 – Nov 1), then one platform session + one Git Flow lab mission a day (GitHub Actions and Azure DevOps) until Nov 12, every other day after · AZ-400 out of this phase",
   "start": "2026-10-19",
-  "lastDay": "2026-11-12",
+  "lastDay": "2026-11-17",
   "dailyHours": 4,
   "sprint": {
-    "2026-10-31": [
+    "2026-11-02": [
       "R1",
-      "R2",
-      "R3"
+      "R2"
     ],
-    "2026-11-01": [
-      "R4",
+    "2026-11-03": [
+      "R3",
+      "R4"
+    ],
+    "2026-11-04": [
       "R5",
       "R6"
     ]
@@ -31,156 +33,156 @@
     },
     {
       "id": "C002",
-      "date": "2026-11-02"
-    },
-    {
-      "id": "C003",
-      "date": "2026-11-03"
-    },
-    {
-      "id": "C004",
-      "date": "2026-11-04"
-    },
-    {
-      "id": "C005",
       "date": "2026-11-05"
     },
     {
-      "id": "C006",
+      "id": "C003",
       "date": "2026-11-06"
     },
     {
-      "id": "C007",
+      "id": "C004",
       "date": "2026-11-07"
     },
     {
-      "id": "C008",
-      "date": "2026-11-08"
-    },
-    {
-      "id": "C009",
+      "id": "C005",
       "date": "2026-11-09"
     },
     {
-      "id": "C010",
+      "id": "C006",
       "date": "2026-11-10"
     },
     {
-      "id": "C011",
+      "id": "C007",
       "date": "2026-11-11"
     },
     {
-      "id": "C012",
+      "id": "C008",
       "date": "2026-11-12"
     },
     {
-      "id": "C013",
+      "id": "C009",
+      "date": "2026-11-13"
+    },
+    {
+      "id": "C010",
       "date": "2026-11-14"
     },
     {
-      "id": "C014",
+      "id": "C011",
       "date": "2026-11-16"
     },
     {
-      "id": "C015",
+      "id": "C012",
+      "date": "2026-11-17"
+    },
+    {
+      "id": "C013",
       "date": "2026-11-18"
     },
     {
+      "id": "C014",
+      "date": "2026-11-19"
+    },
+    {
+      "id": "C015",
+      "date": "2026-11-21"
+    },
+    {
       "id": "C016",
-      "date": "2026-11-20"
+      "date": "2026-11-23"
     },
     {
       "id": "C017",
-      "date": "2026-11-22"
+      "date": "2026-11-25"
     },
     {
       "id": "C018",
-      "date": "2026-11-24"
+      "date": "2026-11-27"
     },
     {
       "id": "C019",
-      "date": "2026-11-26"
-    },
-    {
-      "id": "C020",
-      "date": "2026-11-28"
-    },
-    {
-      "id": "C021",
       "date": "2026-11-30"
     },
     {
+      "id": "C020",
+      "date": "2026-12-01"
+    },
+    {
+      "id": "C021",
+      "date": "2026-12-03"
+    },
+    {
       "id": "C022",
-      "date": "2026-12-02"
+      "date": "2026-12-05"
     },
     {
       "id": "C023",
-      "date": "2026-12-04"
+      "date": "2026-12-07"
     },
     {
       "id": "C024",
-      "date": "2026-12-06"
+      "date": "2026-12-09"
     },
     {
       "id": "C025",
-      "date": "2026-12-08"
+      "date": "2026-12-11"
     },
     {
       "id": "C026",
-      "date": "2026-12-10"
-    },
-    {
-      "id": "C027",
-      "date": "2026-12-12"
-    },
-    {
-      "id": "C028",
       "date": "2026-12-14"
     },
     {
+      "id": "C027",
+      "date": "2026-12-15"
+    },
+    {
+      "id": "C028",
+      "date": "2026-12-17"
+    },
+    {
       "id": "C029",
-      "date": "2026-12-16"
+      "date": "2026-12-19"
     },
     {
       "id": "C030",
-      "date": "2026-12-18"
+      "date": "2026-12-21"
     }
   ],
   "gitflow": {
-    "2026-11-02": [
+    "2026-11-05": [
       "G00"
     ],
-    "2026-11-03": [
+    "2026-11-06": [
       "G01"
     ],
-    "2026-11-04": [
+    "2026-11-07": [
       "G02"
     ],
-    "2026-11-05": [
+    "2026-11-09": [
       "G03"
     ],
-    "2026-11-06": [
+    "2026-11-10": [
       "G04"
     ],
-    "2026-11-07": [
+    "2026-11-11": [
       "G05"
     ],
-    "2026-11-08": [
+    "2026-11-12": [
       "G06"
     ],
-    "2026-11-09": [
+    "2026-11-13": [
       "G07"
     ],
-    "2026-11-10": [
+    "2026-11-14": [
       "G08"
     ],
-    "2026-11-11": [
+    "2026-11-16": [
       "G09"
     ],
-    "2026-11-12": [
+    "2026-11-17": [
       "G10"
     ],
-    "2026-11-14": [
+    "2026-11-18": [
       "G11"
     ]
   },
@@ -808,6 +810,782 @@
       "to": "2026-12-18",
       "decidedAt": "2026-10-31",
       "reason": "AZ-400 labs taken out of this phase (Oct 31): the route is now the platform only, focused on daily Platform Engineer work with GitHub and Azure DevOps."
+    },
+    {
+      "kind": "sprint",
+      "id": "R1",
+      "from": "2026-10-31",
+      "to": "2026-11-01",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: R1 was run by the instructor as a guided demonstration (AI_ASSISTED). Edilson teaches on the morning of Nov 1 and redoes R1 after class, so the sprint moves one day; the platform and Git Flow dates are unchanged."
+    },
+    {
+      "kind": "sprint",
+      "id": "R2",
+      "from": "2026-10-31",
+      "to": "2026-11-01",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: R1 was run by the instructor as a guided demonstration (AI_ASSISTED). Edilson teaches on the morning of Nov 1 and redoes R1 after class, so the sprint moves one day; the platform and Git Flow dates are unchanged."
+    },
+    {
+      "kind": "sprint",
+      "id": "R3",
+      "from": "2026-10-31",
+      "to": "2026-11-01",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: R1 was run by the instructor as a guided demonstration (AI_ASSISTED). Edilson teaches on the morning of Nov 1 and redoes R1 after class, so the sprint moves one day; the platform and Git Flow dates are unchanged."
+    },
+    {
+      "kind": "sprint",
+      "id": "R4",
+      "from": "2026-11-01",
+      "to": "2026-11-02",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: R1 was run by the instructor as a guided demonstration (AI_ASSISTED). Edilson teaches on the morning of Nov 1 and redoes R1 after class, so the sprint moves one day; the platform and Git Flow dates are unchanged."
+    },
+    {
+      "kind": "sprint",
+      "id": "R5",
+      "from": "2026-11-01",
+      "to": "2026-11-02",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: R1 was run by the instructor as a guided demonstration (AI_ASSISTED). Edilson teaches on the morning of Nov 1 and redoes R1 after class, so the sprint moves one day; the platform and Git Flow dates are unchanged."
+    },
+    {
+      "kind": "sprint",
+      "id": "R6",
+      "from": "2026-11-01",
+      "to": "2026-11-02",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: R1 was run by the instructor as a guided demonstration (AI_ASSISTED). Edilson teaches on the morning of Nov 1 and redoes R1 after class, so the sprint moves one day; the platform and Git Flow dates are unchanged."
+    },
+    {
+      "kind": "sprint",
+      "id": "R3",
+      "from": "2026-11-01",
+      "to": "2026-11-02",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: R1–R4 were run by the instructor as guided demonstrations (AI_ASSISTED) and documented as study guides. Edilson studies each guide before executing, so he redoes two blocks a day: R1–R2 on Nov 1, R3–R4 on Nov 2, R5–R6 on Nov 3."
+    },
+    {
+      "kind": "sprint",
+      "id": "R5",
+      "from": "2026-11-02",
+      "to": "2026-11-03",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: R1–R4 were run by the instructor as guided demonstrations (AI_ASSISTED) and documented as study guides. Edilson studies each guide before executing, so he redoes two blocks a day: R1–R2 on Nov 1, R3–R4 on Nov 2, R5–R6 on Nov 3."
+    },
+    {
+      "kind": "sprint",
+      "id": "R6",
+      "from": "2026-11-02",
+      "to": "2026-11-03",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: R1–R4 were run by the instructor as guided demonstrations (AI_ASSISTED) and documented as study guides. Edilson studies each guide before executing, so he redoes two blocks a day: R1–R2 on Nov 1, R3–R4 on Nov 2, R5–R6 on Nov 3."
+    },
+    {
+      "kind": "platform",
+      "id": "C002",
+      "from": "2026-11-02",
+      "to": "2026-11-04",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C003",
+      "from": "2026-11-03",
+      "to": "2026-11-05",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C004",
+      "from": "2026-11-04",
+      "to": "2026-11-06",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C005",
+      "from": "2026-11-05",
+      "to": "2026-11-07",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C006",
+      "from": "2026-11-06",
+      "to": "2026-11-08",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C007",
+      "from": "2026-11-07",
+      "to": "2026-11-09",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C008",
+      "from": "2026-11-08",
+      "to": "2026-11-10",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C009",
+      "from": "2026-11-09",
+      "to": "2026-11-11",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C010",
+      "from": "2026-11-10",
+      "to": "2026-11-12",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C011",
+      "from": "2026-11-11",
+      "to": "2026-11-13",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C012",
+      "from": "2026-11-12",
+      "to": "2026-11-14",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C013",
+      "from": "2026-11-14",
+      "to": "2026-11-16",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C014",
+      "from": "2026-11-16",
+      "to": "2026-11-18",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C015",
+      "from": "2026-11-18",
+      "to": "2026-11-20",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C016",
+      "from": "2026-11-20",
+      "to": "2026-11-22",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C017",
+      "from": "2026-11-22",
+      "to": "2026-11-24",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C018",
+      "from": "2026-11-24",
+      "to": "2026-11-26",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C019",
+      "from": "2026-11-26",
+      "to": "2026-11-28",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C020",
+      "from": "2026-11-28",
+      "to": "2026-11-30",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C021",
+      "from": "2026-11-30",
+      "to": "2026-12-02",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C022",
+      "from": "2026-12-02",
+      "to": "2026-12-04",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C023",
+      "from": "2026-12-04",
+      "to": "2026-12-06",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C024",
+      "from": "2026-12-06",
+      "to": "2026-12-08",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C025",
+      "from": "2026-12-08",
+      "to": "2026-12-10",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C026",
+      "from": "2026-12-10",
+      "to": "2026-12-12",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C027",
+      "from": "2026-12-12",
+      "to": "2026-12-14",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C028",
+      "from": "2026-12-14",
+      "to": "2026-12-16",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C029",
+      "from": "2026-12-16",
+      "to": "2026-12-18",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C030",
+      "from": "2026-12-18",
+      "to": "2026-12-20",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "gitflow",
+      "id": "G00",
+      "from": "2026-11-02",
+      "to": "2026-11-04",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "gitflow",
+      "id": "G01",
+      "from": "2026-11-03",
+      "to": "2026-11-05",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "gitflow",
+      "id": "G02",
+      "from": "2026-11-04",
+      "to": "2026-11-06",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "gitflow",
+      "id": "G03",
+      "from": "2026-11-05",
+      "to": "2026-11-07",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "gitflow",
+      "id": "G04",
+      "from": "2026-11-06",
+      "to": "2026-11-08",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "gitflow",
+      "id": "G05",
+      "from": "2026-11-07",
+      "to": "2026-11-09",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "gitflow",
+      "id": "G06",
+      "from": "2026-11-08",
+      "to": "2026-11-10",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "gitflow",
+      "id": "G07",
+      "from": "2026-11-09",
+      "to": "2026-11-11",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "gitflow",
+      "id": "G08",
+      "from": "2026-11-10",
+      "to": "2026-11-12",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "gitflow",
+      "id": "G09",
+      "from": "2026-11-11",
+      "to": "2026-11-13",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "gitflow",
+      "id": "G10",
+      "from": "2026-11-12",
+      "to": "2026-11-14",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "gitflow",
+      "id": "G11",
+      "from": "2026-11-14",
+      "to": "2026-11-16",
+      "decidedAt": "2026-10-31",
+      "reason": "Oct 31: the recovery sprint now ends on Nov 3 (guides first, then execution), so the platform route and the Git Flow missions all move two days forward, in order. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "sprint",
+      "id": "R1",
+      "from": "2026-11-01",
+      "to": "2026-11-02",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "sprint",
+      "id": "R2",
+      "from": "2026-11-01",
+      "to": "2026-11-02",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "sprint",
+      "id": "R3",
+      "from": "2026-11-02",
+      "to": "2026-11-03",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "sprint",
+      "id": "R4",
+      "from": "2026-11-02",
+      "to": "2026-11-03",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "sprint",
+      "id": "R5",
+      "from": "2026-11-03",
+      "to": "2026-11-04",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "sprint",
+      "id": "R6",
+      "from": "2026-11-03",
+      "to": "2026-11-04",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C002",
+      "from": "2026-11-04",
+      "to": "2026-11-05",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C003",
+      "from": "2026-11-05",
+      "to": "2026-11-06",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C004",
+      "from": "2026-11-06",
+      "to": "2026-11-07",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C005",
+      "from": "2026-11-07",
+      "to": "2026-11-09",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C006",
+      "from": "2026-11-08",
+      "to": "2026-11-10",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C007",
+      "from": "2026-11-09",
+      "to": "2026-11-11",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C008",
+      "from": "2026-11-10",
+      "to": "2026-11-12",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C009",
+      "from": "2026-11-11",
+      "to": "2026-11-13",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C010",
+      "from": "2026-11-12",
+      "to": "2026-11-14",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C011",
+      "from": "2026-11-13",
+      "to": "2026-11-16",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C012",
+      "from": "2026-11-14",
+      "to": "2026-11-17",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C013",
+      "from": "2026-11-16",
+      "to": "2026-11-18",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C014",
+      "from": "2026-11-18",
+      "to": "2026-11-19",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C015",
+      "from": "2026-11-20",
+      "to": "2026-11-21",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C016",
+      "from": "2026-11-22",
+      "to": "2026-11-23",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C017",
+      "from": "2026-11-24",
+      "to": "2026-11-25",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C018",
+      "from": "2026-11-26",
+      "to": "2026-11-27",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C019",
+      "from": "2026-11-28",
+      "to": "2026-11-30",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C020",
+      "from": "2026-11-30",
+      "to": "2026-12-01",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C021",
+      "from": "2026-12-02",
+      "to": "2026-12-03",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C022",
+      "from": "2026-12-04",
+      "to": "2026-12-05",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C023",
+      "from": "2026-12-06",
+      "to": "2026-12-07",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C024",
+      "from": "2026-12-08",
+      "to": "2026-12-09",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C025",
+      "from": "2026-12-10",
+      "to": "2026-12-11",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C026",
+      "from": "2026-12-12",
+      "to": "2026-12-14",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C027",
+      "from": "2026-12-14",
+      "to": "2026-12-15",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C028",
+      "from": "2026-12-16",
+      "to": "2026-12-17",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C029",
+      "from": "2026-12-18",
+      "to": "2026-12-19",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "platform",
+      "id": "C030",
+      "from": "2026-12-20",
+      "to": "2026-12-21",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "gitflow",
+      "id": "G00",
+      "from": "2026-11-04",
+      "to": "2026-11-05",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "gitflow",
+      "id": "G01",
+      "from": "2026-11-05",
+      "to": "2026-11-06",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "gitflow",
+      "id": "G02",
+      "from": "2026-11-06",
+      "to": "2026-11-07",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "gitflow",
+      "id": "G03",
+      "from": "2026-11-07",
+      "to": "2026-11-09",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "gitflow",
+      "id": "G04",
+      "from": "2026-11-08",
+      "to": "2026-11-10",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "gitflow",
+      "id": "G05",
+      "from": "2026-11-09",
+      "to": "2026-11-11",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "gitflow",
+      "id": "G06",
+      "from": "2026-11-10",
+      "to": "2026-11-12",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "gitflow",
+      "id": "G07",
+      "from": "2026-11-11",
+      "to": "2026-11-13",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "gitflow",
+      "id": "G08",
+      "from": "2026-11-12",
+      "to": "2026-11-14",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "gitflow",
+      "id": "G09",
+      "from": "2026-11-13",
+      "to": "2026-11-16",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "gitflow",
+      "id": "G10",
+      "from": "2026-11-14",
+      "to": "2026-11-17",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
+    },
+    {
+      "kind": "gitflow",
+      "id": "G11",
+      "from": "2026-11-16",
+      "to": "2026-11-18",
+      "decidedAt": "2026-11-01",
+      "reason": "Nov 1: Sundays are rest days. Every pending session and mission moves forward in order to the next working day, so nothing is overdue and nothing lands on a Sunday. The trial credit expires on Nov 13."
     }
   ]
 }

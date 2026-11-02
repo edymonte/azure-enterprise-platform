@@ -81,7 +81,7 @@
             "Which line tells you the Azure subscription, and is it the lab one?",
             "gh auth status shows the account and the token scopes; you need repo access to edymonte/azure-enterprise-platform."
           ],
-          "solution": "Expected: Azure CLI 2.x, Terraform 1.12.x, gh signed in as edymonte, subscription \"Azure subscription 1\" (26e19954-…). If az account show fails: az login; if the subscription is wrong: az account set --subscription <id>. A wrong subscription is an environment blocker, not a technical mistake."
+          "solution": "Expected: Azure CLI 2.x, Terraform 1.12.x, gh signed in as edymonte, subscription \"sub-mfs-platform-lab\" (26e19954-…). If az account show fails: az login; if the subscription is wrong: az account set --subscription <id>. A wrong subscription is an environment blocker, not a technical mistake."
         },
         {
           "id": "inventory",
