@@ -129,6 +129,71 @@
       "YAML com tab em vez de 2 espacos."
     ]
   },
-  "R5": { "pending": true, "note": "O guia de R5 (Azure DevOps) ainda nao foi preparado. A referencia sera preenchida quando a sessao for preparada, a partir do guia." },
-  "R6": { "pending": true, "note": "O guia de R6 (integracao GitHub e Azure DevOps) ainda nao foi preparado. A referencia sera preenchida quando a sessao for preparada, a partir do guia." }
+  "R5": {
+    "guide": "relatorios/guia-sprint/R5-azure-devops-pipelines.md",
+    "note": "Roteiro escrito sem execucao ao vivo: a organizacao do Azure DevOps ainda nao tem projeto da plataforma (a sessao C022 cria). Fora o checker e a leitura do repositorio, trate o que esta aqui como roteiro, nao como saida confirmada.",
+    "concept": "O pipeline faz Validate, Plan e Apply. O Apply e um deployment job que mira o environment mfs-lab e so roda em execucao manual, depois da aprovacao configurada no environment. A autenticacao e uma service connection com federacao de identidade (WIF), sem segredo. Os passos do Terraform ficam num template de steps reaproveitado por camada.",
+    "configure": [
+      "pipelines/azure-devops/infra.yml: trigger none, pr em infra/*, parameters layer e action, variables, stages Validate, Plan e Apply",
+      "pipelines/azure-devops/templates/terraform-layer.yml: TerraformInstaller, AzureCLI@2 com addSpnToEnvironment e as variaveis ARM_*",
+      "Service connection sc-mfs-lab-wif (Azure Resource Manager, WIF): criada por um admin do projeto e com o pipeline autorizado",
+      "Variable group mfs-lab-common (TF_STATE_RG, TF_STATE_SA, ALERT_EMAIL, OPERATOR_IP_RANGES, NAME_SUFFIX)",
+      "Environment mfs-lab com Approvals and checks: as aprovacoes ficam no recurso, nao no YAML"
+    ],
+    "investigate": [
+      "Nome da service connection com $(...) em vez de ${{ ... }}: o macro so existe na execucao e o Azure DevOps precisa do nome na compilacao para autorizar",
+      "Apply rodando junto com o Plan: dependsOn vazio ou ausente; no PR, falta a condition com Build.Reason",
+      "Apply sem pedir aprovacao: o job nao e deployment ou o environment nao tem Approvals",
+      "Pelo arquivo: o plan do Azure DevOps pega o lock do state (no GitHub o plan de PR usa -lock=false) e o Apply refaz o plan em vez de aplicar o plano revisado",
+      "O checker do exercicio so percebe o dependsOn; uma condition removida nao e acusada"
+    ],
+    "commands": [
+      { "what": "Ler o pipeline real", "cmd": "Get-Content pipelines/azure-devops/infra.yml", "expect": "stages Validate, Plan e Apply; Apply como deployment job no environment mfs-lab" },
+      { "what": "Ler o template de steps", "cmd": "Get-Content pipelines/azure-devops/templates/terraform-layer.yml", "expect": "AzureCLI@2 com addSpnToEnvironment e exports ARM_USE_OIDC, ARM_OIDC_TOKEN, ARM_CLIENT_ID e ARM_TENANT_ID" },
+      { "what": "Conferir a estrutura do exercicio (somente leitura do arquivo)", "cmd": "$env:PORTAL_DATA_DIR = 'C:\\Projects\\aep-portal\\portal\\.data'\n$env:PORTAL_SESSION_ID = 'R5'\nnode C:\\Projects\\aep-portal\\portal\\checkers\\sprint-r5-ado.js", "expect": "drill-stages, drill-template, drill-variables, drill-service-connection e drill-approval-gate em PASS" },
+      { "what": "Listar os projetos da organizacao (opcional, leitura)", "cmd": "az devops project list --org https://dev.azure.com/az400edilsonmontry --query \"value[].name\" -o tsv", "expect": "sem projeto da plataforma = bloqueio de ambiente (a sessao C022 cria), nao erro seu" },
+      { "what": "Esquema de autenticacao das conexoes (so se existir o projeto)", "cmd": "az devops service-endpoint list --org https://dev.azure.com/az400edilsonmontry -p <projeto> --query \"[].{name:name, scheme:authorization.scheme}\" -o table", "expect": "WorkloadIdentityFederation; ServicePrincipal significa que ha um segredo" }
+    ],
+    "expected": "O gabarito do exercicio passa nos 5 criterios do checker. A organizacao ainda nao tem a service connection sc-mfs-lab-wif, o variable group mfs-lab-common nem o environment mfs-lab: registre como bloqueio de ambiente.",
+    "mistakes": [
+      "Achar que a aprovacao fica no YAML: ela fica em Approvals and checks do environment.",
+      "Confundir as tres sintaxes: ${{ }} compilacao, $( ) macro na execucao, $[ ] expressao na execucao.",
+      "Esquecer que cada pipeline precisa ser autorizado a usar a service connection.",
+      "Tratar a aprovacao como unica defesa: o dependsOn e a condition tambem seguram o Apply.",
+      "O cabecalho do infra.yml cita docs/labs/08-azure-devops.md, que nao existe no repositorio.",
+      "YAML com tab em vez de 2 espacos."
+    ]
+  },
+  "R6": {
+    "guide": "relatorios/guia-sprint/R6-integracao-github-ado.md",
+    "note": "Bloco de leitura e escrita, sem checker automatico: a prova e a revisao do seu mapa e do seu relato. Nao ha chamada de nuvem.",
+    "concept": "Uma mudanca do branch ate producao: PR com CI e checks obrigatorios, merge, build e push da imagem uma vez, PR de GitOps para dev, Argo CD sincroniza, teste de fumaca, PR de promocao para prod com a mesma imagem. O CI nunca fala com o cluster (ADR-0003) e o rollback e um git revert. A mesma historia existe nos dois lados, com diferencas reais.",
+    "configure": [
+      ".github/workflows/: app.yml (build, scan, push, PR de deploy e promocao), ci.yml, infra.yml, smoke.yml",
+      "pipelines/azure-devops/: app.yml (Test, Build, GitOps) e infra.yml com o template; nao ha CI de PR nem promocao",
+      "Tag da imagem: o SHA do commit nos dois lados; a promocao copia as tags de dev para prod no GitOps",
+      "gitops/envs/dev e gitops/envs/prod: o que o Argo CD aplica; o deploy e o merge do PR",
+      "Acesso a nuvem sem segredo: OIDC no GitHub e service connection WIF no Azure DevOps"
+    ],
+    "investigate": [
+      "Onde uma pessoa decide: PR com checks obrigatorios, aprovacao do environment antes do apply, merge do PR de GitOps",
+      "PR aberto com GITHUB_TOKEN nao dispara workflows: por isso o app.yml usa um token com escopo minimo para os checks reportarem",
+      "No Azure DevOps o PR de GitOps usa um PAT (GITOPS_GITHUB_TOKEN, no variable group ligado ao Key Vault)",
+      "Rollback: git revert do PR de deploy; nao se reconstroi a imagem para outro ambiente"
+    ],
+    "commands": [
+      { "what": "Ler o laco padrao", "cmd": "Get-Content docs/E2E-FEATURE-FLOW.md | Select-String -Context 0,20 \"The standard loop\"", "expect": "branch, PR, merge, app.yml, PR de deploy em dev, Argo CD, teste de fumaca, PR de promocao" },
+      { "what": "Listar os arquivos dos dois lados", "cmd": "Get-ChildItem .github/workflows, pipelines/azure-devops -Recurse -Filter *.yml | Select-Object FullName", "expect": "app, ci, infra e smoke no GitHub; app, infra e o template no Azure DevOps" },
+      { "what": "Ler a decisao de arquitetura", "cmd": "Get-Content docs/decisions/ADR-0003-ci-opens-prs-never-deploys.md", "expect": "o CI abre PR e nunca implanta; o Argo CD aplica" },
+      { "what": "Onde estao o environment, o token do PR e a promocao no GitHub", "cmd": "Select-String -Path .github/workflows/app.yml -Pattern \"environment:|GITOPS_PR_TOKEN|promote_to_prod\"", "expect": "environment lab, o token do PR de GitOps e o input promote_to_prod" }
+    ],
+    "expected": "Um mapa etapa por arquivo por controle nas duas ferramentas que mostre onde divergem (CI de PR, promocao e teste de fumaca existem so no GitHub) e um relato de 2 minutos com contexto, fluxo, identidade sem segredo, aprovacoes e um trade-off.",
+    "mistakes": [
+      "Dizer que nao ha nenhum segredo: o acesso a nuvem nao usa, mas o PR de GitOps usa um token (PAT).",
+      "Dizer que os dois lados sao equivalentes: o Azure DevOps nao tem CI de PR nem estagio de promocao neste repositorio.",
+      "Esquecer que o apply refaz o plan: a aprovacao e a ultima defesa, nao a unica.",
+      "Reconstruir a imagem por ambiente em vez de promover a mesma.",
+      "Falar de C003 (AADSTS700213) como parte do sprint: ele abre a sessao C003."
+    ]
+  }
 }
