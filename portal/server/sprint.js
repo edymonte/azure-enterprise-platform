@@ -7,6 +7,7 @@
 //   review  — an explicit review with pasted evidence and a named reviewer.
 // Logged time never completes anything, and the sprint awards no XP.
 import { UserError } from './progress.js';
+import { gapsOf, nextPractice, phaseOf, reviewStats, stageLabel } from './phase.js';
 
 const TEXT_MAX = 6000;
 const HISTORY_LIMIT = 20;
@@ -91,8 +92,9 @@ export class SprintTracker {
   step(id, stepId) {
     const s = this.block(id).steps.find((x) => x.id === stepId);
     if (!s) throw new UserError('Unknown step.');
+    // Practice does not wait for the recall: the recall is part of the formal
+    // validation (the "recall-recorded" criterion still has to pass).
     const r = this.started(id);
-    if (!r.recall?.submittedAt) throw new UserError('Answer the recall questions first.');
     r.steps ??= {};
     r.steps[stepId] ??= { hints: 0 };
     return { s, st: r.steps[stepId], r };
@@ -133,6 +135,17 @@ export class SprintTracker {
     if (r.completedAt) throw new UserError('The mode is frozen once the block is completed.');
     r.aiAssisted = value;
     this.save(id);
+  }
+
+  // A review pass (reading, maps, stories, command reference) can be repeated
+  // freely, also on blocks that are completed or not started. It is only a
+  // record: it never touches the criteria, so it cannot complete a block.
+  recordReviewPass(id, input = {}) {
+    this.block(id);
+    const r = this.rec(id);
+    const note = typeof input.note === 'string' ? input.note.trim().slice(0, 500) : '';
+    r.reviewPasses = [...(r.reviewPasses ?? []), { at: new Date().toISOString(), note }].slice(-50);
+    this.store.save();
   }
 
   recordReview(id, criterionId, input) {
@@ -289,8 +302,8 @@ export class SprintTracker {
     return { state: 'IN_PROGRESS', reason: null };
   }
 
-  // What the browser may see: recall answers only after submitting, steps only
-  // after recall, solutions only after they were opened (which needs an attempt).
+  // What the browser may see: recall reference answers only after submitting,
+  // solutions only after they were opened (which needs an attempt).
   view(id, { running = false } = {}) {
     const b = this.block(id);
     const r = this.peek(id);
@@ -310,20 +323,28 @@ export class SprintTracker {
       minutesLogged: r.minutes ?? 0,
       mode: r.completion?.mode ?? (r.assistedBefore || r.aiAssisted ? 'AI_ASSISTED' : 'SOLO'),
       aiAssisted: Boolean(r.aiAssisted),
+      review: reviewStats(r),
+      phase: (() => { const p = phaseOf(r); return { ...p, stage: stageLabel(p) }; })(),
+      gaps: gapsOf(r, b),
+      nextStep: nextPractice(r, b),
+      validation: (() => {
+        const pending = criteria.filter((c) => c.status !== 'pass').map((c) => c.text);
+        const attemptsDone = Boolean(this.portalRule(b, r, 'attempts'));
+        // Ready = every required step was practised; the recall and the other criteria are what validation still asks for.
+        return { ready: Boolean(r.startedAt) && !r.completedAt && attemptsDone, pending };
+      })(),
       hasChecker: Boolean(checker),
       recall: b.recall.map((q) => ({ id: q.id, question: q.question, mine: r.recall?.answers?.[q.id] ?? null, answer: recallDone ? q.answer : null })),
       recallSubmittedAt: r.recall?.submittedAt ?? null,
-      steps: recallDone
-        ? steps.map((s) => {
-          const st = r.steps?.[s.id] ?? {};
-          return {
-            id: s.id, level: s.level, title: s.title, detail: s.detail, command: s.command ?? null,
-            hintsTotal: s.hints.length, hints: s.hints.slice(0, st.hints ?? 0),
-            attempt: st.attempt ?? null, attemptAt: st.attemptAt ?? null,
-            solution: st.solutionAt ? s.solution : null,
-          };
-        })
-        : null,
+      steps: steps.map((s) => {
+        const st = r.steps?.[s.id] ?? {};
+        return {
+          id: s.id, level: s.level, title: s.title, detail: s.detail, command: s.command ?? null,
+          hintsTotal: s.hints.length, hints: s.hints.slice(0, st.hints ?? 0),
+          attempt: st.attempt ?? null, attemptAt: st.attemptAt ?? null,
+          solution: st.solutionAt ? s.solution : null,
+        };
+      }),
       stepsCount: steps.length,
       english: { question: english.question, followUps: english.followUps ?? [], mine: r.english ?? null, modelAnswer: r.english ? english.modelAnswer : null },
       criteria,

@@ -4,6 +4,26 @@
   "start": "2026-10-19",
   "lastDay": "2026-11-17",
   "dailyHours": 4,
+  "reviewMode": {
+    "active": true,
+    "since": "2026-11-05",
+    "focus": ["R1", "R2", "R3", "R4", "R5", "R6"],
+    "note": "Decision of 2026-11-05: more passes on R1–R6 before the rest of the route. Dates and replanning history are untouched; past-dated items that are not done show as in review or on hold, not as late."
+  },
+  "availability": {
+    "vacationEnds": "2026-11-12",
+    "workStarts": "2026-11-16",
+    "intensiveMinutes": 195,
+    "weekdayMaxMinutes": 120,
+    "saturdayMaxMinutes": 120,
+    "horizonDays": 60,
+    "tracks": [
+      { "id": "A", "name": "Platform Engineering (Azure, Terraform, GitHub Actions, Azure DevOps, networking, identity, AKS, CI/CD, incidents)", "share": 70 },
+      { "id": "B", "name": "AWS Solutions Architect Associate (SAA-C03), external course", "share": 30, "external": true }
+    ],
+    "aws": { "course": "SAA-C03", "done": 22, "total": 78, "reportedAt": "2026-11-06" },
+    "note": "Minutes are ceilings, not goals. An empty day or week is valid, nothing is created to make it up, and Sundays are rest."
+  },
   "sprint": {
     "2026-11-02": [
       "R1",

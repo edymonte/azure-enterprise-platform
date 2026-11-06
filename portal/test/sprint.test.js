@@ -54,13 +54,16 @@ test('sprint catalog: six blocks of 8 hours, every block has recall, graduated s
   assert.deepEqual(s.byId.get('R3').reuse.sessions, ['C002', 'C004']);
 });
 
-test('sprint: recall first, solutions sealed until an attempt, hints and solutions make it AI-assisted', () => {
+test('sprint: practice does not wait for the recall, the recall stays a validation criterion; solutions sealed until an attempt, hints and solutions make it AI-assisted', () => {
   const { sprint } = tracker();
   assert.throws(() => sprint.submitRecall('R1', allAnswers('R1')), /Start the block/);
+  assert.throws(() => sprint.saveAttempt('R1', 'tools', 'my first attempt'), /Start the block/, 'a block still has to be started');
   sprint.start('R1');
-  assert.equal(sprint.view('R1').steps, null, 'no steps before the recall');
-  assert.ok(sprint.view('R1').recall.every((q) => q.answer === null));
-  assert.throws(() => sprint.saveAttempt('R1', 'tools', 'x'.repeat(5)), /recall/);
+  assert.ok(Array.isArray(sprint.view('R1').steps), 'steps are open for practice right after starting');
+  assert.ok(sprint.view('R1').recall.every((q) => q.answer === null), 'reference answers stay sealed until the recall is recorded');
+  sprint.saveAttempt('R1', 'map', 'az 2.87 before any recall');
+  assert.equal(sprint.view('R1').steps.find((s) => s.id === 'map').attempt, 'az 2.87 before any recall');
+  assert.equal(sprint.criteria('R1').find((c) => c.rule === 'recall').status, 'pending', 'practice without recall does not satisfy the recall criterion');
   sprint.submitRecall('R1', { ...allAnswers('R1'), layers: '' });
   assert.equal(sprint.view('R1').recall.find((q) => q.id === 'layers').mine, "I don't remember");
   assert.ok(sprint.view('R1').recall.every((q) => q.answer), 'reference answers after the recall');

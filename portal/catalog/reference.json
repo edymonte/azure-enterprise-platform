@@ -1,0 +1,134 @@
+{
+  "_source": "Resumo dos guias em az400-reforcos/relatorios/guia-sprint (R1 a R4) e referencia/folha-pergunta-comando.md. Fonte de verdade: os guias. Nao gera cards nem concede progresso.",
+  "R1": {
+    "guide": "relatorios/guia-sprint/R1-ferramentas-e-estado.md",
+    "concept": "Antes de mudar qualquer coisa num cliente: as ferramentas funcionam, a identidade e a assinatura estao certas, e voce sabe o que esta implantado (state) versus o que existe so em codigo. Uma camada de Terraform por state limita o raio de impacto.",
+    "configure": [
+      "Assinatura ativa: az account set --subscription <ID> (use o ID, existem nomes duplicados)",
+      "Camadas e variaveis: azure-enterprise-platform/infra/terraform/<camada> e .runtime/common.tfvars.json",
+      "Backend remoto: .runtime/backend.hcl (so existe em azure-enterprise-platform, nao em aep-portal)"
+    ],
+    "investigate": [
+      "O que esta implantado por camada: ./scripts/azp.ps1 status, na pasta azure-enterprise-platform",
+      "Resource groups e recursos: az group list e az resource list",
+      "Grupo com managedBy preenchido pertence a um servico do Azure: nao editar nem apagar"
+    ],
+    "commands": [
+      { "what": "Versao do Azure CLI", "cmd": "(az version -o json | ConvertFrom-Json).'azure-cli'", "expect": "numero da versao" },
+      { "what": "Ferramentas e login do gh", "cmd": "terraform version; gh auth status; git --version", "expect": "versoes e escopos do token" },
+      { "what": "Assinatura e usuario atuais", "cmd": "az account show --query \"{subscription:name, subId:id, user:user.name}\" -o table", "expect": "nome, ID e usuario" },
+      { "what": "Voltar para a assinatura certa", "cmd": "az account set --subscription <ID>", "expect": "sem saida; confirme com az account show", "risk": "caution", "warning": "Troca a assinatura ativa do Azure CLI nesta maquina (nao muda recursos). Substitua <ID> pelo ID real e confirme com az account show antes de qualquer outro comando." },
+      { "what": "O que esta implantado em cada camada", "cmd": "./scripts/azp.ps1 status", "expect": "DEPLOYED (n) ou empty por camada" },
+      { "what": "Resource groups da plataforma com contagem", "cmd": "$g = az group list -o json | ConvertFrom-Json | Where-Object { $_.name -like 'rg-mfs*' -or $_.name -like 'MA_*' }\n$g | ForEach-Object { $n = (az resource list -g $_.name -o json | ConvertFrom-Json).Count; [pscustomobject]@{ rg=$_.name; location=$_.location; resources=$n; managedBy=$_.managedBy } } | Format-Table -AutoSize", "expect": "grupo, local, recursos e managedBy" }
+    ],
+    "expected": "Camadas 00, 05, 10 e 20 implantadas (a 00 usa state local e nao aparece no status); 30 a 70 so em codigo, por custo.",
+    "mistakes": [
+      "empty no status pode significar \"nao consegui ler\": o script esconde o erro. Rode em azure-enterprise-platform (precisa de .runtime/backend.hcl).",
+      "az version --query '\"azure-cli\"' quebra no PowerShell por causa das aspas: use ConvertFrom-Json.",
+      "az ... -o table esconde campos chamados id: use alias (subId:id).",
+      "Nunca cole placeholders como ... ou ??? nos comandos."
+    ]
+  },
+  "R2": {
+    "guide": "relatorios/guia-sprint/R2-rede-dns-rbac.md",
+    "concept": "Hub e spoke ligados por peering (dois recursos, nao transitivo), NSG avaliado por prioridade (a primeira regra que casa vale), DNS privado com zona e link por VNet, e a diferenca entre plano de controle e plano de dados no RBAC e nas identidades do pipeline.",
+    "configure": [
+      "Peering: nos dois lados (hub e spoke); gateway transit so para chegar ao on-premises, nao resolve spoke a spoke",
+      "NSG: regras por prioridade; a regra compara o IP literal, nao o nome DNS; regras padrao a partir de 65000",
+      "DNS privado: uma zona privatelink.* no hub e um link para cada VNet (2 zonas x 2 VNets = 4 links)",
+      "Identidades do pipeline: app registrations app-mfs-* com credenciais federadas (OIDC), sem senha"
+    ],
+    "investigate": [
+      "Peering Connected nos dois lados (Initiated = falta um lado)",
+      "Ordem e prioridade das regras do NSG; cuidado com a tag VirtualNetwork e a regra AllowVnetInBound",
+      "Sem link-portal, o nome resolve para o IP publico",
+      "Owner nao le o conteudo do blob: precisa de papel de dados (Storage Blob Data ...)"
+    ],
+    "commands": [
+      { "what": "Peering no hub", "cmd": "az network vnet peering list -g rg-mfs-hub-lab --vnet-name vnet-mfs-hub-lab -o table", "expect": "Connected" },
+      { "what": "Peering no spoke", "cmd": "az network vnet peering list -g rg-mfs-portal-lab --vnet-name vnet-mfs-portal-lab -o table", "expect": "Connected" },
+      { "what": "Regras do NSG por prioridade", "cmd": "az network nsg rule list -g rg-mfs-portal-lab --nsg-name nsg-mfs-aks-lab -o json | ConvertFrom-Json | Sort-Object priority", "expect": "menor prioridade primeiro" },
+      { "what": "Zonas DNS privadas do hub", "cmd": "$zones = az network private-dns zone list -g rg-mfs-hub-lab --query \"[].name\" -o tsv", "expect": "privatelink..." },
+      { "what": "Links de cada zona", "cmd": "foreach ($z in $zones) { \"--- $z\"; az network private-dns link vnet list -g rg-mfs-hub-lab -z $z -o table }", "expect": "link-hub e link-portal, Completed" },
+      { "what": "Quem tem papel de dados no storage do state", "cmd": "$saId = az storage account list -g rg-mfs-tfstate --query \"[0].id\" -o tsv\naz role assignment list --scope $saId -o table", "expect": "so papeis do escopo do storage" },
+      { "what": "Identidades do pipeline", "cmd": "$apps = az ad app list --display-name app-mfs- --query \"[].{name:displayName, appId:appId}\" -o json | ConvertFrom-Json", "expect": "app-mfs-... e appId" },
+      { "what": "Papeis da identidade", "cmd": "az role assignment list --assignee $apps[0].appId --all -o table", "expect": "escopo amplo = risco" },
+      { "what": "Credenciais federadas (subject)", "cmd": "az ad app federated-credential list --id $apps[0].appId -o table", "expect": "environment:lab, pull_request, ref:refs/heads/main" },
+      { "what": "A app tem senha ou certificado?", "cmd": "az ad app credential list --id $apps[0].appId", "expect": "[] = sem segredo (OIDC)" }
+    ],
+    "expected": "Peering Connected nos dois lados, 4 links de DNS Completed, nenhum segredo na app, e entendimento de que Contributor e RBAC Administrator na assinatura sao risco para um pipeline acionado por pull request.",
+    "mistakes": [
+      "Achar que peering e transitivo.",
+      "Achar que a regra do NSG compara nome DNS: compara IP.",
+      "Confundir RBAC Administrator com Security Admin.",
+      "Concluir RBAC so pelo codigo HTTP 403: pode ser firewall ou configuracao do servico."
+    ]
+  },
+  "R3": {
+    "guide": "relatorios/guia-sprint/R3-terraform-state.md",
+    "concept": "O state e o mapa entre o codigo e o recurso real; guarda todos os atributos lidos e pode ter segredo em texto puro. O backend azurerm trava com um lease no blob. Drift e a diferenca entre o real e o codigo, detectada com plan. A recuperacao usa o versionamento do blob.",
+    "configure": [
+      "Conta do state: stmfstfstateadodd em rg-mfs-tfstate, container tfstate, um blob por camada",
+      "Sem chave compartilhada (allowSharedKeyAccess=false), sem acesso publico, TLS 1.2",
+      "Versionamento ligado e soft delete de 7 dias",
+      "Acesso por Entra ID com papel Storage Blob Data Contributor (--auth-mode login)"
+    ],
+    "investigate": [
+      "Lock: erro Error acquiring the state lock com ID e dono. Confirmar que nada roda. force-unlock so com decisao sua, nunca como passo de revisao",
+      "Drift: terraform plan (nunca apply); em CI, plan agendado com -detailed-exitcode (0 sem mudanca, 2 com mudanca)",
+      "Plan: que ninguem pediu = drift: ler o diff e o Activity Log antes de decidir",
+      "Versoes do blob para escolher a ultima versao boa"
+    ],
+    "commands": [
+      { "what": "Configuracoes da conta (plano de controle)", "cmd": "$sa = az storage account list -g rg-mfs-tfstate --query \"[0].name\" -o tsv\naz storage account show -n $sa -g rg-mfs-tfstate --query \"{sharedKey:allowSharedKeyAccess, publicBlob:allowBlobPublicAccess, tls:minimumTlsVersion}\" -o json", "expect": "sharedKey false, publicBlob false, TLS1_2" },
+      { "what": "Versionamento e soft delete", "cmd": "az storage account blob-service-properties show -n $sa -g rg-mfs-tfstate --query \"{versioning:isVersioningEnabled, softDeleteDays:deleteRetentionPolicy.days}\" -o json", "expect": "versioning true, softDeleteDays 7" },
+      { "what": "Versoes por blob (plano de dados)", "cmd": "az storage blob list --account-name $sa -c tfstate --auth-mode login --include v -o json | ConvertFrom-Json | Group-Object name | Select-Object @{n='blob';e={$_.Name}}, @{n='versoes';e={$_.Count}} | Format-Table -AutoSize", "expect": "05, 10 e 20 com muitas versoes; 30 a 70 com 4 vazias; sem blob da 00" },
+      { "what": "Ver o lease acontecer (terminal B)", "cmd": "while ($true) { az storage blob show --account-name $sa -c tfstate -n 10-foundation.tfstate --auth-mode login --query \"{lease:properties.lease.state, duration:properties.lease.duration}\" -o tsv; Start-Sleep 2 }", "expect": "available -> leased infinite -> available" },
+      { "what": "Plan de uma camada (terminal A)", "cmd": "./scripts/azp.ps1 plan 10-foundation", "expect": "No changes. Your infrastructure matches the configuration.", "risk": "caution", "warning": "E um plan, nao um apply: nao muda recursos. Mas pega o lock do state e grava 2 versoes novas no blob. Rode so quando quiser ver o lock; nunca feche a janela no meio (pode deixar lock preso)." },
+      { "what": "Nenhum lock preso ao final", "cmd": "az storage blob list --account-name $sa -c tfstate --auth-mode login --query \"[?isCurrentVersion].{name:name, lease:properties.lease.state}\" -o table", "expect": "todos available" },
+      { "what": "Promover uma versao do state (somente para ler o runbook)", "cmd": "az storage blob copy start --account-name $sa -c tfstate -b 20-governance.tfstate --auth-mode login --source-uri \"https://$sa.blob.core.windows.net/tfstate/20-governance.tfstate?versionid=<versionId>\"", "expect": "nova versao atual do blob; a prova e o plan dar No changes", "risk": "sensitive", "warning": "SOBRESCREVE O STATE da camada. Nao e um comando de revisao nem de pratica. So em incidente real, depois de parar qualquer apply, confirmar que ninguem segura o lock, fazer backup do state atual (state pull) e escolher o versionId com a sua decisao. O portal nunca executa isto por voce." }
+    ],
+    "expected": "Lease available -> leased -> available durante o plan; plan sem mudanca grava 2 versoes novas no state; nenhum lease preso no fim.",
+    "mistakes": [
+      "O segundo apply ve um ERRO (Error acquiring the state lock), nao um plan.",
+      "KeyBasedAuthenticationNotPermitted e o erro de chave compartilhada (--auth-mode key), nao do lock. Correcao: --auth-mode login; nunca reativar as chaves.",
+      "Ctrl+C no meio de um plan pode deixar lock preso.",
+      "A prova da recuperacao e o plan, nao o apply; nunca editar o JSON a mao.",
+      "tfvars e entrada; o valor gerado pelo Azure fica no state."
+    ]
+  },
+  "R4": {
+    "guide": "relatorios/guia-sprint/R4-github-actions.md",
+    "concept": "O workflow pede um token curto ao GitHub (permissao id-token: write) e o Entra troca por um token do Azure se issuer, audience e subject baterem com uma credencial federada da app. Sem segredo para guardar ou rotacionar. O environment com revisores obrigatorios barra um apply sem revisao.",
+    "configure": [
+      ".github/workflows/infra.yml: on (pull_request com paths infra/**, workflow_dispatch), permissions, env ARM_USE_OIDC, jobs",
+      "permissions: id-token: write e contents: read (permissoes explicitas zeram o resto)",
+      "Environment lab com required_reviewers (Settings > Environments)",
+      "Credenciais federadas da app: github-pull-request, github-main-branch, github-env-lab",
+      "Variaveis do repositorio: AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID (ids, nao segredos)"
+    ],
+    "investigate": [
+      "AADSTS700213: o subject do token nao bate com nenhuma credencial federada (incidente C003)",
+      "Unable to get ACTIONS_ID_TOKEN_REQUEST_URL: falta id-token: write",
+      "checkout falha apos adicionar permissions: faltou contents: read",
+      "Apply sem aprovacao: o job nao tem environment ou o ambiente nao tem revisores"
+    ],
+    "commands": [
+      { "what": "Ler o workflow real", "cmd": "Get-Content .github/workflows/infra.yml", "expect": "jobs plan (pull_request) e run (workflow_dispatch, environment: lab)" },
+      { "what": "Regras do environment", "cmd": "gh api repos/edymonte/azure-enterprise-platform/environments --jq \".environments[] | {name, rules: [.protection_rules[].type]}\"", "expect": "{\"name\":\"lab\",\"rules\":[\"required_reviewers\"]}" },
+      { "what": "Client ID usado pelo workflow", "cmd": "$clientId = gh variable get AZURE_CLIENT_ID -R edymonte/azure-enterprise-platform", "expect": "appId de app-mfs-github-actions" },
+      { "what": "Credenciais federadas e subjects", "cmd": "az ad app federated-credential list --id $clientId --query \"[].{name:name, subject:subject}\" -o table", "expect": "environment:lab, pull_request, ref:refs/heads/main" },
+      { "what": "Checker estrutural do exercicio", "cmd": "$env:PORTAL_DATA_DIR = 'C:\\Projects\\aep-portal\\portal\\.data'\n$env:PORTAL_SESSION_ID = 'R4'\nnode C:\\Projects\\aep-portal\\portal\\checkers\\sprint-r4-github.js", "expect": "drill-triggers, drill-oidc e drill-gated-apply" }
+    ],
+    "expected": "Subject por contexto: pull request -> :pull_request; push na main -> :ref:refs/heads/main; job com environment: lab -> :environment:lab. O plan roda no PR com -lock=false; o apply so por execucao manual, atras do environment lab.",
+    "mistakes": [
+      "Achar que environment + id-token: write provam aprovacao e acesso: sao controles diferentes (OIDC, RBAC e aprovacao).",
+      "Concurrency so enfileira jobs com a mesma chave; o lock do backend continua valendo.",
+      "A aprovacao do environment vem antes dos passos do job protegido, incluindo o login OIDC dele.",
+      "AADSTS700213 e o erro quando o subject nao bate, nao algo que o Entra confere.",
+      "YAML com tab em vez de 2 espacos."
+    ]
+  },
+  "R5": { "pending": true, "note": "O guia de R5 (Azure DevOps) ainda nao foi preparado. A referencia sera preenchida quando a sessao for preparada, a partir do guia." },
+  "R6": { "pending": true, "note": "O guia de R6 (integracao GitHub e Azure DevOps) ainda nao foi preparado. A referencia sera preenchida quando a sessao for preparada, a partir do guia." }
+}
