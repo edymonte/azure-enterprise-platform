@@ -4,6 +4,12 @@
   "start": "2026-10-19",
   "lastDay": "2026-11-17",
   "dailyHours": 4,
+  "reviewMode": {
+    "active": true,
+    "since": "2026-11-05",
+    "focus": ["R1", "R2", "R3", "R4", "R5", "R6"],
+    "note": "Decision of 2026-11-05: more passes on R1–R6 before the rest of the route. Dates and replanning history are untouched; past-dated items that are not done show as in review or on hold, not as late."
+  },
   "sprint": {
     "2026-11-02": [
       "R1",

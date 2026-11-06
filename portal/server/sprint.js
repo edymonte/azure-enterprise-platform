@@ -7,6 +7,7 @@
 //   review  — an explicit review with pasted evidence and a named reviewer.
 // Logged time never completes anything, and the sprint awards no XP.
 import { UserError } from './progress.js';
+import { gapsOf, nextPractice, phaseOf, reviewStats, stageLabel } from './phase.js';
 
 const TEXT_MAX = 6000;
 const HISTORY_LIMIT = 20;
@@ -133,6 +134,17 @@ export class SprintTracker {
     if (r.completedAt) throw new UserError('The mode is frozen once the block is completed.');
     r.aiAssisted = value;
     this.save(id);
+  }
+
+  // A review pass (reading, maps, stories, command reference) can be repeated
+  // freely, also on blocks that are completed or not started. It is only a
+  // record: it never touches the criteria, so it cannot complete a block.
+  recordReviewPass(id, input = {}) {
+    this.block(id);
+    const r = this.rec(id);
+    const note = typeof input.note === 'string' ? input.note.trim().slice(0, 500) : '';
+    r.reviewPasses = [...(r.reviewPasses ?? []), { at: new Date().toISOString(), note }].slice(-50);
+    this.store.save();
   }
 
   recordReview(id, criterionId, input) {
@@ -310,6 +322,15 @@ export class SprintTracker {
       minutesLogged: r.minutes ?? 0,
       mode: r.completion?.mode ?? (r.assistedBefore || r.aiAssisted ? 'AI_ASSISTED' : 'SOLO'),
       aiAssisted: Boolean(r.aiAssisted),
+      review: reviewStats(r),
+      phase: (() => { const p = phaseOf(r); return { ...p, stage: stageLabel(p) }; })(),
+      gaps: gapsOf(r, b),
+      nextStep: nextPractice(r, b),
+      validation: (() => {
+        const pending = criteria.filter((c) => c.status !== 'pass').map((c) => c.text);
+        const attemptsDone = Boolean(this.portalRule(b, r, 'attempts'));
+        return { ready: Boolean(r.startedAt) && !r.completedAt && recallDone && attemptsDone, pending };
+      })(),
       hasChecker: Boolean(checker),
       recall: b.recall.map((q) => ({ id: q.id, question: q.question, mine: r.recall?.answers?.[q.id] ?? null, answer: recallDone ? q.answer : null })),
       recallSubmittedAt: r.recall?.submittedAt ?? null,

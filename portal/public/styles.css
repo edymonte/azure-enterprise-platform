@@ -123,6 +123,22 @@ code, .mono { font-family: var(--f-mono); font-size: .92em; }
 .p-doing { background: var(--warn-soft); color: var(--warn); }
 .p-next { background: var(--sunk); color: var(--faint); }
 .p-extra { background: var(--sunk); color: var(--muted); }
+.p-review { background: var(--accent-soft); color: var(--accent); }
+.p-hold { background: var(--sunk); color: var(--muted); }
+.today-grid { display: flex; flex-direction: column; gap: 16px; max-width: 920px; margin: 0 auto; }
+.review-banner { border-left: 4px solid var(--accent); }
+.prio-card .prio-head { font-size: 19px; font-weight: 700; margin: 6px 0; }
+.row-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0 6px; }
+.stage-list { display: flex; flex-direction: column; gap: 4px; }
+.stage-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+.stage-row:first-child { border-top: 0; }
+.stage-chips { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.ref-cmd { margin: 8px 0 14px; }
+.today-grid h4 { margin: 14px 0 4px; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.today-grid .tabs { display: flex; gap: 6px; margin: 8px 0; }
+.today-grid .tab { cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 8px; padding: 5px 12px; font-weight: 600; }
+.today-grid .tab.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+@media (max-width: 720px) { .stage-row { grid-template-columns: 1fr; } }
 .detail { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 
 /* ---------- cards & common ---------- */

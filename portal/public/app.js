@@ -184,6 +184,8 @@
     const today = isoToday();
     if (itemDone(it)) return ['done', it.kind === 'az400' && it.id !== 'prep' ? 'Verified' : 'Done'];
     if (it.date > state.schedule.lastDay) return ['extra', 'After'];
+    // Review mode: a past date that is not done is "in review" or "on hold", never a personal delay.
+    if (it.review && it.date < today) return it.review === 'focus' ? ['review', 'Em revisão'] : ['hold', 'Em espera'];
     if (it.date < today) return ['late', 'Late'];
     if (it.date === today) return ['today', 'Today'];
     if (itemStarted(it)) return ['doing', 'Doing'];
@@ -242,18 +244,26 @@
     const items = planItems();
     // Late is measured against the current plan; moved items keep their history.
     const due = items.filter((it) => it.date < today && it.date <= state.schedule.lastDay);
-    const late = due.filter((it) => !itemDone(it)).length;
+    const late = due.filter((it) => !itemDone(it) && !it.review).length;
+    const waiting = due.filter((it) => it.review && !itemDone(it)).length;
     const ahead = items.filter((it) => it.date > today && itemDone(it)).length;
     const moved = items.filter((it) => it.replans && !itemDone(it)).length;
     const pace = $('#s-pace');
+    const rm = state.schedule.reviewMode;
     if (state.schedule.start && today < state.schedule.start) { pace.textContent = `Starts ${fmtShort(state.schedule.start).dm}`; pace.style.color = 'var(--muted)'; }
     else if (late) { pace.textContent = `${late} item${late > 1 ? 's' : ''} late`; pace.style.color = 'var(--bad)'; }
+    else if (state.schedule.reviewMode?.active) { pace.textContent = `Em revisão · ${rm.focus[0]}–${rm.focus.at(-1)}`; pace.style.color = 'var(--accent)'; }
     else if (ahead) { pace.textContent = `${ahead} ahead`; pace.style.color = 'var(--ok)'; }
     else { pace.textContent = 'On track'; pace.style.color = 'var(--ok)'; }
-    $('#s-pace-note').textContent = moved ? `↻ ${moved} replanned` : '';
-    $('#s-pace-note').title = moved ? 'Items moved to a new date. Each one keeps its original date and the reason (open it in the Schedule).' : '';
+    $('#s-pace-note').textContent = rm?.active && waiting ? `${waiting} em espera` : moved ? `↻ ${moved} replanned` : '';
+    $('#s-pace-note').title = rm?.active && waiting ? 'Itens com data passada que aguardam a revisão R1–R6. Nenhuma data foi alterada e nada aqui conta como atraso.' : moved ? 'Items moved to a new date. Each one keeps its original date and the reason (open it in the Schedule).' : '';
     const next = items.find((it) => !itemDone(it));
-    if (next) {
+    const prio = state.today?.priority;
+    if (prio) {
+      $('#today-lbl').textContent = 'Prioridade de hoje';
+      $('#today-txt').textContent = prio.headline;
+      $('#today-btn').onclick = () => { location.hash = '#/today'; };
+    } else if (next) {
       $('#today-lbl').textContent = `Next · ${next.date === today ? 'today' : fmtLong(next.date)}`;
       $('#today-txt').textContent = itemTitle(next);
       $('#today-btn').onclick = () => { selectItem(itemKey(next)); location.hash = '#/schedule'; };
@@ -1878,12 +1888,93 @@
     view.replaceChildren(h('section', { class: 'card' }, h('h2', {}, ref.title), h('p', { class: 'muted' }, ref.intro), search, tabs, count), list);
   }
 
+  // ------------------------------------------------------------ today (REVISAR → PRATICAR → VALIDAR)
+  let refSel = null;
+  const STAGE_ACTION = { revisar: 'REVISAR', praticar: 'PRATICAR', validar: 'VALIDAR' };
+
+  function stageChips(s) {
+    return h('span', { class: 'stage-chips' },
+      h('span', { class: `chip ${s.reviewed ? 'ok' : ''}`, title: 'Pelo menos uma passada de revisão registrada' }, `${s.reviewed ? '✓' : '○'} REVISADO`),
+      h('span', { class: `chip ${s.practiced ? 'ok' : ''}`, title: 'Tentativa de passo ou execução do checker registrada' }, `${s.practiced ? '✓' : '○'} PRATICADO`),
+      h('span', { class: `chip ${s.validated ? 'ok' : ''}`, title: 'Todos os critérios do bloco passaram (checker, fatos do portal e revisões)' }, `${s.validated ? '✓' : '○'} VALIDADO`));
+  }
+
+  function reviewPassButton(id, label = 'Registrar passada de revisão') {
+    return h('button', { class: 'btn', type: 'button', title: 'Só registra que você revisou. Não dá nota, não conclui nada e pode ser repetida.',
+      onclick: () => spAct(id, 'reviewpass', {}, `Passada de revisão registrada em ${id}.`).catch(() => {}) }, label);
+  }
+
+  function referenceCard(t) {
+    const ids = t.focus.filter((id) => state.reference?.[id]);
+    if (!ids.length) return null;
+    if (!refSel || !ids.includes(refSel)) refSel = t.priority && ids.includes(t.priority.id) ? t.priority.id : ids[0];
+    const ref = state.reference[refSel];
+    const tabs = h('div', { class: 'tabs' }, ids.map((id) => h('button', { type: 'button', class: `tab ${id === refSel ? 'on' : ''}`, onclick: () => { refSel = id; render(true); } }, id)));
+    const list = (items) => h('ul', { class: 'crit-list' }, items.map((x) => h('li', {}, x)));
+    const body = ref.pending
+      ? [h('p', { class: 'muted' }, ref.note)]
+      : [
+        h('h4', {}, 'Conceito'), h('p', {}, ref.concept),
+        h('h4', {}, 'Onde configurar'), list(ref.configure),
+        h('h4', {}, 'Onde investigar'), list(ref.investigate),
+        h('h4', {}, 'Comandos principais'),
+        ...ref.commands.map((c) => h('div', { class: 'ref-cmd' }, h('b', {}, c.what), codeBlock(c.cmd, true), h('p', { class: 'muted small' }, `Resultado esperado: ${c.expect}`))),
+        h('h4', {}, 'Resultado esperado'), h('p', {}, ref.expected),
+        h('h4', {}, 'Erros comuns'), list(ref.mistakes),
+        ref.guide ? h('p', { class: 'muted small' }, `Guia completo: az400-reforcos/${ref.guide}`) : null,
+      ];
+    return h('section', { class: 'card' }, h('h3', {}, 'Referência rápida'),
+      h('p', { class: 'muted small' }, 'Resumo dos guias para consulta. Consultar não conta como avaliação nem concede progresso.'), tabs, ...body);
+  }
+
+  function renderToday() {
+    const t = state.today;
+    if (!t) { view.replaceChildren(h('section', { class: 'card' }, h('h2', {}, 'Hoje'), h('p', { class: 'muted' }, 'A trilha R1–R6 não está disponível neste catálogo.'))); return; }
+    const p = t.priority;
+    const cards = [];
+    if (t.reviewActive) {
+      cards.push(h('section', { class: 'card review-banner' }, h('b', {}, 'Modo revisão ativo'), t.since ? ` desde ${fmtLong(t.since)}` : '',
+        h('p', { class: 'muted small' }, 'Revisar → Praticar → Validar. Nenhuma data foi alterada: itens futuros ficam em espera, sem contar como atraso. Revisar não dá aprovação técnica.')));
+    }
+    cards.push(h('section', { class: 'card prio-card' },
+      h('div', { class: 'prog-head' }, h('h2', {}, 'Minha prioridade de hoje'), p ? h('span', { class: `pill p-${p.action === 'validar' ? 'done' : p.action === 'praticar' ? 'doing' : 'review'}` }, STAGE_ACTION[p.action]) : null),
+      p ? [
+        h('p', { class: 'prio-head' }, p.headline), h('p', {}, p.why),
+        h('div', { class: 'row-actions' },
+          h('button', { class: 'btn btn-primary', type: 'button', onclick: () => { selectItem(`sprint:${p.id}`); location.hash = '#/schedule'; } }, `Abrir ${p.id}`),
+          reviewPassButton(p.id)),
+      ] : h('p', {}, 'R1–R6 validados. Continue com revisões livres ou avance para a rota da plataforma.'),
+      t.complementary ? h('p', { class: 'muted small' }, `Revisão complementar (opcional): ${t.complementary.id} — ${t.complementary.title} · ${t.complementary.passes} passada${t.complementary.passes === 1 ? '' : 's'}.`) : null));
+
+    cards.push(h('section', { class: 'card' }, h('h3', {}, 'O que estou revisando'),
+      h('div', { class: 'stage-list' }, t.stages.map((s) => h('div', { class: 'stage-row' },
+        h('div', {}, h('b', {}, `${s.id} · ${s.title}`), h('div', { class: 'muted small' }, `${s.passes} passada${s.passes === 1 ? '' : 's'}${s.lastReviewAt ? ` · última ${rel(s.lastReviewAt)}` : ''}${s.validated && s.mode ? ` · ${s.mode}` : ''}`)),
+        stageChips(s), reviewPassButton(s.id, 'Passada ✓'))))));
+
+    cards.push(h('section', { class: 'card' }, h('h3', {}, 'Qual prática devo realizar'),
+      t.practice ? h('p', {}, t.practice.text, h('span', { class: 'muted small' }, ' · execute os comandos você mesmo e registre evidências e dificuldades.')) : h('p', { class: 'muted' }, 'Nenhuma prática pendente.')));
+
+    cards.push(h('section', { class: 'card' }, h('h3', {}, 'Lacunas que ainda preciso trabalhar'),
+      t.gaps.length ? h('ul', { class: 'crit-list' }, t.gaps.map((g) => h('li', {}, h('span', { class: 'pill p-next' }, g.block), ` ${g.text}`)))
+        : h('p', { class: 'muted' }, 'Nada registrado ainda. As lacunas vêm do recall sem resposta, do feedback, das revisões “ainda não” e do checker.')));
+
+    const v = t.validation;
+    cards.push(h('section', { class: 'card' }, h('h3', {}, 'Quando estou pronto para uma avaliação'),
+      !v ? h('p', { class: 'muted' }, 'Sem bloco pendente.')
+        : v.ready ? h('div', {}, h('p', {}, `${v.id}: os passos têm tentativa registrada. Faltam estes critérios para validar:`), h('ul', { class: 'crit-list' }, v.pending.map((x) => h('li', {}, x))))
+          : h('p', { class: 'muted' }, `${v.id}: ainda não. Registre o recall e uma tentativa por passo; depois a avaliação abre com 2 ou 3 perguntas essenciais, o inglês e as evidências dos critérios existentes.`)));
+
+    const ref = referenceCard(t);
+    if (ref) cards.push(ref);
+    view.replaceChildren(h('div', { class: 'today-grid' }, ...cards));
+  }
+
   // ------------------------------------------------------------ routing
   function route() {
     const parts = location.hash.replace(/^#\/?/, '').split('/');
     if (parts[0] === 'session' && /^C\d{3}$/.test(parts[1] ?? '')) return { view: 'session', id: parts[1] };
     if (parts[0] === 'quiz' && /^[0-2][0-9]$/.test(parts[1] ?? '')) return { view: 'quiz', id: parts[1] };
-    return { view: ['schedule', 'course', 'tftec', 'notebook', 'commands', 'map', 'progress', 'environment', 'study', 'interview'].includes(parts[0]) ? parts[0] : 'schedule' };
+    return { view: ['today', 'schedule', 'course', 'tftec', 'notebook', 'commands', 'map', 'progress', 'environment', 'study', 'interview'].includes(parts[0]) ? parts[0] : (state?.today ? 'today' : 'schedule') };
   }
 
   function render(force = false) {
@@ -1896,6 +1987,7 @@
     renderChrome();
     const r = route();
     if (r.view === 'session') renderWorkspace(r.id);
+    else if (r.view === 'today') renderToday();
     else if (r.view === 'course') renderCourse();
     else if (r.view === 'quiz') renderQuiz(r.id);
     else if (r.view === 'map') renderMap();

@@ -14,6 +14,8 @@ import { Az400, LAB_ID } from './az400.js';
 import { loadSchedule } from './schedule.js';
 import { Notebook } from './notebook.js';
 import { SprintTracker } from './sprint.js';
+import { annotateItems, buildToday } from './phase.js';
+import { loadReference } from './reference.js';
 
 const STATIC_FILES = {
   '/app.js': ['app.js', 'text/javascript; charset=utf-8'],
@@ -30,7 +32,7 @@ const SECURITY_HEADERS = {
   'Cache-Control': 'no-store',
 };
 const ACTIONS = new Set(['start', 'check', 'cancel', 'hint', 'assisted', 'assessment']);
-const SPRINT_ACTIONS = new Set(['start', 'recall', 'attempt', 'hint', 'solution', 'assisted', 'check', 'review', 'english', 'feedback', 'time', 'blocker', 'unblock']);
+const SPRINT_ACTIONS = new Set(['start', 'recall', 'attempt', 'hint', 'solution', 'assisted', 'check', 'review', 'english', 'feedback', 'time', 'blocker', 'unblock', 'reviewpass']);
 const MAX_BODY = 32768; // a terminal block (16 KB) or a 50-question quiz fits
 
 const BLOCK_MESSAGES = {
@@ -44,6 +46,7 @@ const BLOCK_MESSAGES = {
 export function createApp(config) {
   const catalog = loadCatalog(config.portalRoot);
   const schedule = loadSchedule(config.portalRoot, catalog);
+  const reference = loadReference(config.portalRoot, catalog.sprint);
   const progress = new ProgressStore({ dataDir: config.dataDir, catalog, unlockAll: config.unlockAll, scheduledSessions: schedule.scheduledSessions }).load();
   const az400 = new Az400({ root: config.az400Root });
   const notebook = new Notebook({ dataDir: config.dataDir });
@@ -171,8 +174,10 @@ export function createApp(config) {
       })(),
       timeline: progress.timeline(30),
       links: progress.links(),
-      schedule: { title: schedule.title, subtitle: schedule.subtitle, start: schedule.start, lastDay: schedule.lastDay, dailyHours: schedule.dailyHours, sprintDays: schedule.sprintDays ?? [], items: schedule.items },
+      schedule: { title: schedule.title, subtitle: schedule.subtitle, start: schedule.start, lastDay: schedule.lastDay, dailyHours: schedule.dailyHours, sprintDays: schedule.sprintDays ?? [], items: annotateItems(schedule.items, schedule.reviewMode), reviewMode: schedule.reviewMode },
       commands: catalog.commands,
+      today: sprint.enabled ? buildToday({ blocks: sprint.sprint.blocks.map((b) => sprint.view(b.id)), reviewMode: schedule.reviewMode, reference }) : null,
+      reference,
       sprint: guidedState(sprint),
       gitflow: guidedState(gitflow),
       az400: {
@@ -262,6 +267,7 @@ export function createApp(config) {
       case 'time': sprint.logTime(id, body.minutes); return { ok: true };
       case 'blocker': sprint.addBlocker(id, body); return { ok: true };
       case 'unblock': sprint.resolveBlocker(id, body.index); return { ok: true };
+      case 'reviewpass': sprint.recordReviewPass(id, body); return { ok: true };
       default: throw new UserError('Unknown action.');
     }
   }

@@ -59,7 +59,20 @@ export function loadSchedule(portalRoot, catalog) {
   const rank = (i) => (i.id === 'prep' ? '' : i.id);
   const kinds = ['sprint', 'az400', 'platform', 'gitflow'];
   items.sort((a, b) => a.date.localeCompare(b.date) || (a.kind === b.kind ? rank(a).localeCompare(rank(b)) : kinds.indexOf(a.kind) - kinds.indexOf(b.kind)));
+  // Review mode (REVISAR → PRATICAR → VALIDAR): while active, past-dated items
+  // that are not done show as "in review" or "on hold", not as personal delays.
+  // It never moves a date; the replanning history above stays the record of moves.
+  let reviewMode = null;
+  if (cfg.reviewMode) {
+    const rm = cfg.reviewMode;
+    if (typeof rm.active !== 'boolean') throw new Error('schedule.json: reviewMode.active must be true or false');
+    if (!DATE.test(rm.since ?? '')) throw new Error('schedule.json: reviewMode.since must be YYYY-MM-DD');
+    if (!Array.isArray(rm.focus) || !rm.focus.length) throw new Error('schedule.json: reviewMode.focus must list sprint block ids');
+    for (const id of rm.focus) if (!catalog.sprint?.byId.has(id)) throw new Error(`schedule.json: reviewMode.focus has unknown sprint block ${id}`);
+    reviewMode = { active: rm.active, since: rm.since, focus: rm.focus, note: typeof rm.note === 'string' ? rm.note : '' };
+  }
   return {
+    reviewMode,
     title: cfg.title,
     subtitle: cfg.subtitle,
     start: cfg.start,
