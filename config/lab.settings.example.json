@@ -5,6 +5,7 @@
   "operatorIpRanges": ["203.0.113.10/32"],
   "githubRepository": "edymonte/azure-enterprise-platform",
   "publicDnsZoneName": "edymonte.com.br",
-  "monthlyBudgetAmount": 150,
+  "monthlyBudgetAmount": 120,
+  "budgetContactEmails": ["you@example.com", "you@work.example.com"],
   "budgetStartDate": "2026-10-01T00:00:00Z"
 }

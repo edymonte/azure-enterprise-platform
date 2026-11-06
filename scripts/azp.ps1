@@ -136,6 +136,7 @@ function Invoke-Bootstrap {
     alert_email           = $s.alertEmail
     public_dns_zone_name  = $s.publicDnsZoneName
     monthly_budget_amount = $s.monthlyBudgetAmount
+    budget_contact_emails = @($s.budgetContactEmails | Where-Object { $_ })
     budget_start_date     = $s.budgetStartDate
   } | ConvertTo-Json | Set-Content $bootstrapVars -Encoding utf8
 
