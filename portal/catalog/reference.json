@@ -17,7 +17,7 @@
       { "what": "Versao do Azure CLI", "cmd": "(az version -o json | ConvertFrom-Json).'azure-cli'", "expect": "numero da versao" },
       { "what": "Ferramentas e login do gh", "cmd": "terraform version; gh auth status; git --version", "expect": "versoes e escopos do token" },
       { "what": "Assinatura e usuario atuais", "cmd": "az account show --query \"{subscription:name, subId:id, user:user.name}\" -o table", "expect": "nome, ID e usuario" },
-      { "what": "Voltar para a assinatura certa", "cmd": "az account set --subscription <ID>", "expect": "sem saida; confirme com az account show" },
+      { "what": "Voltar para a assinatura certa", "cmd": "az account set --subscription <ID>", "expect": "sem saida; confirme com az account show", "risk": "caution", "warning": "Troca a assinatura ativa do Azure CLI nesta maquina (nao muda recursos). Substitua <ID> pelo ID real e confirme com az account show antes de qualquer outro comando." },
       { "what": "O que esta implantado em cada camada", "cmd": "./scripts/azp.ps1 status", "expect": "DEPLOYED (n) ou empty por camada" },
       { "what": "Resource groups da plataforma com contagem", "cmd": "$g = az group list -o json | ConvertFrom-Json | Where-Object { $_.name -like 'rg-mfs*' -or $_.name -like 'MA_*' }\n$g | ForEach-Object { $n = (az resource list -g $_.name -o json | ConvertFrom-Json).Count; [pscustomobject]@{ rg=$_.name; location=$_.location; resources=$n; managedBy=$_.managedBy } } | Format-Table -AutoSize", "expect": "grupo, local, recursos e managedBy" }
     ],
@@ -74,7 +74,7 @@
       "Acesso por Entra ID com papel Storage Blob Data Contributor (--auth-mode login)"
     ],
     "investigate": [
-      "Lock: erro Error acquiring the state lock com ID e dono; confirmar que nada roda antes de force-unlock",
+      "Lock: erro Error acquiring the state lock com ID e dono. Confirmar que nada roda. force-unlock so com decisao sua, nunca como passo de revisao",
       "Drift: terraform plan (nunca apply); em CI, plan agendado com -detailed-exitcode (0 sem mudanca, 2 com mudanca)",
       "Plan: que ninguem pediu = drift: ler o diff e o Activity Log antes de decidir",
       "Versoes do blob para escolher a ultima versao boa"
@@ -84,9 +84,9 @@
       { "what": "Versionamento e soft delete", "cmd": "az storage account blob-service-properties show -n $sa -g rg-mfs-tfstate --query \"{versioning:isVersioningEnabled, softDeleteDays:deleteRetentionPolicy.days}\" -o json", "expect": "versioning true, softDeleteDays 7" },
       { "what": "Versoes por blob (plano de dados)", "cmd": "az storage blob list --account-name $sa -c tfstate --auth-mode login --include v -o json | ConvertFrom-Json | Group-Object name | Select-Object @{n='blob';e={$_.Name}}, @{n='versoes';e={$_.Count}} | Format-Table -AutoSize", "expect": "05, 10 e 20 com muitas versoes; 30 a 70 com 4 vazias; sem blob da 00" },
       { "what": "Ver o lease acontecer (terminal B)", "cmd": "while ($true) { az storage blob show --account-name $sa -c tfstate -n 10-foundation.tfstate --auth-mode login --query \"{lease:properties.lease.state, duration:properties.lease.duration}\" -o tsv; Start-Sleep 2 }", "expect": "available -> leased infinite -> available" },
-      { "what": "Plan de uma camada (terminal A)", "cmd": "./scripts/azp.ps1 plan 10-foundation", "expect": "No changes. Your infrastructure matches the configuration." },
+      { "what": "Plan de uma camada (terminal A)", "cmd": "./scripts/azp.ps1 plan 10-foundation", "expect": "No changes. Your infrastructure matches the configuration.", "risk": "caution", "warning": "E um plan, nao um apply: nao muda recursos. Mas pega o lock do state e grava 2 versoes novas no blob. Rode so quando quiser ver o lock; nunca feche a janela no meio (pode deixar lock preso)." },
       { "what": "Nenhum lock preso ao final", "cmd": "az storage blob list --account-name $sa -c tfstate --auth-mode login --query \"[?isCurrentVersion].{name:name, lease:properties.lease.state}\" -o table", "expect": "todos available" },
-      { "what": "Promover uma versao (runbook, nao executar sem decisao)", "cmd": "az storage blob copy start --account-name $sa -c tfstate -b 20-governance.tfstate --auth-mode login --source-uri \"https://$sa.blob.core.windows.net/tfstate/20-governance.tfstate?versionid=<versionId>\"", "expect": "nova versao atual; depois, plan deve dar No changes" }
+      { "what": "Promover uma versao do state (somente para ler o runbook)", "cmd": "az storage blob copy start --account-name $sa -c tfstate -b 20-governance.tfstate --auth-mode login --source-uri \"https://$sa.blob.core.windows.net/tfstate/20-governance.tfstate?versionid=<versionId>\"", "expect": "nova versao atual do blob; a prova e o plan dar No changes", "risk": "sensitive", "warning": "SOBRESCREVE O STATE da camada. Nao e um comando de revisao nem de pratica. So em incidente real, depois de parar qualquer apply, confirmar que ninguem segura o lock, fazer backup do state atual (state pull) e escolher o versionId com a sua decisao. O portal nunca executa isto por voce." }
     ],
     "expected": "Lease available -> leased -> available durante o plan; plan sem mudanca grava 2 versoes novas no state; nenhum lease preso no fim.",
     "mistakes": [

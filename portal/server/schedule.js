@@ -1,6 +1,7 @@
 // Builds the dated plan shown in the timeline rail from catalog/schedule.json.
 import fs from 'node:fs';
 import path from 'node:path';
+import { parseAvailability } from './availability.js';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -73,6 +74,7 @@ export function loadSchedule(portalRoot, catalog) {
   }
   return {
     reviewMode,
+    availability: parseAvailability(cfg.availability),
     title: cfg.title,
     subtitle: cfg.subtitle,
     start: cfg.start,

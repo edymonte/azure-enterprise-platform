@@ -92,8 +92,9 @@ export class SprintTracker {
   step(id, stepId) {
     const s = this.block(id).steps.find((x) => x.id === stepId);
     if (!s) throw new UserError('Unknown step.');
+    // Practice does not wait for the recall: the recall is part of the formal
+    // validation (the "recall-recorded" criterion still has to pass).
     const r = this.started(id);
-    if (!r.recall?.submittedAt) throw new UserError('Answer the recall questions first.');
     r.steps ??= {};
     r.steps[stepId] ??= { hints: 0 };
     return { s, st: r.steps[stepId], r };
@@ -301,8 +302,8 @@ export class SprintTracker {
     return { state: 'IN_PROGRESS', reason: null };
   }
 
-  // What the browser may see: recall answers only after submitting, steps only
-  // after recall, solutions only after they were opened (which needs an attempt).
+  // What the browser may see: recall reference answers only after submitting,
+  // solutions only after they were opened (which needs an attempt).
   view(id, { running = false } = {}) {
     const b = this.block(id);
     const r = this.peek(id);
@@ -329,22 +330,21 @@ export class SprintTracker {
       validation: (() => {
         const pending = criteria.filter((c) => c.status !== 'pass').map((c) => c.text);
         const attemptsDone = Boolean(this.portalRule(b, r, 'attempts'));
-        return { ready: Boolean(r.startedAt) && !r.completedAt && recallDone && attemptsDone, pending };
+        // Ready = every required step was practised; the recall and the other criteria are what validation still asks for.
+        return { ready: Boolean(r.startedAt) && !r.completedAt && attemptsDone, pending };
       })(),
       hasChecker: Boolean(checker),
       recall: b.recall.map((q) => ({ id: q.id, question: q.question, mine: r.recall?.answers?.[q.id] ?? null, answer: recallDone ? q.answer : null })),
       recallSubmittedAt: r.recall?.submittedAt ?? null,
-      steps: recallDone
-        ? steps.map((s) => {
-          const st = r.steps?.[s.id] ?? {};
-          return {
-            id: s.id, level: s.level, title: s.title, detail: s.detail, command: s.command ?? null,
-            hintsTotal: s.hints.length, hints: s.hints.slice(0, st.hints ?? 0),
-            attempt: st.attempt ?? null, attemptAt: st.attemptAt ?? null,
-            solution: st.solutionAt ? s.solution : null,
-          };
-        })
-        : null,
+      steps: steps.map((s) => {
+        const st = r.steps?.[s.id] ?? {};
+        return {
+          id: s.id, level: s.level, title: s.title, detail: s.detail, command: s.command ?? null,
+          hintsTotal: s.hints.length, hints: s.hints.slice(0, st.hints ?? 0),
+          attempt: st.attempt ?? null, attemptAt: st.attemptAt ?? null,
+          solution: st.solutionAt ? s.solution : null,
+        };
+      }),
       stepsCount: steps.length,
       english: { question: english.question, followUps: english.followUps ?? [], mine: r.english ?? null, modelAnswer: r.english ? english.modelAnswer : null },
       criteria,

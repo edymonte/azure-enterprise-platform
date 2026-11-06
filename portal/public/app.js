@@ -256,7 +256,7 @@
     else if (ahead) { pace.textContent = `${ahead} ahead`; pace.style.color = 'var(--ok)'; }
     else { pace.textContent = 'On track'; pace.style.color = 'var(--ok)'; }
     $('#s-pace-note').textContent = rm?.active && waiting ? `${waiting} em espera` : moved ? `↻ ${moved} replanned` : '';
-    $('#s-pace-note').title = rm?.active && waiting ? 'Itens com data passada que aguardam a revisão R1–R6. Nenhuma data foi alterada e nada aqui conta como atraso.' : moved ? 'Items moved to a new date. Each one keeps its original date and the reason (open it in the Schedule).' : '';
+    $('#s-pace-note').title = rm?.active && waiting ? 'Itens com data passada, preservados e aguardando replanejamento enquanto R1–R6 são revisados. Nenhuma data foi alterada e nada aqui conta como atraso.' : moved ? 'Items moved to a new date. Each one keeps its original date and the reason (open it in the Schedule).' : '';
     const next = items.find((it) => !itemDone(it));
     const prio = state.today?.priority;
     if (prio) {
@@ -590,15 +590,15 @@
         h('span', { class: 'muted small' }, 'Logged time shows effort; only evidence completes the block.')),
       keptDetails(`${b.kind}-rules`, false, 'box', `How the ${track.title} works`, h('p', {}, track.intro), h('ul', {}, track.rules.map((r) => h('li', {}, r)))),
       h('div', { class: 'links' },
-        started ? null : h('button', { class: 'btn btn-primary', onclick: () => spAct(b.id, 'start', {}, 'Started. Answer the recall questions first — no notes.') }, b.kind === 'gitflow' ? 'Start the mission' : 'Start the block'),
+        started ? null : h('button', { class: 'btn btn-primary', onclick: () => spAct(b.id, 'start', {}, 'Started. Practise now: the recall questions can wait until you validate.') }, b.kind === 'gitflow' ? 'Start the mission' : 'Start the block'),
         started && !done ? h('span', { class: 'muted small' }, `Started ${abs(b.startedAt)}`) : null));
     const cards = [head];
     if (!started) {
-      cards.push(h('section', { class: 'card' }, h('h3', {}, `1 · Recall (${b.recall.length} questions, no notes)`), h('ul', {}, b.recall.map((q) => h('li', {}, q.question))),
-        h('p', { class: 'muted small' }, `Then ${b.stepsCount} exercise steps, the evidence, an English answer and your feedback. Start the block to record answers.`)));
+      cards.push(h('section', { class: 'card' }, h('h3', {}, `Recall for the validation (${b.recall.length} questions, no notes)`), h('ul', {}, b.recall.map((q) => h('li', {}, q.question))),
+        h('p', { class: 'muted small' }, `Start the block to practise the ${b.stepsCount} steps right away. The recall, the evidence, an English answer and your feedback are what validation asks for, and they can come after the practice.`)));
       return cards;
     }
-    cards.push(recallCard(b), exerciseCard(b), evidenceCard(b), englishCard(b), feedbackCard(b), blockersCard(b));
+    cards.push(exerciseCard(b), recallCard(b), evidenceCard(b), englishCard(b), feedbackCard(b), blockersCard(b));
     const idx = items.findIndex((x) => itemKey(x) === itemKey(it));
     const nx = items[idx + 1];
     cards.push(h('section', { class: 'card foot' },
@@ -608,7 +608,7 @@
   }
 
   function recallCard(b) {
-    const card = h('section', { class: 'card' }, h('h3', {}, '1 · Recall — before any instruction'));
+    const card = h('section', { class: 'card' }, h('h3', {}, '2 · Recall — part of the validation'));
     if (b.recallSubmittedAt) {
       card.append(h('p', { class: 'muted small' }, `Recorded ${abs(b.recallSubmittedAt)}. Compare with the reference and note the gaps in your feedback.`),
         ...b.recall.map((q) => h('div', { class: 'recall' }, h('h4', {}, q.question), h('div', { class: 'mine' }, h('em', {}, 'Your answer'), q.mine),
@@ -616,15 +616,15 @@
       return card;
     }
     const areas = b.recall.map((q) => ({ q, ta: draftArea(`${b.id}:recall:${q.id}`, '', { placeholder: 'Your answer from memory. "I don\'t remember" is fine.' }) }));
-    card.append(h('p', { class: 'muted small' }, 'No notes, no search. The exercise steps open after you record these answers, and they cannot be edited afterwards.'),
+    card.append(h('p', { class: 'muted small' }, 'No notes, no search. You do not need this to practise; it is what the validation asks for. Answers cannot be edited once recorded, and the portal keeps the order (practice first or recall first) honest in the record.'),
       ...areas.map(({ q, ta }) => h('div', { class: 'recall' }, h('h4', {}, q.question), ta)),
-      h('button', { class: 'btn btn-primary', onclick: () => spAct(b.id, 'recall', { answers: Object.fromEntries(areas.map(({ q, ta }) => [q.id, ta.value])) }, 'Recall recorded — the exercise is open.').then(() => clearDraft(...areas.map(({ q }) => `${b.id}:recall:${q.id}`))).catch(() => {}) }, 'Record answers and open the exercise'));
+      h('button', { class: 'btn btn-primary', onclick: () => spAct(b.id, 'recall', { answers: Object.fromEntries(areas.map(({ q, ta }) => [q.id, ta.value])) }, 'Recall recorded.').then(() => clearDraft(...areas.map(({ q }) => `${b.id}:recall:${q.id}`))).catch(() => {}) }, 'Record the recall answers'));
     return card;
   }
 
   function exerciseCard(b) {
-    const card = h('section', { class: 'card' }, h('h3', {}, '2 · Exercise — from guided to solo'));
-    if (!b.steps) { card.append(h('p', { class: 'muted' }, `${b.stepsCount} steps open after the recall answers.`)); return card; }
+    const card = h('section', { class: 'card' }, h('h3', {}, '1 · Practice — from guided to solo'));
+    if (!b.steps) { card.append(h('p', { class: 'muted' }, `${b.stepsCount} steps.`)); return card; }
     card.append(h('p', { class: 'muted small' }, 'Run the commands yourself and write what you saw or concluded. Hints and solutions open on request; any opened before completion make the block AI-assisted. A solution opens only after your attempt is saved.'));
     const list = h('ol', { class: 'steps-list' });
     for (const s of b.steps) {
@@ -1904,6 +1904,16 @@
       onclick: () => spAct(id, 'reviewpass', {}, `Passada de revisão registrada em ${id}.`).catch(() => {}) }, label);
   }
 
+  // Sensitive commands (state restore, force-unlock, apply, destroy...) are shown
+  // for reading only: no copy and no terminal button, and the portal never runs them.
+  function refCommand(c) {
+    if (c.risk === 'sensitive') {
+      return h('div', { class: 'risk-box' }, h('b', {}, '⚠ Sensível: só para ler o runbook. Nada é executado pelo portal.'), h('p', {}, c.warning), h('pre', {}, c.cmd));
+    }
+    const code = codeBlock(c.cmd, true);
+    return c.risk === 'caution' ? h('div', {}, h('p', { class: 'risk-note' }, `Atenção: ${c.warning}`), code) : code;
+  }
+
   function referenceCard(t) {
     const ids = t.focus.filter((id) => state.reference?.[id]);
     if (!ids.length) return null;
@@ -1918,7 +1928,7 @@
         h('h4', {}, 'Onde configurar'), list(ref.configure),
         h('h4', {}, 'Onde investigar'), list(ref.investigate),
         h('h4', {}, 'Comandos principais'),
-        ...ref.commands.map((c) => h('div', { class: 'ref-cmd' }, h('b', {}, c.what), codeBlock(c.cmd, true), h('p', { class: 'muted small' }, `Resultado esperado: ${c.expect}`))),
+        ...ref.commands.map((c) => h('div', { class: 'ref-cmd' }, h('b', {}, c.what), refCommand(c), h('p', { class: 'muted small' }, `Resultado esperado: ${c.expect}`))),
         h('h4', {}, 'Resultado esperado'), h('p', {}, ref.expected),
         h('h4', {}, 'Erros comuns'), list(ref.mistakes),
         ref.guide ? h('p', { class: 'muted small' }, `Guia completo: az400-reforcos/${ref.guide}`) : null,
@@ -1946,6 +1956,9 @@
       ] : h('p', {}, 'R1–R6 validados. Continue com revisões livres ou avance para a rota da plataforma.'),
       t.complementary ? h('p', { class: 'muted small' }, `Revisão complementar (opcional): ${t.complementary.id} — ${t.complementary.title} · ${t.complementary.passes} passada${t.complementary.passes === 1 ? '' : 's'}.`) : null));
 
+    const availCard = availabilityCard();
+    if (availCard) cards.push(availCard);
+
     cards.push(h('section', { class: 'card' }, h('h3', {}, 'O que estou revisando'),
       h('div', { class: 'stage-list' }, t.stages.map((s) => h('div', { class: 'stage-row' },
         h('div', {}, h('b', {}, `${s.id} · ${s.title}`), h('div', { class: 'muted small' }, `${s.passes} passada${s.passes === 1 ? '' : 's'}${s.lastReviewAt ? ` · última ${rel(s.lastReviewAt)}` : ''}${s.validated && s.mode ? ` · ${s.mode}` : ''}`)),
@@ -1962,11 +1975,44 @@
     cards.push(h('section', { class: 'card' }, h('h3', {}, 'Quando estou pronto para uma avaliação'),
       !v ? h('p', { class: 'muted' }, 'Sem bloco pendente.')
         : v.ready ? h('div', {}, h('p', {}, `${v.id}: os passos têm tentativa registrada. Faltam estes critérios para validar:`), h('ul', { class: 'crit-list' }, v.pending.map((x) => h('li', {}, x))))
-          : h('p', { class: 'muted' }, `${v.id}: ainda não. Registre o recall e uma tentativa por passo; depois a avaliação abre com 2 ou 3 perguntas essenciais, o inglês e as evidências dos critérios existentes.`)));
+          : h('p', { class: 'muted' }, `${v.id}: ainda não. Pratique os passos (uma tentativa por passo, sem precisar responder o questionário antes). A validação vem depois, com o recall, o inglês e as evidências dos critérios existentes.`)));
 
+    const aws = awsCard();
+    if (aws) cards.push(aws);
     const ref = referenceCard(t);
     if (ref) cards.push(ref);
     view.replaceChildren(h('div', { class: 'today-grid' }, ...cards));
+  }
+
+  // Availability is a ceiling, never a goal: 120 minutes is not owed, an empty
+  // day or week is valid, and nothing is created to make up for a day off.
+  function availabilityCard() {
+    const av = state.availability;
+    if (!av) return null;
+    const d = av.today;
+    const rest = d.kind === 'sunday';
+    return h('section', { class: `card avail-card ${rest ? 'rest' : ''}` },
+      h('div', { class: 'prog-head' }, h('h3', {}, 'Minha disponibilidade'), h('span', { class: 'pill p-hold' }, `${fmtLong(d.date)}`)),
+      h('p', { class: 'prio-head' }, d.label), h('p', {}, d.message),
+      rest ? null : h('div', { class: 'stage-chips' }, d.tiers.map((x) => h('span', { class: 'chip', title: 'Referência de energia do dia, sem obrigação.' }, `${x.label}: ${x.minutes}`))),
+      h('p', { class: 'muted small' }, av.week.goal, ` Dias com estudo registrado nesta semana: ${av.week.activeDays.length}. Sem penalidade e sem tarefa de compensação.`),
+      h('p', { class: 'muted small' }, 'Trilhas (60 dias): ', av.tracks.map((x) => `${x.id} ${x.share}%`).join(' · '), ' — A: Platform Engineering com laboratórios executados por você; B: AWS SAA-C03, curso externo.'));
+  }
+
+  const AWS_MAP = [['VNet', 'VPC'], ['NSG', 'Security Group / NACL'], ['Entra ID + RBAC', 'IAM'], ['Storage Account (Blob)', 'S3'], ['Key Vault', 'KMS / Secrets Manager'], ['Log Analytics / Monitor', 'CloudWatch'], ['AKS', 'EKS'], ['Availability Zones', 'Availability Zones']];
+  function awsCard() {
+    const a = state.availability?.aws;
+    if (!a) return null;
+    const input = h('input', { type: 'number', min: '0', max: String(a.total), step: '1', value: String(a.done), 'aria-label': 'Aulas concluídas' });
+    const bar = h('div');
+    bar.style.width = `${a.percent}%`;
+    bar.style.background = 'var(--accent)';
+    return h('section', { class: 'card' },
+      h('div', { class: 'prog-head' }, h('h3', {}, `Trilha B · AWS ${a.course}`), h('span', { class: 'mono muted' }, `${a.done}/${a.total} aulas · ${a.percent}%`)),
+      h('div', { class: 'bar' }, bar),
+      h('p', { class: 'muted small' }, `Curso externo: o portal guarda só a contagem, sem importar as aulas. Próxima: aula ${a.next}. Prioridade: arquitetura, segurança, resiliência, desempenho e custos.`),
+      h('div', { class: 'row-actions' }, h('label', { class: 'small' }, 'Aulas concluídas ', input), h('button', { class: 'btn', type: 'button', onclick: () => post('/api/aws', { done: Number(input.value) }).then(() => toast('Progresso AWS atualizado.', 'info')).catch((e) => toast(e.message)) }, 'Atualizar')),
+      h('p', { class: 'muted small' }, 'Pontes com o que você já usa: ', AWS_MAP.map(([az, aw]) => `${az} ↔ ${aw}`).join(' · ')));
   }
 
   // ------------------------------------------------------------ routing

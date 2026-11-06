@@ -56,12 +56,13 @@ test('http: loopback only, host/origin/token checks, allow-listed ids, no secret
   assert.equal((await sp('R1', 'exec')).status, 404, 'unknown sprint action');
   assert.equal((await sp('R1', 'recall', { answers: {} })).status, 400, 'start first');
   assert.equal((await sp('R1', 'start')).status, 200);
-  assert.equal((await sp('R1', 'attempt', { step: 'tools', text: 'az ok' })).status, 400, 'steps stay closed until the recall is recorded');
+  assert.equal((await sp('R1', 'attempt', { step: 'tools', text: 'az ok' })).status, 200, 'practice does not wait for the recall; the recall is part of the validation');
 
   const state = JSON.parse((await request(port, { path: '/api/state', headers: json })).body);
   assert.equal(state.sessions.length, 30);
   const r1 = state.sprint.blocks.find((b) => b.id === 'R1');
-  assert.equal(r1.steps, null, 'exercise not sent before the recall');
+  assert.ok(Array.isArray(r1.steps) && r1.steps.length > 0, 'the exercise is open for practice');
+  assert.equal(r1.state, 'IN_PROGRESS', 'one attempt does not complete the block');
   assert.ok(r1.recall.every((q) => q.answer === null), 'reference answers not sent before the recall');
   assert.ok(!JSON.stringify(state.sprint).includes('"solution":"'), 'no solution text in the state');
   assert.ok(state.sessions.every((s) => s.hints === undefined && s.debrief === null), 'hints and debriefs are not sent before they are earned');

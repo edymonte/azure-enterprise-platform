@@ -2,7 +2,7 @@
 //
 // Nothing here writes progress or grants completion:
 //   REVISADO  — the learner recorded at least one review pass (reading, maps, stories);
-//   PRATICADO — a step attempt or a checker run exists;
+//   PRATICADO — the learner wrote at least one step attempt (a checker run is not practice);
 //   VALIDADO  — the block's own criteria passed (completedAt). Only the tracker sets it.
 // A review pass never touches the criteria, so reviewing cannot complete a block.
 
@@ -15,12 +15,13 @@ export function reviewStats(rec = {}) {
 }
 
 export function phaseOf(rec = {}) {
+  // PRATICADO needs a step attempt the learner wrote. A checker observation is
+  // not practice: polling runs on its own and a blocked check proves nothing.
   const attempts = Object.values(rec.steps ?? {}).filter((s) => s?.attempt).length;
-  const checked = Boolean(rec.lastObservation) || (rec.history?.length ?? 0) > 0;
   const { passes } = reviewStats(rec);
   return {
     reviewed: passes > 0,
-    practiced: attempts > 0 || checked,
+    practiced: attempts > 0,
     validated: Boolean(rec.completedAt),
   };
 }
@@ -96,7 +97,7 @@ export function buildToday({ blocks, reviewMode, reference = {} }) {
     const why = {
       revisar: 'Leia o guia técnico e o visual, olhe o mapa e a história. Sem nota e sem prazo; repita quantas vezes quiser.',
       praticar: target.nextStep ? `Próximo passo no ambiente: ${target.nextStep.title}.` : 'Rode os comandos você mesmo e registre evidências e dificuldades.',
-      validar: 'Os passos têm tentativa registrada. Faltam só os critérios abaixo para a avaliação.',
+      validar: 'Os passos têm tentativa registrada. Para validar faltam os critérios abaixo, inclusive o recall, que pode ser respondido agora.',
     }[action];
     priority = { id: target.id, title: target.title, action, headline, why };
     validation = { id: target.id, ready, pending: target.validation.pending };

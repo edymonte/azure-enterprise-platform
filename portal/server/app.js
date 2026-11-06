@@ -11,7 +11,8 @@ import { Runner } from './runner.js';
 import { RepoWatcher } from './watcher.js';
 import { Terminal } from './terminal.js';
 import { Az400, LAB_ID } from './az400.js';
-import { loadSchedule } from './schedule.js';
+import { loadSchedule, isoDate } from './schedule.js';
+import { buildAvailability, recordAws } from './availability.js';
 import { Notebook } from './notebook.js';
 import { SprintTracker } from './sprint.js';
 import { annotateItems, buildToday } from './phase.js';
@@ -178,6 +179,7 @@ export function createApp(config) {
       commands: catalog.commands,
       today: sprint.enabled ? buildToday({ blocks: sprint.sprint.blocks.map((b) => sprint.view(b.id)), reviewMode: schedule.reviewMode, reference }) : null,
       reference,
+      availability: buildAvailability({ cfg: schedule.availability, dateIso: isoDate(new Date()), blockRecords: progress.data.sprint?.blocks, awsRecord: progress.data.aws }),
       sprint: guidedState(sprint),
       gitflow: guidedState(gitflow),
       az400: {
@@ -435,6 +437,13 @@ export function createApp(config) {
       if (req.method === 'POST' && pathname === '/api/az400/run') {
         const body = await readJson(req);
         progress.setAz400Run(body.suffix);
+        pushState();
+        return send(res, 200, { ok: true });
+      }
+      if (req.method === 'POST' && pathname === '/api/aws') {
+        // Only a lesson count for the external SAA-C03 course; nothing else is imported.
+        const body = await readJson(req);
+        recordAws(progress, body, schedule.availability);
         pushState();
         return send(res, 200, { ok: true });
       }
