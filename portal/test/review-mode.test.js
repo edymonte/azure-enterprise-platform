@@ -260,20 +260,24 @@ test('existing validation still works: criteria, recall freeze and completion ru
   assert.equal(sprint.view('R2').completion.mode, 'SOLO');
 });
 
-test('reference: R1–R4 have the six parts, R5 and R6 are honest placeholders, and nothing creates Anki cards', () => {
+test('reference: R1–R6 have the six parts, point back to their guide, and nothing creates Anki cards', () => {
   const ref = loadReference(PORTAL_ROOT, catalog.sprint);
-  for (const id of ['R1', 'R2', 'R3', 'R4']) {
+  for (const id of ['R1', 'R2', 'R3', 'R4', 'R5', 'R6']) {
     const r = ref[id];
     assert.equal(r.pending, false, id);
     for (const key of ['concept', 'expected']) assert.ok(r[key].length > 20, `${id}.${key}`);
     for (const key of ['configure', 'investigate', 'mistakes']) assert.ok(r[key].length >= 3, `${id}.${key}`);
-    assert.ok(r.commands.length >= 5, `${id}.commands`);
+    assert.ok(r.commands.length >= (id === 'R6' ? 4 : 5), `${id}.commands`);
     assert.ok(r.commands.every((c) => c.what && c.cmd && c.expect), `${id}: command, what and expected result`);
     assert.ok(!r.commands.some((c) => /\.\.\.|\?\?\?/.test(c.cmd)), `${id}: no placeholders in commands`);
     assert.match(r.guide, /^relatorios\/guia-sprint\/R\d-/, `${id}: points back to the guide`);
   }
-  assert.equal(ref.R5.pending, true);
-  assert.equal(ref.R6.pending, true);
+  // R5 and R6 were written without a live run: the reference says so on its face.
+  assert.match(ref.R5.note, /sem execucao ao vivo/, 'R5 is flagged as a script, not confirmed output');
+  assert.match(ref.R6.note, /sem checker automatico/, 'R6 says there is no automatic checker');
+  assert.ok(ref.R5.commands.every((c) => !c.risk), 'R5 commands are read-only; none needs a warning');
+  assert.ok(ref.R5.commands.some((c) => /sprint-r5-ado\.js/.test(c.cmd)), 'R5 includes the structural checker');
+  assert.ok(ref.R6.commands.every((c) => /^(Get-Content|Get-ChildItem|Select-String)/.test(c.cmd)), 'R6 commands only read local files');
   const server = fs.readFileSync(path.join(PORTAL_ROOT, 'server', 'reference.js'), 'utf8');
   assert.ok(!/anki/i.test(server.replace(/^\/\/.*$/gm, '')), 'the reference code has no flashcard generation');
   const dir = tempDir('portal-ref-');
@@ -307,7 +311,8 @@ test('http: the state exposes today, the reference and the review mode; a review
   assert.equal(s0.today.priority.id, 'R1');
   assert.equal(s0.today.priority.action, 'revisar');
   assert.equal(s0.reference.R3.pending, false);
-  assert.equal(s0.reference.R5.pending, true);
+  assert.equal(s0.reference.R5.pending, false);
+  assert.equal(s0.reference.R6.pending, false);
   assert.ok(!JSON.stringify(s0.today).includes('"solution"'), 'no solution text in the home payload');
 
   const res = await call('POST', '/api/sprint/R4/reviewpass', { note: 'li o guia' });

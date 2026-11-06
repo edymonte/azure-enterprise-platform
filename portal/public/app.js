@@ -1924,6 +1924,7 @@
     const body = ref.pending
       ? [h('p', { class: 'muted' }, ref.note)]
       : [
+        ref.note ? h('p', { class: 'risk-note' }, ref.note) : null,
         h('h4', {}, 'Conceito'), h('p', {}, ref.concept),
         h('h4', {}, 'Onde configurar'), list(ref.configure),
         h('h4', {}, 'Onde investigar'), list(ref.investigate),
