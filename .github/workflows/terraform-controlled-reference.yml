@@ -1,0 +1,141 @@
+name: terraform-controlled-reference
+
+# Reference workflow alongside infra.yml; opt-in manual only.
+# This does not trigger on push or pull_request.
+# Apply requires execute_apply=true AND a protected production environment.
+on:
+  workflow_dispatch:
+    inputs:
+      layer:
+        description: "Terraform root/state key (do not select 00-bootstrap)"
+        required: true
+        type: choice
+        options:
+          - 10-foundation
+          - 20-governance
+          - 30-data
+          - 40-aks
+          - 50-edge
+          - 60-observability
+      execute_apply:
+        description: "Request gated apply of the reviewed plan (default false)"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write
+
+# Serialize the entire plan -> approval -> apply lifecycle per state.
+# Do not use github.workflow here: infra.yml and other workflows must
+# coordinate on the same state and still rely on the backend lock.
+concurrency:
+  group: tfstate-${{ inputs.layer }}
+  cancel-in-progress: false
+  queue: max
+
+env:
+  TF_IN_AUTOMATION: "true"
+  ARM_USE_OIDC: "true"
+  ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+jobs:
+  plan:
+    name: Plan ${{ inputs.layer }}
+    runs-on: ubuntu-latest
+    # Existing lab environment is used for the plan job. The OIDC
+    # subject must match repo:OWNER/REPO:environment:lab.
+    environment: lab
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.12.2
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Validate required repository variables
+        env:
+          TF_STATE_RG: ${{ vars.TF_STATE_RG }}
+          TF_STATE_SA: ${{ vars.TF_STATE_SA }}
+          ALERT_EMAIL: ${{ vars.ALERT_EMAIL }}
+          NAME_SUFFIX: ${{ vars.NAME_SUFFIX }}
+        run: |
+          set -euo pipefail
+          : "${ARM_CLIENT_ID:?Missing AZURE_CLIENT_ID}" "${ARM_TENANT_ID:?Missing AZURE_TENANT_ID}" "${ARM_SUBSCRIPTION_ID:?Missing AZURE_SUBSCRIPTION_ID}"
+          : "${TF_STATE_RG:?Missing TF_STATE_RG}" "${TF_STATE_SA:?Missing TF_STATE_SA}" "${ALERT_EMAIL:?Missing ALERT_EMAIL}" "${NAME_SUFFIX:?Missing NAME_SUFFIX}"
+      - name: Generate local runtime configuration
+        env:
+          TF_STATE_RG: ${{ vars.TF_STATE_RG }}
+          TF_STATE_SA: ${{ vars.TF_STATE_SA }}
+          ALERT_EMAIL: ${{ vars.ALERT_EMAIL }}
+          OPERATOR_IP_RANGES: ${{ vars.OPERATOR_IP_RANGES }}
+          NAME_SUFFIX: ${{ vars.NAME_SUFFIX }}
+        run: ./scripts/ci-write-runtime.sh
+      - name: Terraform fmt and validate
+        working-directory: infra/terraform/${{ inputs.layer }}
+        run: |
+          set -euo pipefail
+          terraform fmt -check
+          terraform init -input=false -backend-config=../../../.runtime/backend.hcl -backend-config="key=${{ inputs.layer }}.tfstate"
+          terraform validate -no-color
+      - name: Save exact reviewable plan
+        working-directory: infra/terraform/${{ inputs.layer }}
+        run: |
+          set -euo pipefail
+          terraform plan -input=false -lock-timeout=5m -out=tfplan -var-file=../../../.runtime/common.tfvars.json
+          echo "Plan saved for commit ${GITHUB_SHA} and layer ${{ inputs.layer }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Review the plan in the secured job logs before approving the production job." >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload sensitive plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: reviewed-tfplan-${{ inputs.layer }}
+          path: infra/terraform/${{ inputs.layer }}/tfplan
+          retention-days: 1
+          if-no-files-found: error
+
+  apply:
+    name: Apply approved plan ${{ inputs.layer }}
+    needs: plan
+    if: ${{ inputs.execute_apply == true }}
+    runs-on: ubuntu-latest
+    # Configure REQUIRED REVIEWERS and prevent self-review in GitHub settings
+    # BEFORE ever manually requesting an apply. YAML alone does not enforce it.
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.12.2
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Reconstruct runtime backend (do not replan)
+        env:
+          TF_STATE_RG: ${{ vars.TF_STATE_RG }}
+          TF_STATE_SA: ${{ vars.TF_STATE_SA }}
+          ALERT_EMAIL: ${{ vars.ALERT_EMAIL }}
+          OPERATOR_IP_RANGES: ${{ vars.OPERATOR_IP_RANGES }}
+          NAME_SUFFIX: ${{ vars.NAME_SUFFIX }}
+        run: ./scripts/ci-write-runtime.sh
+      - uses: actions/download-artifact@v4
+        with:
+          name: reviewed-tfplan-${{ inputs.layer }}
+          path: infra/terraform/${{ inputs.layer }}
+      - name: Apply exactly the saved plan
+        working-directory: infra/terraform/${{ inputs.layer }}
+        run: |
+          set -euo pipefail
+          terraform init -input=false -backend-config=../../../.runtime/backend.hcl -backend-config="key=${{ inputs.layer }}.tfstate"
+          terraform apply -input=false -lock-timeout=5m tfplan
