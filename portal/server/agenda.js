@@ -56,9 +56,14 @@ export function buildAgenda({ todayIso, availabilityCfg, reviewMode, blocks, pas
   const lead = inFocus.find(isOpen) ?? null;
   const tail = open.filter((b) => b !== lead).sort((a, b) => a.review.passes - b.review.passes || focusIds.indexOf(a.id) - focusIds.indexOf(b.id));
   const queue = [...(lead ? [lead] : []), ...tail].map((b) => ({ kind: 'sprint', id: b.id, title: b.title, action: actionOf(b), done: false }));
-  // After the review focus, the rest of the plan in its own order.
-  for (const o of others.filter((x) => !closed(x.kind, x.id))) queue.push({ kind: o.kind, id: o.id, title: o.title, action: o.kind === 'platform' ? 'sessão' : 'missão', done: false });
+  // While review mode is on, the route waits: the learner chose more passes on the
+  // focus blocks before moving on. Only turning review mode off releases the route.
+  const holding = Boolean(reviewMode?.active) && inFocus.length > 0;
+  const route = others.filter((x) => !closed(x.kind, x.id));
+  if (!holding) for (const o of route) queue.push({ kind: o.kind, id: o.id, title: o.title, action: o.kind === 'platform' ? 'sessão' : 'missão', done: false });
 
+  // Planned passes per block, so the rotation spreads them: fewest first.
+  const planned = new Map(inFocus.map((b) => [b.id, b.review.passes]));
   const days = [];
   for (let i = 0; i < DAYS; i++) {
     const date = addDays(todayIso, i);
@@ -67,7 +72,19 @@ export function buildAgenda({ todayIso, availabilityCfg, reviewMode, blocks, pas
     const slots = av ? slotsFor(av) : 2;
     const items = i === 0 ? [...doneToday] : [];
     const room = Math.max(0, slots - items.length);
-    for (let n = 0; n < room && queue.length; n++) items.push(queue.shift());
+    for (let n = 0; n < room && queue.length; n++) {
+      const it = queue.shift();
+      items.push(it);
+      if (it.kind === 'sprint') planned.set(it.id, (planned.get(it.id) ?? 0) + 1);
+    }
+    // Free slots while holding: extra free passes, least reviewed block first.
+    while (holding && items.length < slots) {
+      const pick = inFocus.filter((b) => !items.some((x) => x.kind === 'sprint' && x.id === b.id))
+        .sort((a, b) => planned.get(a.id) - planned.get(b.id) || focusIds.indexOf(a.id) - focusIds.indexOf(b.id))[0];
+      if (!pick) break;
+      items.push({ kind: 'sprint', id: pick.id, title: pick.title, action: 'passada', done: false });
+      planned.set(pick.id, planned.get(pick.id) + 1);
+    }
     days.push({
       date,
       kind: av?.kind ?? 'weekday',
@@ -80,5 +97,5 @@ export function buildAgenda({ todayIso, availabilityCfg, reviewMode, blocks, pas
   }
   const today = days[0];
   const next = today.items.find((i) => !i.done) ?? null;
-  return { today, days, next, remaining: queue.length };
+  return { today, days, next, remaining: queue.length, routeOnHold: holding ? route.length : 0 };
 }

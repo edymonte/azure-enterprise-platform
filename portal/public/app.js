@@ -181,7 +181,7 @@
     return Boolean(state.sessions.find((s) => s.id === it.id).startedAt);
   }
   // The rolling agenda (server side) says when each open item is planned to be studied.
-  const AGENDA_VERB = { validar: 'Validar', praticar: 'Praticar', revisar: 'Revisar', 'sessão': 'Sessão', 'missão': 'Missão Git Flow' };
+  const AGENDA_VERB = { validar: 'Validar', praticar: 'Praticar', revisar: 'Revisar', passada: 'Passada livre', 'sessão': 'Sessão', 'missão': 'Missão Git Flow' };
   // "Concluído por mim": a mark the learner owns. It is not validation (that stays evidence-based)
   // and it never locks the item: going back to it is always possible.
   const selfOf = (it) => state.selfDone?.[`${it.kind}:${it.id}`] ?? null;
@@ -2060,6 +2060,7 @@
     const upcoming = a.days.slice(1);
     const nextCard = h('section', { class: 'card' }, h('h3', {}, 'Próximos dias'),
       h('p', { class: 'muted small' }, 'A agenda anda sozinha: o que você valida ou conclui sai da fila, e o resto sobe. As datas do plano (Schedule) não são alteradas.'),
+      a.routeOnHold ? h('p', { class: 'small' }, `Rota da plataforma em espera (${a.routeOnHold} itens: sessões C e missões Git Flow). Você escolheu mais passadas em R1–R6, então a agenda gira entre elas, sempre pela menos revisada. Quando quiser seguir, desligue o modo revisão (reviewMode.active em catalog/schedule.json) e a rota entra na agenda.`) : null,
       h('div', { class: 'stage-list' }, upcoming.map((d) => {
         const f = fmtShort(d.date);
         return h('div', { class: 'stage-row' },

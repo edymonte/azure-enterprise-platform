@@ -64,8 +64,8 @@ test('a block stays at the head of the queue while it is not validated, without 
   assert.ok(ids(a.today).includes('R5'), 'R5 must be on today, not stuck behind R3');
 });
 
-test('what was reviewed today is shown as done and does not repeat on the next days', () => {
-  const a = run({ passDates: { R2: ['2026-11-09'], R3: ['2026-11-09'], R4: ['2026-11-09'] } });
+test('what was reviewed today is shown as done and, with review mode off, does not repeat on the next days', () => {
+  const a = run({ reviewMode: { ...reviewMode, active: false }, passDates: { R2: ['2026-11-09'], R3: ['2026-11-09'], R4: ['2026-11-09'] } });
   const done = a.today.items.filter((i) => i.done).map((i) => i.id);
   assert.deepEqual(done, ['R2', 'R3', 'R4']);
   assert.equal(a.next.id, 'R5');
@@ -78,10 +78,43 @@ test('a pass on another day does not count as done today', () => {
   assert.ok(!a.today.items.find((i) => i.id === 'R3').done);
 });
 
-test('the route continues after the review focus, in plan order, across days', () => {
-  const a = run();
+test('the route continues after the review focus, in plan order, across days, once review mode is off', () => {
+  const a = run({ reviewMode: { ...reviewMode, active: false } });
   assert.deepEqual(ids(a.days[1]), ['C002', 'C003', 'G01']); // 2026-11-10, a vacation day with 4 slots
   assert.equal(a.remaining, 0);
+});
+
+test('review mode holds the route and keeps rotating R1-R6 by fewest passes', () => {
+  const a = run();
+  const all = a.days.flatMap(ids);
+  assert.ok(!all.some((id) => id.startsWith('C') || id.startsWith('G')), 'no platform session or Git Flow mission while review mode is on');
+  assert.equal(a.routeOnHold, 3);
+  // Tomorrow has 4 slots: nothing is open any more, so they are free passes on the least reviewed blocks.
+  const tomorrow = a.days[1].items;
+  assert.equal(tomorrow.length, 4);
+  assert.ok(tomorrow.every((i) => i.action === 'passada' || i.action === 'validar' || i.action === 'praticar' || i.action === 'revisar'));
+  assert.equal(new Set(tomorrow.map((i) => i.id)).size, 4, 'no block twice on the same day');
+});
+
+test('review mode: what was reviewed today comes back on later days, least reviewed first', () => {
+  const a = run({ passDates: { R2: ['2026-11-09'], R3: ['2026-11-09'], R4: ['2026-11-09'] } });
+  assert.deepEqual(a.today.items.filter((i) => i.done).map((i) => i.id), ['R2', 'R3', 'R4']);
+  const later = a.days.slice(1).flatMap(ids);
+  assert.ok(later.includes('R3'), 'R3 returns for more passes');
+  assert.equal(a.today.items.find((i) => i.id === 'R5')?.done, false, 'R5 is the one still to do today');
+  assert.equal(a.days[1].items[0].id, 'R6', 'tomorrow starts with R6, the only block never reviewed');
+});
+
+test('review mode spreads the passes: after a week every block was planned, none starves', () => {
+  const a = run();
+  const seen = new Set(a.days.flatMap(ids));
+  for (const id of FOCUS) assert.ok(seen.has(id), `${id} appears somewhere in the week`);
+});
+
+test('turning review mode off releases the route and drops the free passes', () => {
+  const a = run({ reviewMode: { ...reviewMode, active: false } });
+  assert.equal(a.routeOnHold, 0);
+  assert.ok(a.days.flatMap((d) => d.items).every((i) => i.action !== 'passada'));
 });
 
 test('Sundays are rest days and carry no items', () => {
@@ -106,7 +139,7 @@ test('the agenda advances by itself when a block is validated', () => {
 
 test('with everything validated the agenda falls through to the route', () => {
   const all = blocks().map((b) => block(b.id, { validated: true, passes: 3 }));
-  const a = run({ blocks: all });
+  const a = run({ blocks: all, reviewMode: { ...reviewMode, active: false } });
   assert.deepEqual(ids(a.today), ['C002', 'C003', 'G01']);
   assert.equal(a.today.items[0].action, 'sessão');
 });
@@ -168,7 +201,7 @@ test('agenda: an item the learner closed leaves the queue, and coming back count
 });
 
 test('agenda: a platform session the learner closed is skipped', () => {
-  const a = run({ blocks: blocks().map((b) => block(b.id, { validated: true, passes: 3 })), selfDone: { 'platform:C002': { done: true, at: '2026-11-08T12:00:00.000Z', visitDates: [] } } });
+  const a = run({ reviewMode: { ...reviewMode, active: false }, blocks: blocks().map((b) => block(b.id, { validated: true, passes: 3 })), selfDone: { 'platform:C002': { done: true, at: '2026-11-08T12:00:00.000Z', visitDates: [] } } });
   assert.ok(!ids(a.today).includes('C002'));
   assert.equal(a.today.items[0].id, 'C003');
 });
