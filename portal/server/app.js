@@ -16,6 +16,8 @@ import { buildAvailability, recordAws } from './availability.js';
 import { Notebook } from './notebook.js';
 import { SprintTracker } from './sprint.js';
 import { annotateItems, buildToday } from './phase.js';
+import { buildAgenda } from './agenda.js';
+import { recordSelfDone, selfDoneView } from './selfdone.js';
 import { loadReference } from './reference.js';
 
 const STATIC_FILES = {
@@ -135,6 +137,32 @@ export function createApp(config) {
     return { ...base, text: pending.text, how: pending.how ?? 'Follow the steps in the Task tab; the check runs by itself when you save watched files or commit.' };
   }
 
+  // The rolling agenda: open work in plan order, minus what is already done.
+  function agendaState(sessions) {
+    if (!sprint.enabled) return null;
+    const blocks = sprint.sprint.blocks.map((b) => sprint.view(b.id));
+    const passDates = Object.fromEntries(Object.entries(progress.data.sprint?.blocks ?? {}).map(([id, r]) => [id, (r.reviewPasses ?? []).map((p) => isoDate(new Date(p.at)))]));
+    const others = [];
+    for (const it of schedule.items) {
+      if (it.kind === 'platform') {
+        const s = sessions.find((x) => x.id === it.id);
+        if (s && s.state !== 'COMPLETED') others.push({ kind: 'platform', id: s.id, title: `${s.id} · ${s.title}` });
+      } else if (it.kind === 'gitflow' && gitflow.enabled) {
+        const b = catalog.gitflow.byId.get(it.id);
+        if (b && gitflow.view(it.id).state !== 'COMPLETED') others.push({ kind: 'gitflow', id: it.id, title: `${it.id} · ${b.title}` });
+      }
+    }
+    const selfDone = selfDoneView(progress);
+    const agenda = buildAgenda({ todayIso: isoDate(new Date()), availabilityCfg: schedule.availability, reviewMode: schedule.reviewMode, blocks, passDates, others, selfDone });
+    // Items the learner closed: out of the queue, never locked. Newest first.
+    const titleOf = (kind, id) => (kind === 'sprint' ? sprint.sprint.blocks.find((b) => b.id === id)?.title : kind === 'gitflow' ? catalog.gitflow?.byId.get(id)?.title : catalog.byId.get(id)?.title) ?? id;
+    const completed = Object.entries(selfDone).filter(([, v]) => v.done).map(([key, v]) => {
+      const [kind, id] = key.split(':');
+      return { kind, id, title: titleOf(kind, id), at: v.at, visits: v.visits, lastVisitAt: v.lastVisitAt };
+    }).sort((a, b) => b.at.localeCompare(a.at));
+    return { ...agenda, completed };
+  }
+
   function state() {
     const sessions = catalog.sessions.map(sessionView);
     return {
@@ -179,6 +207,8 @@ export function createApp(config) {
       commands: catalog.commands,
       today: sprint.enabled ? buildToday({ blocks: sprint.sprint.blocks.map((b) => sprint.view(b.id)), reviewMode: schedule.reviewMode, reference }) : null,
       reference,
+      agenda: agendaState(sessions),
+      selfDone: selfDoneView(progress),
       availability: buildAvailability({ cfg: schedule.availability, dateIso: isoDate(new Date()), blockRecords: progress.data.sprint?.blocks, awsRecord: progress.data.aws }),
       sprint: guidedState(sprint),
       gitflow: guidedState(gitflow),
@@ -437,6 +467,13 @@ export function createApp(config) {
       if (req.method === 'POST' && pathname === '/api/az400/run') {
         const body = await readJson(req);
         progress.setAz400Run(body.suffix);
+        pushState();
+        return send(res, 200, { ok: true });
+      }
+      if (req.method === 'POST' && pathname === '/api/self-done') {
+        // The learner's own "concluído" mark and return visits. Not validation: no criteria, XP or unlock changes.
+        const body = await readJson(req);
+        recordSelfDone(progress, body, { sprint: new Map(catalog.sprint?.byId ?? []), gitflow: new Map(catalog.gitflow?.byId ?? []), platform: catalog.byId });
         pushState();
         return send(res, 200, { ok: true });
       }

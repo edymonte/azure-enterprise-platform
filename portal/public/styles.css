@@ -132,6 +132,9 @@ code, .mono { font-family: var(--f-mono); font-size: .92em; }
 .stage-list { display: flex; flex-direction: column; gap: 4px; }
 .stage-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
 .stage-row:first-child { border-top: 0; }
+.agenda-card { border-left: 4px solid var(--ok); }
+.agenda-row.is-done { opacity: .65; }
+.agenda-row b { font-weight: 650; }
 .stage-chips { display: inline-flex; flex-wrap: wrap; gap: 6px; }
 .ref-cmd { margin: 8px 0 14px; }
 .risk-box { border: 1px solid var(--bad); background: var(--bad-soft); color: var(--ink); border-radius: 8px; padding: 10px 12px; margin: 6px 0; }
