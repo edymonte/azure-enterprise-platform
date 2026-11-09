@@ -180,8 +180,38 @@
     if (it.kind === 'az400') return labProgress(labById(it.id)).d > 0;
     return Boolean(state.sessions.find((s) => s.id === it.id).startedAt);
   }
+  // The rolling agenda (server side) says when each open item is planned to be studied.
+  const AGENDA_VERB = { validar: 'Validar', praticar: 'Praticar', revisar: 'Revisar', 'sessão': 'Sessão', 'missão': 'Missão Git Flow' };
+  // "Concluído por mim": a mark the learner owns. It is not validation (that stays evidence-based)
+  // and it never locks the item: going back to it is always possible.
+  const selfOf = (it) => state.selfDone?.[`${it.kind}:${it.id}`] ?? null;
+  const selfClosed = (it) => Boolean(selfOf(it)?.done);
+  const SELF_KINDS = ['sprint', 'gitflow', 'platform'];
+  function selfAct(kind, id, action, msg) {
+    return post('/api/self-done', { kind, id, action }).then(() => toast(msg, 'info')).catch((e) => toast(e.message));
+  }
+  function selfButtons(kind, id, { open = false } = {}) {
+    const m = state.selfDone?.[`${kind}:${id}`];
+    const bs = [];
+    if (open) bs.push(h('button', { class: 'btn', type: 'button', onclick: () => agendaOpen({ kind, id }) }, 'Abrir'));
+    if (m?.done) {
+      bs.push(h('button', { class: 'btn', type: 'button', title: 'Registra que você voltou aqui. Sem nota, sem prazo; pode repetir.', onclick: () => selfAct(kind, id, 'revisit', `Visita registrada em ${id}.`) }, `Voltar${m.visits ? ` (${m.visits})` : ''}`));
+      bs.push(h('button', { class: 'btn', type: 'button', title: 'Desfaz o seu "concluído". Nada se perde.', onclick: () => selfAct(kind, id, 'undo', `${id} voltou para em andamento.`) }, 'Desmarcar'));
+    } else {
+      bs.push(h('button', { class: 'btn btn-primary', type: 'button', title: 'É uma marca sua, sem cobrança: não valida, não dá nota e pode ser desfeita.', onclick: () => selfAct(kind, id, 'done', `${id} marcado como concluído.`) }, 'Concluí ✓'));
+    }
+    return bs;
+  }
+  function agendaDateOf(it) {
+    for (const d of state.agenda?.days ?? []) if (d.items.some((x) => x.kind === it.kind && x.id === it.id && !x.done)) return d.date;
+    return null;
+  }
   function itemStatus(it) {
     const today = isoToday();
+    if (!itemDone(it) && selfClosed(it)) return ['done', 'Concluído'];
+    const planned = itemDone(it) ? null : agendaDateOf(it);
+    if (planned === today) return ['today', 'Agenda hoje'];
+    if (planned) return ['next', `Agenda ${fmtShort(planned).dm}`];
     if (itemDone(it)) return ['done', it.kind === 'az400' && it.id !== 'prep' ? 'Verified' : 'Done'];
     if (it.date > state.schedule.lastDay) return ['extra', 'After'];
     // Review mode: a past date that is not done is "in review" or "on hold", never a personal delay.
@@ -244,8 +274,8 @@
     const items = planItems();
     // Late is measured against the current plan; moved items keep their history.
     const due = items.filter((it) => it.date < today && it.date <= state.schedule.lastDay);
-    const late = due.filter((it) => !itemDone(it) && !it.review).length;
-    const waiting = due.filter((it) => it.review && !itemDone(it)).length;
+    const late = due.filter((it) => !itemDone(it) && !selfClosed(it) && !it.review).length;
+    const waiting = due.filter((it) => it.review && !itemDone(it) && !selfClosed(it)).length;
     const ahead = items.filter((it) => it.date > today && itemDone(it)).length;
     const moved = items.filter((it) => it.replans && !itemDone(it)).length;
     const pace = $('#s-pace');
@@ -257,9 +287,14 @@
     else { pace.textContent = 'On track'; pace.style.color = 'var(--ok)'; }
     $('#s-pace-note').textContent = rm?.active && waiting ? `${waiting} em espera` : moved ? `↻ ${moved} replanned` : '';
     $('#s-pace-note').title = rm?.active && waiting ? 'Itens com data passada, preservados e aguardando replanejamento enquanto R1–R6 são revisados. Nenhuma data foi alterada e nada aqui conta como atraso.' : moved ? 'Items moved to a new date. Each one keeps its original date and the reason (open it in the Schedule).' : '';
-    const next = items.find((it) => !itemDone(it));
+    const next = items.find((it) => !itemDone(it) && !selfClosed(it));
     const prio = state.today?.priority;
-    if (prio) {
+    const ag = state.agenda?.next;
+    if (ag) {
+      $('#today-lbl').textContent = 'Agenda de hoje';
+      $('#today-txt').textContent = `${AGENDA_VERB[ag.action]} ${ag.id} — ${ag.title.replace(/^\S+ · /, '')}`;
+      $('#today-btn').onclick = () => { location.hash = '#/today'; };
+    } else if (prio) {
       $('#today-lbl').textContent = 'Prioridade de hoje';
       $('#today-txt').textContent = prio.headline;
       $('#today-btn').onclick = () => { location.hash = '#/today'; };
@@ -360,14 +395,14 @@
       }
       const dotEl = h('i', { class: 'dot' });
       dotEl.style.background = dom;
-      rail.append(h('button', { class: `item ${it.date === today ? 'is-today' : ''}`, type: 'button', 'aria-current': String(itemKey(it) === itemKey(sel)), onclick: () => selectItem(itemKey(it)) },
+      rail.append(h('button', { class: `item ${it.date === today || agendaDateOf(it) === today ? 'is-today' : ''}`, type: 'button', 'aria-current': String(itemKey(it) === itemKey(sel)), onclick: () => selectItem(itemKey(it)) },
         h('span', { class: 'date' }, f.wd, h('b', {}, f.dm)),
         h('span', { class: 't' }, h('b', {}, itemTitle(it)), h('small', {}, dotEl, sub, it.replans && !itemDone(it) ? h('span', { class: 'moved', title: `Originally ${fmtLong(it.replans[0].from)}` }, ` · ↻ from ${fmtShort(it.replans[0].from).dm}`) : null)),
         sl ? h('span', { class: `pill p-${sk}` }, sl) : h('span')));
     }
     const railEl = h('nav', { class: 'rail', 'aria-label': 'Schedule' },
       h('div', { class: 'rail-head' }, h('h2', {}, 'Schedule'), h('span', { class: 'mono small muted' }, `${items.filter(itemDone).length}/${items.length}`)), rail);
-    const detail = h('main', { class: 'detail' }, ...(isGuided(sel) ? sprintDetail(blockById(sel.id), sel, items) : sel.kind === 'az400' ? az400Detail(labById(sel.id), sel, items) : platformDetail(state.sessions.find((s) => s.id === sel.id), sel)));
+    const detail = h('main', { class: 'detail' }, SELF_KINDS.includes(sel.kind) ? selfBar(sel) : null, ...(isGuided(sel) ? sprintDetail(blockById(sel.id), sel, items) : sel.kind === 'az400' ? az400Detail(labById(sel.id), sel, items) : platformDetail(state.sessions.find((s) => s.id === sel.id), sel)));
     const oldRail = view.querySelector('.rail-list');
     const railScroll = oldRail ? oldRail.scrollTop : null;
     view.replaceChildren(h('div', { class: 'main-grid' }, railEl, detail));
@@ -1943,6 +1978,8 @@
     if (!t) { view.replaceChildren(h('section', { class: 'card' }, h('h2', {}, 'Hoje'), h('p', { class: 'muted' }, 'A trilha R1–R6 não está disponível neste catálogo.'))); return; }
     const p = t.priority;
     const cards = [];
+    const agendaCards = agendaView();
+    if (agendaCards) cards.push(...agendaCards);
     if (t.reviewActive) {
       cards.push(h('section', { class: 'card review-banner' }, h('b', {}, 'Modo revisão ativo'), t.since ? ` desde ${fmtLong(t.since)}` : '',
         h('p', { class: 'muted small' }, 'Revisar → Praticar → Validar. Nenhuma data foi alterada: itens futuros ficam em espera, sem contar como atraso. Revisar não dá aprovação técnica.')));
@@ -1983,6 +2020,60 @@
     const ref = referenceCard(t);
     if (ref) cards.push(ref);
     view.replaceChildren(h('div', { class: 'today-grid' }, ...cards));
+  }
+
+  function selfBar(it) {
+    const m = selfOf(it);
+    return h('section', { class: 'card selfbar' },
+      h('div', { class: 'row-actions' },
+        m?.done ? h('b', {}, `✓ Concluído por você${m.at ? ` · ${fmtLong(m.at.slice(0, 10))}` : ''}`) : h('b', {}, 'Terminou? Marque quando quiser.'),
+        ...selfButtons(it.kind, it.id)),
+      h('p', { class: 'muted small' }, `Marca sua, sem cobrança. Não é a validação por evidência e não bloqueia nada: você pode voltar aqui quantas vezes quiser${m?.visits ? ` (${m.visits} visita${m.visits > 1 ? 's' : ''} até agora)` : ''}.`));
+  }
+  function agendaOpen(i) {
+    selectItem(`${i.kind}:${i.id}`);
+    location.hash = '#/schedule';
+  }
+  function agendaRow(i, { lead = false } = {}) {
+    const closedByMe = Boolean(state.selfDone?.[`${i.kind}:${i.id}`]?.done);
+    const pill = closedByMe ? ['done', 'Concluído'] : i.done ? ['done', 'Feito hoje'] : [i.action === 'validar' ? 'done' : i.action === 'praticar' ? 'doing' : 'review', AGENDA_VERB[i.action]];
+    return h('div', { class: `stage-row agenda-row ${i.done || closedByMe ? 'is-done' : ''}` },
+      h('div', {}, h('b', {}, `${i.done || closedByMe ? '✓ ' : ''}${i.id} · ${i.title.replace(/^\S+ · /, '')}`), lead ? h('div', { class: 'muted small' }, 'Comece por aqui.') : null),
+      h('span', { class: `pill p-${pill[0]}` }, pill[1]),
+      h('div', { class: 'row-actions' }, ...selfButtons(i.kind, i.id, { open: !closedByMe })));
+  }
+  // Today's agenda and the next days. Recomputed on every refresh from what is
+  // open and from each day's availability ceiling; no date in the plan is moved.
+  function agendaView() {
+    const a = state.agenda;
+    if (!a) return null;
+    const td = a.today;
+    const pending = td.items.filter((i) => !i.done);
+    const first = pending[0] ?? null;
+    const todayCard = h('section', { class: 'card agenda-card' },
+      h('div', { class: 'prog-head' }, h('h2', {}, 'Agenda de hoje'), h('span', { class: 'pill p-hold' }, fmtLong(td.date))),
+      td.rest ? h('p', {}, 'Domingo: descanso. Nada é cobrado e nada se acumula.')
+        : td.items.length ? [
+          h('p', { class: 'muted small' }, `${td.label} · até ${td.maxMinutes} min, é um teto, não uma meta. ${pending.length ? `${pending.length} item${pending.length > 1 ? 's' : ''} para hoje; o primeiro é o que importa, o resto é se houver energia.` : 'Tudo o que estava na agenda de hoje foi feito.'}`),
+          h('div', { class: 'stage-list' }, td.items.map((i) => agendaRow(i, { lead: i === first }))),
+        ] : h('p', { class: 'muted' }, 'Nada em aberto na agenda. Revisões livres continuam valendo.'));
+    const upcoming = a.days.slice(1);
+    const nextCard = h('section', { class: 'card' }, h('h3', {}, 'Próximos dias'),
+      h('p', { class: 'muted small' }, 'A agenda anda sozinha: o que você valida ou conclui sai da fila, e o resto sobe. As datas do plano (Schedule) não são alteradas.'),
+      h('div', { class: 'stage-list' }, upcoming.map((d) => {
+        const f = fmtShort(d.date);
+        return h('div', { class: 'stage-row' },
+          h('div', {}, h('b', {}, `${f.wd} ${f.dm}`), h('div', { class: 'muted small' }, d.rest ? 'Descanso' : d.label)),
+          h('div', { class: 'small' }, d.rest ? '' : d.items.length ? d.items.map((i) => `${AGENDA_VERB[i.action]} ${i.id}`).join(' · ') : 'Livre'),
+          h('span'));
+      })));
+    const done = a.completed ?? [];
+    const doneCard = done.length ? h('section', { class: 'card' }, h('h3', {}, 'Concluídos — volte quando quiser'),
+      h('p', { class: 'muted small' }, 'Marcas suas. Nada aqui tranca: abra de novo, registre uma visita ou desmarque.'),
+      h('div', { class: 'stage-list' }, done.map((c) => h('div', { class: 'stage-row' },
+        h('div', {}, h('b', {}, `${c.id} · ${c.title.replace(/^\S+ · /, '')}`), h('div', { class: 'muted small' }, `Concluído ${fmtLong(c.at.slice(0, 10))} · ${c.visits} visita${c.visits === 1 ? '' : 's'}${c.lastVisitAt ? ` · última ${rel(c.lastVisitAt)}` : ''}`)),
+        h('span'), h('div', { class: 'row-actions' }, ...selfButtons(c.kind, c.id, { open: true })))))) : null;
+    return [todayCard, nextCard, ...(doneCard ? [doneCard] : [])];
   }
 
   // Availability is a ceiling, never a goal: 120 minutes is not owed, an empty
