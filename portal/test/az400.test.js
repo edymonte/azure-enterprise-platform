@@ -127,9 +127,9 @@ test('schedule: recovery sprint first, then the platform route with every sessio
   const az = s.items.filter((i) => i.kind === 'az400');
   assert.equal(az[0].id, 'prep', 'preparation first on day one');
   assert.equal(az.find((i) => i.id === '01').date, '2026-10-20');
-  assert.deepEqual(s.sprintDays, ['2026-11-02', '2026-11-03', '2026-11-04']);
+  assert.deepEqual(s.sprintDays, ['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-19', '2026-11-21']);
   const sprint = s.items.filter((i) => i.kind === 'sprint');
-  assert.deepEqual(sprint.map((i) => `${i.id}@${i.date}`), ['R1@2026-11-02', 'R2@2026-11-02', 'R3@2026-11-03', 'R4@2026-11-03', 'R5@2026-11-04', 'R6@2026-11-04']);
+  assert.deepEqual(sprint.map((i) => `${i.id}@${i.date}`), ['R1@2026-11-02', 'R2@2026-11-02', 'R3@2026-11-03', 'R4@2026-11-03', 'R5@2026-11-04', 'R6@2026-11-04', 'R7@2026-11-19', 'R8@2026-11-21']);
   const pending = s.items.filter((i) => i.kind !== 'sprint' && i.date > '2026-10-22');
   assert.ok(pending.every((i) => i.date > '2026-11-03'), 'everything still pending comes after the sprint');
   assert.deepEqual(az.map((i) => i.id), ['prep', '00', '01', '02'], 'AZ-400 is out of this phase: only the labs already done stay as history');

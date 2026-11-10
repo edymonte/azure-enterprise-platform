@@ -1,6 +1,6 @@
 {
   "title": "Recovery sprint first, then the platform route",
-  "subtitle": "Priority since Oct 31: the 8-hour recovery sprint (Oct 31 – Nov 1), then one platform session + one Git Flow lab mission a day (GitHub Actions and Azure DevOps) until Nov 12, every other day after · AZ-400 out of this phase",
+  "subtitle": "R1–R6: original 8-hour recovery · R7 AKS/API and R8 GitOps/Argo CD: held capstones after core review · platform sessions retain their own plan · AZ-400 out of this phase",
   "start": "2026-10-19",
   "lastDay": "2026-11-17",
   "dailyHours": 4,
@@ -8,7 +8,7 @@
     "active": true,
     "since": "2026-11-05",
     "focus": ["R1", "R2", "R3", "R4", "R5", "R6"],
-    "note": "Decision of 2026-11-05: more passes on R1–R6 before the rest of the route. Dates and replanning history are untouched; past-dated items that are not done show as in review or on hold, not as late."
+    "note": "2026-11-05 review decision remains R1–R6 first. R7/R8 were added on 2026-11-10 as held AKS/API and GitOps capstones with tentative later dates; start only after core review and prerequisites. Historical dates/replanning are untouched, and on-hold work is not a personal delay."
   },
   "availability": {
     "vacationEnds": "2026-11-12",
@@ -36,7 +36,9 @@
     "2026-11-04": [
       "R5",
       "R6"
-    ]
+    ],
+    "2026-11-19": ["R7"],
+    "2026-11-21": ["R8"]
   },
   "az400": {
     "prep": "2026-10-19",

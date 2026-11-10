@@ -307,12 +307,15 @@ test('http: the state exposes today, the reference and the review mode; a review
   const s0 = (await call('GET', '/api/state')).json;
   assert.equal(s0.schedule.reviewMode.active, true);
   assert.ok(s0.schedule.items.filter((i) => i.kind === 'platform').every((i) => i.review === 'hold'));
-  assert.ok(s0.schedule.items.filter((i) => i.kind === 'sprint').every((i) => i.review === 'focus'));
+  assert.ok(s0.schedule.items.filter((i) => i.kind === 'sprint' && ['R1', 'R2', 'R3', 'R4', 'R5', 'R6'].includes(i.id)).every((i) => i.review === 'focus'));
+  assert.deepEqual(s0.schedule.items.filter((i) => i.kind === 'sprint' && ['R7', 'R8'].includes(i.id)).map((i) => [i.id, i.review]), [['R7', 'hold'], ['R8', 'hold']]);
   assert.equal(s0.today.priority.id, 'R1');
   assert.equal(s0.today.priority.action, 'revisar');
   assert.equal(s0.reference.R3.pending, false);
   assert.equal(s0.reference.R5.pending, false);
   assert.equal(s0.reference.R6.pending, false);
+  assert.equal(s0.reference.R7.pending, false);
+  assert.equal(s0.reference.R8.pending, false);
   assert.ok(!JSON.stringify(s0.today).includes('"solution"'), 'no solution text in the home payload');
 
   const res = await call('POST', '/api/sprint/R4/reviewpass', { note: 'li o guia' });

@@ -40,10 +40,11 @@ const passingObservation = (id) => ({
   criteria: block(id).criteria.filter((c) => c.verify === 'checker').map((c) => ({ id: c.id, status: 'pass', evidence: 'seen' })),
 });
 
-test('sprint catalog: six blocks of 8 hours, every block has recall, graduated steps, English and verifiable criteria', () => {
+test('sprint catalog: original 8-hour R1–R6 plus R7/R8 capstones, with guided recall and evidence criteria', () => {
   const s = catalog.sprint;
-  assert.deepEqual(s.blocks.map((b) => [b.id, b.day, b.minutes]), [['R1', 1, 60], ['R2', 1, 90], ['R3', 1, 90], ['R4', 2, 90], ['R5', 2, 90], ['R6', 2, 60]]);
-  assert.equal(s.blocks.reduce((n, b) => n + b.minutes, 0), 480);
+  assert.deepEqual(s.blocks.map((b) => [b.id, b.day, b.minutes]), [['R1', 1, 60], ['R2', 1, 90], ['R3', 1, 90], ['R4', 2, 90], ['R5', 2, 90], ['R6', 2, 60], ['R7', 3, 120], ['R8', 4, 120]]);
+  assert.equal(s.blocks.slice(0, 6).reduce((n, b) => n + b.minutes, 0), 480, 'core recovery unchanged');
+  assert.equal(s.blocks.reduce((n, b) => n + b.minutes, 0), 720);
   for (const b of s.blocks) {
     assert.ok(b.recall.length >= 2, `${b.id}: recall questions`);
     assert.ok(b.steps.some((st) => st.level === 'guided') && b.steps.some((st) => st.level === 'solo'), `${b.id}: from guided to solo`);
@@ -141,6 +142,28 @@ test('sprint: R6 is a recap with no incident and no cloud call', () => {
   assert.ok(catalog.byId.get('C003').steps[0].title.startsWith('Opening incident'), 'the incident opens C003');
 });
 
+test('R7/R8 add API and endpoint interview practice inside the existing sprint, with no fabricated live check', () => {
+  const r7 = block('R7');
+  const r8 = block('R8');
+  assert.deepEqual([r7.number, r8.number], [7, 8]);
+  assert.ok(r7.files.includes('infra/terraform/40-aks/main.tf'));
+  assert.ok(r7.files.includes('app/customer-portal/api/src/app.js'));
+  assert.match(r7.recall.find((r) => r.id === 'endpoints').answer, /Private Endpoint/);
+  assert.match(r7.steps.find((s) => s.id === 'trace-ingress').detail, /Ingress/);
+  assert.match(r7.english.question, /api\/products/);
+  assert.ok(r8.files.includes('.github/workflows/app.yml'));
+  assert.ok(r8.files.includes('gitops/apps/portal-dev.yaml'));
+  assert.match(r8.steps.find((s) => s.id === 'api-smoke').detail, /readyz/);
+  assert.match(r8.steps.find((s) => s.id === 'p1-recovery').solution, /Revert/);
+  for (const b of [r7, r8]) {
+    assert.deepEqual(b.prerequisites.platform, ['offline']);
+    assert.equal(b.criteria.some((c) => c.verify === 'checker'), false, 'no unimplemented checker or fake cloud proof');
+    assert.equal(b.checker, undefined);
+    assert.ok(b.criteria.filter((c) => c.verify === 'review').length >= 2, 'evidence must be manually reviewed');
+    assert.ok(!b.steps.some((s) => /terraform apply|kubectl apply/.test(s.command ?? '')), 'no unapproved infrastructure or imperative app deployment command');
+  }
+});
+
 test('schedule: replanning history must end on the current date', () => {
   const root = tempDir('portal-root-');
   const base = { start: '2026-10-19', lastDay: '2026-11-12', platform: [{ id: 'C002', date: '2026-11-01' }] };
@@ -148,8 +171,8 @@ test('schedule: replanning history must end on the current date', () => {
   assert.throws(() => loadSchedule(root, catalog), /must end on 2026-11-01/);
   writeFiles(root, { 'catalog/schedule.json': JSON.stringify({ ...base, replanned: [{ kind: 'platform', id: 'C002', from: '2026-10-30', to: '2026-11-01', reason: 'sprint' }] }) });
   assert.deepEqual(loadSchedule(root, catalog).items[0].replans, [{ from: '2026-10-30', to: '2026-11-01', decidedAt: null, reason: 'sprint' }]);
-  writeFiles(root, { 'catalog/schedule.json': JSON.stringify({ ...base, sprint: { '2026-10-30': ['R7'] } }) });
-  assert.throws(() => loadSchedule(root, catalog), /unknown sprint block R7/);
+  writeFiles(root, { 'catalog/schedule.json': JSON.stringify({ ...base, sprint: { '2026-10-30': ['R9'] } }) });
+  assert.throws(() => loadSchedule(root, catalog), /unknown sprint block R9/);
 });
 
 // ---------------------------------------------------------------- checkers

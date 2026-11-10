@@ -1,14 +1,16 @@
 {
   "id": "recovery",
-  "title": "Recovery sprint",
-  "subtitle": "8 hours to bring back what you already used at work: Azure, Terraform, GitHub Actions and Azure DevOps, then explain it in English",
-  "intro": "Two days of four hours, six blocks in order. Every block starts with recall questions answered without notes, then a practical exercise that moves from guided to solo, real evidence and a 60–90 second answer in English. Solutions stay sealed until you record your own attempt. Logged hours show effort, not approval: a block is complete only when every criterion has evidence.",
+  "title": "Recovery sprint + AKS/GitOps capstones",
+  "subtitle": "R1–R6: 8-hour Azure and CI/CD recovery · R7: Kubernetes/AKS · R8: GitOps/Argo CD and production API delivery",
+  "intro": "R1–R6 retain the original two-day, eight-hour recovery sprint. R7 and R8 extend it with two two-hour capstones, splittable into shorter sessions. Every block starts with recall from memory, then guided-to-solo practice, evidence and a 60–90 second English explanation. Solutions remain sealed until an attempt is recorded. Time does not prove completion. No paid resources are created without explicit approval.",
   "rules": [
     "Answer the recall questions before reading the instructions. \"I don't remember\" is a valid answer and is exactly what the sprint is for.",
     "Record your attempt before opening a solution. Every hint or solution opened before completion makes the block AI-assisted. Break/fix steps are optional: a quick extra, not needed to complete the block — incidents come after the sprint.",
     "Automatic checks only read Azure, GitHub and local files. Nothing in the sprint deploys, destroys or changes permissions; steps that take a lease or need an OK say so.",
     "When the environment or a tool blocks you, report it as a blocker. It is not counted as a technical mistake.",
-    "Completing the sprint does not complete a platform session or an AZ-400 lab: those keep their own checkers and Validate.ps1."
+    "Completing a sprint block does not complete a platform session or an AZ-400 lab: those keep their own checkers and Validate.ps1.",
+    "R7 and R8 reuse the existing customer portal, 40-aks layer and GitOps files. A local Helm render is not proof of an AKS deployment.",
+    "An HTTP API endpoint, the Kubernetes API server endpoint and an Azure Private Endpoint are distinct; trace all three where relevant."
   ],
   "blocks": [
     {
@@ -1100,7 +1102,284 @@
         ],
         "modelAnswer": "A developer opens a pull request; CI runs lint, tests, the build and a scan, and the checks are required before the squash merge. On main the pipeline builds the image once, pushes it to ACR and opens a pull request to the GitOps folder for dev. Argo CD syncs it and a smoke test runs after the sync. Promotion to production is another pull request with the same image. The pipelines never touch the cluster and never hold a secret: GitHub uses OIDC federated credentials and Azure DevOps a workload identity federation service connection, and applies wait for an environment approval. Rollback is a git revert. The same flow exists in both tools, so I can work with either team."
       },
-      "next": "Sprint done. Next on the Schedule: session C002, then C003, which opens with the real incident on the plan jobs (AADSTS700213)."
+      "next": "Core recovery complete. Continue with R7 (Kubernetes/AKS), then R8 (GitOps/Argo CD). Platform sessions retain separate completion rules."
+    },
+    {
+      "id": "R7",
+      "number": 7,
+      "day": 3,
+      "minutes": 120,
+      "title": "Kubernetes and AKS: API workloads, endpoints and troubleshooting",
+      "focus": "Pods, Deployments, Services, Ingress, HTTP endpoints, AKS identities and diagnosis",
+      "objective": "Trace a real customer-portal HTTP request through AKS, review the Terraform cluster and Helm design, and diagnose API failures from evidence without deploying anything as part of the exercise setup.",
+      "interviewAngle": "How do you use APIs and endpoints? How does a request reach a Pod? How do you distinguish a REST endpoint, the Kubernetes API server and an Azure Private Endpoint? What do 404, 503 and ImagePullBackOff tell you?",
+      "prerequisites": {
+        "platform": ["offline"],
+        "tools": ["git", "helm", "kubectl", "terraform"],
+        "notes": "R4–R6 first. Source inspection and Helm rendering work without a cluster. A live kubectl observation requires previously approved AKS resources. The 40-aks Terraform layer is written but is not evidence of deployment; no apply or paid-resource creation is authorized by this block."
+      },
+      "files": [
+        "infra/terraform/40-aks/main.tf",
+        "app/customer-portal/api/src/app.js",
+        "gitops/charts/customer-portal/templates/api.yaml",
+        "gitops/charts/customer-portal/templates/platform.yaml",
+        "gitops/envs/dev/values.yaml"
+      ],
+      "reuse": {
+        "sessions": ["C009", "C010", "C011", "C013", "C015"],
+        "az400": [],
+        "note": "Uses the existing AKS layer and customer-portal workloads. Sessions retain their own checkers and live-cloud prerequisites; R7 creates no parallel lab."
+      },
+      "recall": [
+        {
+          "id": "objects",
+          "question": "Without notes, distinguish Pod, Deployment, Service and Ingress. Trace GET /api/products from a user's browser to a Pod.",
+          "answer": "A Pod runs containers; a Deployment manages replicas and rollouts; a ClusterIP Service provides stable networking to selected ready Pods; an Ingress routes host/path HTTP(S) through an ingress controller. In this repo: Front Door (if edge is deployed) → ingress-nginx → Ingress /api → customer-portal-api Service → API Pod → GET /api/products."
+        },
+        {
+          "id": "endpoints",
+          "question": "Explain an API, an HTTP endpoint such as GET /api/products, the Kubernetes API server endpoint and Azure Private Endpoint. Are these interchangeable?",
+          "answer": "An API is an interface/contract with operations. GET /api/products is one HTTP method + route. The Kubernetes API server endpoint manages the cluster through kubectl/controllers and Kubernetes RBAC. An Azure Private Endpoint is a private network interface/IP to a supported Azure service such as Key Vault or SQL. These solve different problems."
+        },
+        {
+          "id": "probes",
+          "question": "Compare /healthz, /readyz and /api/products. Would HTTP 200 from /healthz prove the business API works? What happens when readiness returns 503?",
+          "answer": "/healthz is basic liveness; /readyz checks db.ping() and can return 503, causing the Pod to be excluded from ready Service endpoints without necessarily restarting it; /api/products tests the business/database route and can return 500. Liveness 200 alone does not prove business functionality."
+        },
+        {
+          "id": "identity",
+          "question": "How does an AKS Pod access Key Vault without a stored secret? How does its OIDC issuer/subject differ from GitHub Actions OIDC?",
+          "answer": "The Pod uses a Kubernetes ServiceAccount token from the AKS OIDC issuer. A federated credential trusts issuer/audience/subject system:serviceaccount:namespace:name for a user-assigned managed identity, which exchanges that token for Entra access. GitHub Actions instead uses GitHub's issuer and repository/environment subject. Azure data-plane RBAC remains necessary."
+        }
+      ],
+      "steps": [
+        {
+          "id": "inventory-api",
+          "level": "guided",
+          "title": "Inventory real API methods, endpoints and response contracts",
+          "detail": "Read the API source. For GET /healthz, /readyz, /api/info and /api/products, state purpose, successful HTTP status, possible failure and whether a liveness, readiness or smoke probe should call it.",
+          "command": "rg -n 'app.get|/healthz|/readyz|/api/' app/customer-portal/api/src/app.js",
+          "hints": [
+            "Read each route handler; route names alone are insufficient.",
+            "Which handlers call db.ping or db.listProducts and what status do they return on error?"
+          ],
+          "solution": "/healthz returns basic 200 liveness; /readyz checks the database and may return 503; /api/info returns service/version/environment information; /api/products returns business data or 500 if the data path fails. A smoke needs the business endpoint too."
+        },
+        {
+          "id": "trace-ingress",
+          "level": "partial",
+          "title": "Trace Ingress → Service → Pod, then render Helm offline",
+          "detail": "Inspect Ingress paths, API Service ports/selectors and Deployment pod labels. Draw the complete /api/products request path, then render the existing chart locally. Explain what static rendering cannot verify.",
+          "command": "helm lint gitops/charts/customer-portal -f gitops/envs/dev/platform.values.yaml -f gitops/envs/dev/values.yaml\nhelm template portal-dev gitops/charts/customer-portal -f gitops/envs/dev/platform.values.yaml -f gitops/envs/dev/values.yaml",
+          "hints": [
+            "The /api and / paths target different Service names in platform.yaml.",
+            "Follow the API Service selector to Deployment Pod labels in api.yaml. Helm rendering does not query the cluster."
+          ],
+          "solution": "Ingress /api routes to customer-portal-api, while / routes to customer-portal-web. API Service selectors match API Pods; the Service routes to its container port. A successful helm template/lint proves only static configuration, not a running Ingress controller or healthy Pods."
+        },
+        {
+          "id": "aks-boundaries",
+          "level": "partial",
+          "title": "Inspect AKS, ACR, network and federated workload identity",
+          "detail": "Find Terraform configuration for AKS, node pools, ACR pull access, Kubernetes OIDC issuer, managed identity and federated ServiceAccount subjects. Separate Azure infrastructure ownership from Kubernetes GitOps ownership. Do not run terraform apply.",
+          "command": "rg -n 'kubernetes_cluster|node_pool|container_registry|AcrPull|oidc_issuer|workload_identity|federated_identity' infra/terraform/40-aks",
+          "hints": [
+            "The kubelet identity needs ACR pull permissions; the application identity has different access.",
+            "Terraform configuration is not proof that the resource is deployed in Azure."
+          ],
+          "solution": "Terraform owns AKS, node pools, ACR, Azure RBAC, workload identity and federated credentials. GitOps owns Kubernetes desired state, including Deployments, Services, Ingress and NetworkPolicy. AKS ServiceAccount OIDC is distinct from the CI platform's federated identity."
+        },
+        {
+          "id": "diagnostic-runbook",
+          "level": "solo",
+          "title": "Write an evidence-first 404/503 and Pod-failure runbook",
+          "detail": "Scenario: GET /api/products returns 503 but /healthz works by Pod IP. Write Observation → Hypothesis → Read-only Test → Evidence for DNS/edge, Ingress, Service/EndpointSlices, ready Pods, API and database. Include ImagePullBackOff and CrashLoopBackOff branches. Do not run kubectl unless a cluster is authorized and running.",
+          "command": "kubectl -n portal-dev get ingress,svc,endpoints,pods\nkubectl -n portal-dev describe pod <pod-name>\nkubectl -n portal-dev logs <pod-name> --previous",
+          "hints": [
+            "A Service with no ready endpoints may generate upstream 503; trace the request hop by hop.",
+            "Use events for image pulls/scheduling, previous logs for restarts, and readiness for traffic eligibility."
+          ],
+          "solution": "Check the URL, DNS/edge, Ingress host/path and controller, Service selector/port, EndpointSlices, Deployment ready replicas, Pod events, logs, readiness and DB. A 404 suggests host/path/route; a 503 can mean no ready upstream or failing dependency. ImagePullBackOff: tag, AcrPull, network. CrashLoopBackOff: start error, probes, configuration, prior logs. Test rather than guessing from status alone."
+        },
+        {
+          "id": "endpoint-security",
+          "level": "solo",
+          "title": "Explain HTTP API vs Kubernetes API server vs Azure Private Endpoint",
+          "detail": "For each endpoint, name its consumer, network path, identity/authorization and first diagnostic check for HTTP 401, 403 or a timeout. Explain the difference to a non-specialist client without confusing an application endpoint with Private Link.",
+          "hints": [
+            "The AKS API server controls cluster resources; the application API serves users.",
+            "Private Endpoint is a private NIC and DNS path to a supported Azure service, not an HTTP route."
+          ],
+          "solution": "Application REST routes use HTTP methods and application authn/authz through Ingress. Kubernetes API server access uses control-plane connectivity and Kubernetes/Entra RBAC. Azure Private Endpoint maps private IP/DNS to an Azure resource, still requiring service-level authorization. A 401 suggests missing authentication, 403 authorization, and a timeout network/DNS/firewall, subject to actual evidence."
+        },
+        {
+          "id": "breakfix-pull",
+          "level": "breakfix",
+          "title": "Optional offline break/fix: ErrImagePull",
+          "detail": "Given a hypothetical Pod event, distinguish a wrong tag from missing AcrPull or network/DNS failure. No live fault injection.",
+          "hints": [
+            "Does the image tag/digest exist in ACR?",
+            "manifest unknown, unauthorized and timeout point to different hypotheses."
+          ],
+          "solution": "manifest unknown: verify tag/digest. unauthorized: inspect kubelet identity/AcrPull. timeout: inspect DNS/firewall/reachability. Collect events and registry evidence before changing anything."
+        }
+      ],
+      "criteria": [
+        { "id": "recall-recorded", "text": "Recall answered from memory", "verify": "portal", "rule": "recall" },
+        { "id": "attempts-recorded", "text": "An attempt recorded for every required step", "verify": "portal", "rule": "attempts" },
+        { "id": "api-routing-reviewed", "text": "API endpoint inventory and HTTP route → Ingress → Service → Pod trace reviewed with local Helm evidence", "verify": "review", "owner": "learner", "how": "Paste endpoint table and Helm render summary. Static output does not count as live AKS deployment." },
+        { "id": "aks-runbook-reviewed", "text": "AKS identity/endpoint boundaries and evidence-first 404/503/Pod incident runbook reviewed", "verify": "review", "owner": "learner", "how": "Paste your hypotheses, read-only checks and expected evidence. If AKS is unavailable, explicitly call the analysis offline." },
+        { "id": "english-answer", "text": "English explanation recorded (60–90 seconds)", "verify": "portal", "rule": "english" },
+        { "id": "feedback-recorded", "text": "Technical, autonomy and English feedback recorded", "verify": "portal", "rule": "feedback" }
+      ],
+      "english": {
+        "question": "A client reports GET /api/products returns HTTP 503 from AKS. Walk through the API endpoint, Ingress, Service, Pod and database checks, and explain secretless workload identity.",
+        "followUps": [
+          "How does an Azure Private Endpoint differ from a REST API endpoint?",
+          "Would /healthz returning 200 prove the business API works?",
+          "What would you inspect first for ImagePullBackOff?"
+        ],
+        "modelAnswer": "I would confirm the URL, host, path and HTTP response, then trace the request from Ingress to the API Service and its ready Pod endpoints. I would inspect Pod events, readiness and application logs, and test the database dependency before restarting anything. The HTTP endpoint is one API operation; an Azure Private Endpoint is private network connectivity to an Azure service. The Pod can use a Kubernetes ServiceAccount federated with an Entra managed identity to access Key Vault without a stored secret, subject to RBAC. I would document observations, root cause, recovery and prevention."
+      },
+      "next": "Continue with R8: GitOps and Argo CD API delivery and recovery. Live evidence still belongs to the relevant platform sessions."
+    },
+    {
+      "id": "R8",
+      "number": 8,
+      "day": 4,
+      "minutes": 120,
+      "title": "GitOps and Argo CD: API delivery, promotion and production recovery",
+      "focus": "Build once, Git as desired state, Argo CD reconciliation, API smoke, promotion and rollback",
+      "objective": "Rehearse the customer-portal delivery from commit to ACR to GitOps PR to Argo CD to AKS, inspect the HTTP API smoke checks and design a production incident recovery without bypassing the Git source of truth.",
+      "interviewAngle": "How do you expose and verify an API, keep dev/prod on the same artifact, explain Argo CD Synced versus Healthy, diagnose a broken business endpoint and restore a bad release while automated sync is enabled?",
+      "prerequisites": {
+        "platform": ["offline"],
+        "tools": ["git", "gh", "helm", "kubectl"],
+        "notes": "R7 first. Offline workflow review, Helm rendering and local blank-YAML drilling do not require a cluster. Live Argo CD, PostSync and API evidence require prior AKS provisioning and approval. No merge, apply, fault injection or paid-resource use is authorized by this lesson."
+      },
+      "files": [
+        ".github/workflows/app.yml",
+        ".github/workflows/smoke.yml",
+        "gitops/apps/portal-dev.yaml",
+        "gitops/apps/portal-prod.yaml",
+        "gitops/envs/dev/values.yaml",
+        "gitops/envs/prod/values.yaml",
+        "gitops/charts/customer-portal/templates/smoke-test.yaml",
+        "docs/E2E-FEATURE-FLOW.md"
+      ],
+      "reuse": {
+        "sessions": ["C012", "C016", "C017", "C018", "C022"],
+        "az400": [],
+        "note": "Uses existing app.yml, Argo CD Applications, Helm and customer-portal API. Each platform session still owns its real AKS checks and production evidence."
+      },
+      "recall": [
+        {
+          "id": "git-source",
+          "question": "Why does app.yml open a GitOps PR instead of running kubectl apply? What happens when someone manually changes an Argo CD-managed Deployment?",
+          "answer": "The CI workflow builds, tests, scans and pushes an image, then proposes a desired-state change in Git. Argo CD pulls and reconciles that state, so CI needs no kubeconfig. With automated selfHeal, a manual edit that causes drift is reconciled back to the desired Git configuration."
+        },
+        {
+          "id": "artifact-promotion",
+          "question": "How do you prove prod runs the same tested image as dev? Why is an image digest stronger than a mutable tag?",
+          "answer": "Compare immutable image identities in dev/prod GitOps values and the running Pod imageID. The current workflow uses the Git SHA as a tag and copies it; immutable tags help, but a digest pins exact bytes even if tags could be moved. Never rebuild separately for prod."
+        },
+        {
+          "id": "health-vs-smoke",
+          "question": "Can Argo CD be Synced/Healthy while GET /api/products fails? What evidence is different from /readyz and /api/info?",
+          "answer": "Yes. Synced means live Kubernetes resources match desired Git resources, not business correctness. Healthy reflects Kubernetes resource health; readiness marks which Pods receive traffic. /api/info can confirm version, while /api/products exercises the business/database API; both should be checked in a smoke test."
+        },
+        {
+          "id": "rollback",
+          "question": "The latest image causes CrashLoopBackOff in prod. Why is kubectl rollout undo not the durable rollback for an auto-sync GitOps application?",
+          "answer": "Git still declares the bad image; auto-sync/selfHeal may reapply it after an imperative rollback. Pause promotion, collect evidence, revert the GitOps deploy commit to a known-good image, approve/merge the revert and let Argo CD reconcile. Verify readiness and business API responses after recovery."
+        },
+        {
+          "id": "automation-apis",
+          "question": "When would you call a GitHub/Azure DevOps REST API rather than use the UI? How does an Azure DevOps service endpoint differ from an HTTP API endpoint? What do 401, 403 and 429 mean?",
+          "answer": "REST APIs are useful for scripted read-only run/PR inspection, evidence and integrations; use scoped authenticated requests and handle pagination/rate limits. An Azure DevOps service endpoint/service connection configures a trusted external service identity for a pipeline, not a business HTTP route. 401 means authentication missing/invalid, 403 permission denied, and 429 rate limited; inspect response headers and retry-after/backoff safely."
+        }
+      ],
+      "steps": [
+        {
+          "id": "map-app-pipeline",
+          "level": "guided",
+          "title": "Map commit → tests → scan → ACR → GitOps PR → Argo CD",
+          "detail": "Read the real app workflow and portal-dev Application. Identify the trigger, OIDC trust, image tag, scan, ACR push, dev deploy PR, Argo CD source and cluster boundary. State which process actually contacts Kubernetes. Explain when a read-only GitHub/Azure DevOps API call is useful for pipeline evidence, versus an Azure DevOps service connection that grants pipeline access to Azure.",
+          "command": "Get-Content .github/workflows/app.yml\nGet-Content gitops/apps/portal-dev.yaml",
+          "hints": [
+            "Find the create-pull-request step that edits gitops/envs/dev/values.yaml.",
+            "The Argo CD Application tracks the Git repository; the app workflow contains no kubectl apply."
+          ],
+          "solution": "After merge to main, app.yml tests, authenticates to Azure via OIDC, builds and scans images, pushes them to ACR and opens a PR updating dev image tags. The reviewed GitOps merge lets Argo CD sync to AKS. A separate promotion PR copies the tested tag to prod values. CI does not need cluster credentials."
+        },
+        {
+          "id": "render-and-reconcile",
+          "level": "partial",
+          "title": "Compare DEV/PROD Helm renders and Argo CD Applications",
+          "detail": "Compare the two values files and Argo CD Applications. Render each chart offline, locate namespace, desired image, syncPolicy, prune/selfHeal and the PostSync smoke Job. Predict whether a manual kubectl edit persists.",
+          "command": "helm template portal-dev gitops/charts/customer-portal -f gitops/envs/dev/platform.values.yaml -f gitops/envs/dev/values.yaml\nhelm template portal-prod gitops/charts/customer-portal -f gitops/envs/prod/platform.values.yaml -f gitops/envs/prod/values.yaml",
+          "hints": [
+            "Read gitops/apps/portal-dev.yaml and portal-prod.yaml; what does automated selfHeal do?",
+            "A successful Helm render is only static evidence, not proof of Argo CD Synced/Healthy."
+          ],
+          "solution": "Applications track main and render environment-specific values. Automated sync/selfHeal reconciles drift and prune removes deleted resources where configured. Check namespace, image tag and rendered smoke hooks. Static rendering does not establish that the cluster or Application is running."
+        },
+        {
+          "id": "api-smoke",
+          "level": "partial",
+          "title": "Design an API and endpoint smoke-test contract",
+          "detail": "Define expected HTTP methods, status codes and response fields for GET /healthz, /readyz, /api/info and /api/products. Explain GET versus mutating POST/PUT/PATCH/DELETE, bearer-token handling, 401/403/404/429/5xx diagnosis, timeouts and safe retries. Compare the in-cluster PostSync test with smoke.yml through public DNS/Front Door. Explain why a healthy Pod might still expose a broken business API.",
+          "command": "Get-Content gitops/charts/customer-portal/templates/smoke-test.yaml\nGet-Content .github/workflows/smoke.yml",
+          "hints": [
+            "The version in /api/info should match the image promoted from dev.",
+            "The in-cluster job can succeed while the public ingress/edge path fails; these are different verification boundaries."
+          ],
+          "solution": "Record HTTP method, URL, response status/body, expected image SHA and timestamp. Check /healthz for process liveness, /readyz for dependency readiness, /api/info for version and /api/products for the real data path. PostSync exercises an in-cluster route; public smoke additionally depends on DNS, Front Door and Ingress when the edge is deployed."
+        },
+        {
+          "id": "write-cd-yaml",
+          "level": "solo",
+          "title": "Write the application GitOps delivery workflow from a blank file",
+          "detail": "In the ignored drills directory, author a local YAML from memory: path-filtered trigger, minimal permissions/OIDC, checkout, tests/build/scan, ACR push, reviewed dev GitOps PR and a distinct prod promotion PR. Save your attempt before consulting app.yml or opening the solution. Do not run the workflow or deploy.",
+          "command": "New-Item -ItemType File -Force portal/.data/drills/r8-app-gitops.yml",
+          "hints": [
+            "Start with on, permissions, jobs and checkout. Separate CI artifact creation from CD desired-state changes.",
+            "Deploy through a reviewed GitOps change; CI does not need Kubernetes credentials."
+          ],
+          "solution": "Reference structure: push main only when app/** changes; workflow_dispatch promotion input; id-token:write and scoped contents/pull-requests permissions; checkout, tests, azure/login with federated repo vars, Docker build, Trivy scan, ACR push, create-pull-request changing dev values; promotion copies the same immutable image identity to prod values via a separate PR. Never run kubectl apply. Verify approval and PR-trigger behavior before live use."
+        },
+        {
+          "id": "p1-recovery",
+          "level": "solo",
+          "title": "P1 incident: Argo CD Synced, API Pods crashing",
+          "detail": "Simulated production failure: a new release is Synced but its API Pods enter CrashLoopBackOff. Write Observation → Hypothesis → Read-only Test → Evidence → Containment → Git revert → Smoke verification → Prevention. Include a timeline, the approval boundary and an English customer update. Do not inject faults.",
+          "command": "kubectl -n portal-prod get deployment,pods,svc,endpoints\nkubectl -n portal-prod describe pod <pod-name>\nkubectl -n portal-prod logs <pod-name> --previous",
+          "hints": [
+            "Synced is desired-state parity, not proof that the API is healthy.",
+            "Revert the bad GitOps deploy commit rather than only changing the live Deployment. Confirm /api/products after recovery."
+          ],
+          "solution": "Stop promotion; capture the failed image SHA, CI and GitOps PR, Argo sync/health, Pod events, previous logs, readiness and /api/products status. Revert the deploy PR to the last known good image through Git, with production review; let Argo CD sync. Validate ready replicas, /api/info version and the business-route response, then record time to restore, root cause and prevention gate."
+        }
+      ],
+      "criteria": [
+        { "id": "recall-recorded", "text": "Recall answered from memory", "verify": "portal", "rule": "recall" },
+        { "id": "attempts-recorded", "text": "An attempt recorded for every required step", "verify": "portal", "rule": "attempts" },
+        { "id": "gitops-flow-reviewed", "text": "Actual pipeline, environment-specific Helm rendering and Argo CD desired-state flow reviewed", "verify": "review", "owner": "learner", "how": "Paste a pipeline-to-GitOps map and static Helm results; do not represent those as live deployment evidence." },
+        { "id": "api-incident-reviewed", "text": "API method/auth/status handling, endpoint smoke contract, learner-authored YAML and P1 rollback runbook reviewed", "verify": "review", "owner": "learner", "how": "Paste HTTP method/status/error-retry reasoning, your blank YAML, incident hypothesis/tests and rollback evidence. Live Argo CD/AKS behavior must be verified separately in platform sessions." },
+        { "id": "english-answer", "text": "English explanation recorded (60–90 seconds)", "verify": "portal", "rule": "english" },
+        { "id": "feedback-recorded", "text": "Technical, autonomy and English feedback recorded", "verify": "portal", "rule": "feedback" }
+      ],
+      "english": {
+        "question": "Your GitOps release is Synced, but customers get errors from the API. How would you prove which endpoint failed, restore service through Argo CD and prevent recurrence?",
+        "followUps": [
+          "Why does CI change Git instead of deploying directly to AKS?",
+          "How can Argo CD be Synced while the business endpoint fails?",
+          "How do you prove prod runs the exact image tested in dev?",
+          "How would you diagnose an API call that gets 401, 403 or 429, and when would you use a service connection instead?"
+        ],
+        "modelAnswer": "I would first correlate the release commit, image SHA and pipeline run with the failing HTTP endpoint. Next I would compare GitOps desired state with the Argo CD Application and the Deployment, then inspect Pod events, readiness and logs and run the business-route smoke test. Synced means Kubernetes resources match Git, but it does not guarantee that /api/products works. If the release is responsible, I would revert its GitOps deploy commit to the last known good immutable image, let Argo CD reconcile and verify ready Pods, /api/info version and a successful /api/products response. I would document root cause, recovery time and the missing test or approval gate."
+      },
+      "next": "Capstones are reviewed only with recorded evidence. Continue the original platform C012–C017 sessions for live AKS/Argo CD validation; no offline Helm check alone proves an actual deployment."
     }
   ]
 }

@@ -195,5 +195,65 @@
       "Reconstruir a imagem por ambiente em vez de promover a mesma.",
       "Falar de C003 (AADSTS700213) como parte do sprint: ele abre a sessao C003."
     ]
+  },
+  "R7": {
+    "note": "An offline AKS/API review. Commands inspect local sources or query an already approved cluster. They do not provision AKS or establish that it is running.",
+    "concept": "An API is a contract; GET /api/products is one HTTP endpoint. An Ingress routes the path to a Kubernetes Service and ready Pods. The Kubernetes API server endpoint is the control-plane entry point, whereas Azure Private Endpoint provides a private network interface to a supported Azure service. AKS workload identity federates a ServiceAccount with Entra ID.",
+    "configure": [
+      "infra/terraform/40-aks/main.tf: AKS, ACR pull roles, node pools and workload identity",
+      "gitops/charts/customer-portal/templates/api.yaml: Deployment, Service, probes and ServiceAccount",
+      "gitops/charts/customer-portal/templates/platform.yaml: Ingress /api and / routing",
+      "app/customer-portal/api/src/app.js: /healthz, /readyz, /api/info, /api/products"
+    ],
+    "investigate": [
+      "HTTP 404: request URL, host/path, Ingress mapping, application route",
+      "HTTP 503: ready Service endpoints, readiness probe, DB dependency and upstream errors",
+      "ImagePullBackOff: image tag/digest, ACR pull role, network or DNS",
+      "CrashLoopBackOff: previous container logs, events, probes, configuration and startup dependencies"
+    ],
+    "commands": [
+      { "what": "List the actual API endpoints", "cmd": "rg -n 'app.get|/healthz|/readyz|/api/' app/customer-portal/api/src/app.js", "expect": "health, readiness, version and product handlers" },
+      { "what": "Read Ingress routing rules", "cmd": "Get-Content gitops/charts/customer-portal/templates/platform.yaml", "expect": "/api routes to the API Service, / to the web Service" },
+      { "what": "Render the dev chart without a cluster", "cmd": "helm template portal-dev gitops/charts/customer-portal -f gitops/envs/dev/platform.values.yaml -f gitops/envs/dev/values.yaml", "expect": "Deployment, Service, Ingress and probe configuration; static evidence only" },
+      { "what": "Inspect AKS OIDC and registry identities in code", "cmd": "rg -n 'AcrPull|oidc_issuer|federated_identity|workload_identity' infra/terraform/40-aks", "expect": "separate registry and application identities with federated trust" },
+      { "what": "Inspect in-cluster networking if AKS is already approved and running", "cmd": "kubectl -n portal-dev get ingress,svc,endpoints,pods", "expect": "real routing and ready endpoint evidence; otherwise record an environment blocker" }
+    ],
+    "expected": "A hand-drawn request path from external GET /api/products to API Pod, a clear distinction between the three endpoint meanings, a static Helm render and a testable 404/503/Pod diagnostic runbook. No live AKS claim without evidence.",
+    "mistakes": [
+      "Equating HTTP 200 from /healthz with a working business API",
+      "Confusing application REST endpoints with Azure Private Endpoint or the Kubernetes API server",
+      "Assuming a Kubernetes Service will send traffic to an unready Pod",
+      "Treating Terraform and Helm files as evidence of deployment"
+    ]
+  },
+  "R8": {
+    "note": "GitOps capstone. The default commands are read-only; all deployment, pull-request merges, fault injection and paid Azure actions require an explicit separate go-ahead. Live Argo CD/AKS evidence belongs to platform sessions.",
+    "concept": "CI builds an immutable artifact and proposes a GitOps change. Argo CD reconciles the desired Git state to Kubernetes. Synced means parity with Git, not a healthy business API. Promotion reuses the same image; a durable rollback reverts the GitOps change and verifies the API.",
+    "configure": [
+      ".github/workflows/app.yml: tests, build/scan, ACR push and GitOps deploy/promotion PRs",
+      "gitops/apps/portal-dev.yaml and portal-prod.yaml: Argo CD desired-state sources and sync policies",
+      "gitops/envs/dev/values.yaml and prod/values.yaml: environment image references",
+      "gitops/charts/customer-portal/templates/smoke-test.yaml and .github/workflows/smoke.yml: internal and external API checks"
+    ],
+    "investigate": [
+      "A green CI run proves image build/scan, not an operational API",
+      "Argo CD Synced but failed business route: check readiness, Pod logs, Service endpoints and /api/products",
+      "External smoke fails but in-cluster smoke passes: investigate DNS, Front Door, Ingress and WAF",
+      "Bad release: preserve evidence, revert GitOps deploy PR, allow reconciliation and verify the prior image/version"
+    ],
+    "commands": [
+      { "what": "Read the application delivery pipeline", "cmd": "Get-Content .github/workflows/app.yml", "expect": "test, scan, push ACR, deploy-dev PR, promote-prod PR" },
+      { "what": "Read Argo CD desired-state applications", "cmd": "Get-Content gitops/apps/portal-dev.yaml, gitops/apps/portal-prod.yaml", "expect": "main revision, Helm values, destination and automated sync policies" },
+      { "what": "Compare desired dev and prod image tags", "cmd": "Get-Content gitops/envs/dev/values.yaml, gitops/envs/prod/values.yaml", "expect": "two desired image references; promotion should preserve the exact tested image" },
+      { "what": "Render prod Kubernetes resources offline", "cmd": "helm template portal-prod gitops/charts/customer-portal -f gitops/envs/prod/platform.values.yaml -f gitops/envs/prod/values.yaml", "expect": "rendered manifests, not a live sync state" },
+      { "what": "Review internal and external API smoke contracts", "cmd": "Get-Content gitops/charts/customer-portal/templates/smoke-test.yaml, .github/workflows/smoke.yml", "expect": "version check and business /api/products path; public edge may be intentionally absent" }
+    ],
+    "expected": "A learner-authored application pipeline YAML, release evidence map, API smoke contract and P1 rollback runbook using Git revert rather than a lasting imperative kubectl change. A live release must have separately verified Argo CD and HTTP evidence.",
+    "mistakes": [
+      "Claiming Synced automatically means the business endpoint works",
+      "Rebuilding a different image for production",
+      "Using kubectl rollout undo as the final change while Argo CD self-healing remains active",
+      "Treating local Helm output as proof that a real cluster is healthy"
+    ]
   }
 }
