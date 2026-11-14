@@ -1,5 +1,5 @@
 {
-  "_source": "Resumo dos guias em az400-reforcos/relatorios/guia-sprint (R1 a R4) e referencia/folha-pergunta-comando.md. Fonte de verdade: os guias. Nao gera cards nem concede progresso.",
+  "_source": "Resumo dos guias em az400-reforcos/relatorios/guia-sprint (R1 a R8) e referencia/folha-pergunta-comando.md. Fonte de verdade: os guias. Nao gera cards nem concede progresso.",
   "R1": {
     "guide": "relatorios/guia-sprint/R1-ferramentas-e-estado.md",
     "concept": "Antes de mudar qualquer coisa num cliente: as ferramentas funcionam, a identidade e a assinatura estao certas, e voce sabe o que esta implantado (state) versus o que existe so em codigo. Uma camada de Terraform por state limita o raio de impacto.",
@@ -197,6 +197,7 @@
     ]
   },
   "R7": {
+    "guide": "relatorios/guia-sprint/R7-aks-api-endpoints.md",
     "note": "An offline AKS/API review. Commands inspect local sources or query an already approved cluster. They do not provision AKS or establish that it is running.",
     "concept": "An API is a contract; GET /api/products is one HTTP endpoint. An Ingress routes the path to a Kubernetes Service and ready Pods. The Kubernetes API server endpoint is the control-plane entry point, whereas Azure Private Endpoint provides a private network interface to a supported Azure service. AKS workload identity federates a ServiceAccount with Entra ID.",
     "configure": [
@@ -227,6 +228,7 @@
     ]
   },
   "R8": {
+    "guide": "relatorios/guia-sprint/R8-gitops-argocd.md",
     "note": "GitOps capstone. The default commands are read-only; all deployment, pull-request merges, fault injection and paid Azure actions require an explicit separate go-ahead. Live Argo CD/AKS evidence belongs to platform sessions.",
     "concept": "CI builds an immutable artifact and proposes a GitOps change. Argo CD reconciles the desired Git state to Kubernetes. Synced means parity with Git, not a healthy business API. Promotion reuses the same image; a durable rollback reverts the GitOps change and verifies the API.",
     "configure": [
