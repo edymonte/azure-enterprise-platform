@@ -260,9 +260,9 @@ test('existing validation still works: criteria, recall freeze and completion ru
   assert.equal(sprint.view('R2').completion.mode, 'SOLO');
 });
 
-test('reference: R1–R6 have the six parts, point back to their guide, and nothing creates Anki cards', () => {
+test('reference: R1–R8 have the six parts, point back to their guide, and nothing creates Anki cards', () => {
   const ref = loadReference(PORTAL_ROOT, catalog.sprint);
-  for (const id of ['R1', 'R2', 'R3', 'R4', 'R5', 'R6']) {
+  for (const id of ['R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R8']) {
     const r = ref[id];
     assert.equal(r.pending, false, id);
     for (const key of ['concept', 'expected']) assert.ok(r[key].length > 20, `${id}.${key}`);
